@@ -187,20 +187,34 @@ func toolHoldList(t tenant.Tenant, args map[string]any) (string, error) {
 	if reg == nil {
 		return "Refused: the hold queue is not reachable from here.", nil
 	}
-	if !callerOf(args).Service {
-		return "Refused: the hold queue is the operator's. This asks who is " +
-			"calling, and the answer was not his glass.", nil
-	}
 	reg.mu.Lock()
 	defer reg.mu.Unlock()
 	out := map[string]any{
 		"armed": reg.holdWrites,
 		"held":  []map[string]any{},
 	}
+
+	// DISARMED IS ANSWERED TO ANYONE, and that is deliberate. Nothing parks
+	// while holds are off, so there is no queue to leak -- and the warning is
+	// the whole value of the answer. Gating it behind the very credential the
+	// door cannot check meant the glass asked, was refused, and showed
+	// NOTHING: the one state where a reader most needs telling that RULE 6 is
+	// not being enforced was the one state he could not see. The boot line
+	// says it out loud too; a tool that would not is keeping a secret from the
+	// wrong person.
 	if !reg.holdWrites {
 		out["why_not"] = "The door was started WITHOUT --auth, so it cannot tell " +
 			"a seat from the glass and nothing is being held. Restart it with " +
 			"--auth and a service wire to arm this."
+		b, err := json.MarshalIndent(out, "", " ")
+		return string(b), err
+	}
+
+	// ARMED, the queue itself is his. What is parked names callers, projects
+	// and arguments, and that is not a stranger's to read.
+	if !callerOf(args).Service {
+		return "Refused: the hold queue is the operator's. This asks who is " +
+			"calling, and the answer was not his glass.", nil
 	}
 	ids := make([]string, 0, len(reg.held))
 	for id := range reg.held {

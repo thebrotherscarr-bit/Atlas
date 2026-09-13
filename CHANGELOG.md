@@ -12,6 +12,44 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The hold queue reaches the glass, and the whole loop was FIRED
+
+**AND THE FIRST THING FIRING IT FOUND WAS THAT THE WARNING COULD NOT BE SEEN.**
+`hold_list` refused any caller it could not verify as the service wire -- and
+with `--auth` off the door verifies nobody, so the glass asked, was refused,
+and rendered NOTHING. The one state where a reader most needs telling that
+RULE 6 is not being enforced was the one state he could not see. The disarmed
+answer is now given to ANYONE: nothing parks while holds are off, so there is
+no queue to leak, and the warning is the entire value of the reply. Armed, the
+queue itself stays his -- it names callers, projects and arguments.
+
+**"Waiting for your hand"** sits ABOVE the repositories on Version control,
+because a call parked on his decision outranks the state of a tree nobody is
+asking about. Each row carries the tool, who asked, the project, and the
+arguments whole, with Approve and Deny. Approving runs EXACTLY the parked call.
+
+**THE WHOLE LOOP WAS THEN FIRED AGAINST A LIVE ARMED DOOR** -- a second door on
+:8099 with `--auth` and a service wire, over a throwaway ground, because eight
+green strokes do not prove the transport actually produces the Caller:
+
+    no key                401 before the tool is ever reached. With the gate
+                          armed an unkeyed stranger never meets the hold.
+    a KEYED SEAT commits  HELD, named by its own key id, parked with an id --
+                          and `git log` confirmed NOTHING WAS COMMITTED.
+    the seat approves it  "answering a hold is the operator's act alone".
+    the seat reads it     refused; the queue is not a stranger's to read.
+    the service wire      sees the parked call with its arguments whole.
+    it approves           the commit lands, with the message the SEAT wrote,
+                          from the args it was parked with.
+    state/holds.jsonl     `held` then `approved_ran`, both naming k-768ca119
+                          rather than the operator who released it.
+
+So the hold's real subject is a caller that HAS a key and is not the glass --
+a seat given its own bearer. That is exactly the hand RULE 6 was written about.
+
+The probe door and its ground were destroyed afterwards; the estate's own door
+was never touched and still reports `auth=false`.
+
 ### RULE 6 stops being a convention and becomes a gate
 
 The second of the three things worth taking from the sovereign-microkernel

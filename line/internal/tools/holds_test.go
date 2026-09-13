@@ -208,7 +208,11 @@ func TestWithHoldsDisarmedNothingIsHeldAndTheQueueSaysWhy(t *testing.T) {
 	if len(*ran) != 1 {
 		t.Fatal("the call did not run")
 	}
-	listed := call(t, toolHoldList, tenant.Tenant{}, map[string]any{CallerKey: glass, registryKey: r})
+	// AND THE WARNING REACHES ANYONE, including a caller the door cannot
+	// verify -- which with auth off is everyone, the glass included. Gating it
+	// behind the credential meant the one state that most needs saying was the
+	// one state nobody could see.
+	listed := call(t, toolHoldList, tenant.Tenant{}, map[string]any{CallerKey: agent, registryKey: r})
 	mustContain(t, listed, `"armed": false`, "the queue must say it is not armed")
 	mustContain(t, listed, "WITHOUT --auth", "and say exactly why")
 	mustContain(t, listed, "Restart it with", "and how to arm it")

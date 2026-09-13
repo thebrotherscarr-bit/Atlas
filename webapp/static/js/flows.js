@@ -22,6 +22,15 @@ const Flows = {
       <div class="page-header"><div><div class="page-title">Version control</div>
       <div class="page-subtitle">What is saved, what is not, and every way to move it</div></div></div>
 
+      <!-- WAITING FOR HIS HAND. A writing call from something that is not his
+           glass parks at the door (internal/tools/holds.go) and waits here.
+           Above the repositories on purpose: a call held pending his decision
+           outranks the state of a tree nobody is asking him about. -->
+      <div class="card" id="holds-card" hidden>
+        <div class="card-title">Waiting for your hand</div>
+        <div id="holds-box"></div>
+      </div>
+
       <div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
         <div id="repo-watch"><div class="skel skel-60"></div><div class="skel skel-80"></div><div class="skel skel-40"></div></div>
         <div class="muted mt-16">Every button here is your hand, not the machine's.
@@ -51,6 +60,7 @@ const Flows = {
         <div class="card-title">Recent</div>
         <div id="flow-recent"></div>
       </div>`;
+    await this.holds();
     await this.repos();
     await this.readGit();
     // THE THREAD IS RESTORED BEFORE IT IS READ. Chat.thread is per-tab and
@@ -360,6 +370,85 @@ const Flows = {
     } catch (e) { say('Refused: ' + e.message); return; }
     // The card first (the branch may have moved, which changes every row
     // above), then the lines, then the answer into the element both rebuilt.
+    await this.repos();
+    say(answer);
+  },
+
+  // THE HOLD QUEUE. Writing calls that did not come from this glass park at
+  // the door and wait for him. Two things are shown and they are different:
+  // what is WAITING, and whether the door is holding at all.
+  //
+  // THE DISARMED LINE IS NOT NOISE, IT IS THE POINT. With the door started
+  // without --auth it cannot tell a seat from this page, so nothing is held
+  // and RULE 6 is a convention again. An empty queue would look exactly like a
+  // guarded one. It says which, every time, because a guard that is believed
+  // and absent is worse than one that is plainly off.
+  async holds() {
+    const card = document.getElementById('holds-card');
+    const box = document.getElementById('holds-box');
+    if (!card || !box) return;
+    let d;
+    try { d = JSON.parse(await App.tool('hold_list', {})); }
+    catch { card.hidden = true; return; }
+
+    const held = d.held || [];
+    card.hidden = false;
+
+    if (!d.armed) {
+      card.innerHTML = `<div class="card-title">Waiting for your hand</div>
+        <div class="muted">Nothing is being held — and nothing CAN be. The door
+        was started without <code>--auth</code>, so it cannot tell a seat from
+        this page and every caller may write. RULE 6 is a convention again
+        until it is restarted with <code>--auth</code> and a service wire.</div>`;
+      return;
+    }
+    if (!held.length) {
+      card.innerHTML = `<div class="card-title">Waiting for your hand</div>
+        <div class="muted">Nothing is waiting. Writing calls from anything but
+        this page park here for your decision.</div>`;
+      return;
+    }
+
+    const rows = held.map(h => `
+      <div class="wf-node">
+        <div class="wf-node-head">
+          <span class="badge badge-blue">${escHtml(h.tool)}</span>
+          <span class="muted">asked by ${escHtml(h.caller)} · ${escHtml(h.project || '')} · ${escHtml(h.when || '')}</span>
+        </div>
+        <pre>${escHtml(JSON.stringify(h.args || {}, null, 1))}</pre>
+        <div class="flex">
+          <button class="btn btn-sm" data-hold="approve" data-id="${escHtml(h.id)}"
+            title="Run exactly this call, now">Approve — run it</button>
+          <button class="btn btn-sm btn-danger" data-hold="deny" data-id="${escHtml(h.id)}"
+            title="Throw it away; nothing runs">Deny</button>
+        </div>
+      </div>`).join('');
+
+    card.innerHTML = `<div class="card-title">Waiting for your hand</div>
+      <div class="muted mb-16">${held.length} writing call${held.length === 1 ? '' : 's'}
+      parked at the door. Approving runs EXACTLY the call shown — the arguments
+      it was parked with, not a fresh reading of them.</div>
+      ${rows}
+      <div id="holdout" class="muted"></div>`;
+
+    card.querySelectorAll('[data-hold]').forEach(b => {
+      b.onclick = () => this.answerHold(b.dataset.hold, b.dataset.id);
+    });
+  },
+
+  async answerHold(decision, id) {
+    const say = t => {
+      const out = document.getElementById('holdout');
+      if (out) out.innerHTML = `<pre>${escHtml(t)}</pre>`;
+    };
+    let answer;
+    try {
+      say(decision === 'approve' ? 'Running it...' : 'Denying...');
+      answer = await App.tool('hold_answer', { id: id, decision: decision });
+    } catch (e) { say('Refused: ' + e.message); return; }
+    // The queue first (the row is gone), then the repositories (an approved
+    // write may have moved the tree), then the answer into what was rebuilt.
+    await this.holds();
     await this.repos();
     say(answer);
   },
