@@ -42,12 +42,18 @@ const Workflows = {
 
   // The closed node set, from flow.go's Kinds map. Anything else is refused
   // by name at save, so the picker offers exactly these and no more.
+  // `retries` is offered ONLY on the kinds that call out to something that can
+  // fail to answer. eval and gate do not get the box, because the engine
+  // refuses retries on them by name: an eval scores the same answer the same
+  // way every time, and retrying until the check agrees is laundering, not
+  // reliability. A field the engine will refuse is a field the glass must not
+  // offer.
   KINDS: {
-    ask:    { label: 'ask',    blurb: 'one voice, straight to a model',          fields: ['voice', 'question'] },
-    run:    { label: 'run',    blurb: 'the whole council — law gate, Router, tools', fields: ['question'] },
-    seat:   { label: 'seat',   blurb: 'one named seat, its own prompt',          fields: ['seat', 'question', 'voice', 'method'] },
-    prompt: { label: 'prompt', blurb: 'a saved prompt, by name and version',     fields: ['prompt', 'version', 'voice'] },
-    memory: { label: 'memory', blurb: 'recall with citations',                   fields: ['voice', 'question'] },
+    ask:    { label: 'ask',    blurb: 'one voice, straight to a model',          fields: ['voice', 'question', 'retries'] },
+    run:    { label: 'run',    blurb: 'the whole council — law gate, Router, tools', fields: ['question', 'retries'] },
+    seat:   { label: 'seat',   blurb: 'one named seat, its own prompt',          fields: ['seat', 'question', 'voice', 'method', 'retries'] },
+    prompt: { label: 'prompt', blurb: 'a saved prompt, by name and version',     fields: ['prompt', 'version', 'voice', 'retries'] },
+    memory: { label: 'memory', blurb: 'recall with citations',                   fields: ['voice', 'question', 'retries'] },
     eval:   { label: 'eval',   blurb: 'check another node — this is what steers', fields: ['node', 'match', 'expected'] },
     gate:   { label: 'gate',   blurb: 'stop and wait for a hand',                fields: ['title'] },
   },
@@ -59,6 +65,12 @@ const Workflows = {
   // engine refuses an unknown one at save and a free-text field invites it.
   // The first entry is the default the engine takes for an empty value.
   CHOICES: { match: ['equals', 'contains'] },
+
+  // Fields the SPEC types as a number. Go unmarshals into an int and refuses a
+  // string outright, so a box left as text does not degrade -- the whole save
+  // is rejected at the door. `version` was special-cased inline for exactly
+  // this reason; naming the set means the next number field cannot forget.
+  NUMERIC: { version: true, retries: true },
 
   async render(el) {
     el.innerHTML = `
@@ -261,6 +273,7 @@ const Workflows = {
     if (f === 'prompt') return 'a saved prompt name';
     if (f === 'version') return '0 = latest';
     if (f === 'method') return 'optional';
+    if (f === 'retries') return 'blank or 0 = try once. Retries answer an ERROR — no engine, a dead socket — never a FAIL';
     return '';
   },
 
@@ -287,7 +300,7 @@ const Workflows = {
         const n = this.spec.nodes[parseInt(inp.getAttribute('data-n'), 10)];
         const f = inp.getAttribute('data-f');
         if (!n) return;
-        n[f] = f === 'version' ? (parseInt(inp.value, 10) || 0) : inp.value;
+        n[f] = this.NUMERIC[f] ? (parseInt(inp.value, 10) || 0) : inp.value;
         if (f === 'name') this.build();
       };
     });

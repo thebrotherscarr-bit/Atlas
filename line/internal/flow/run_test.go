@@ -2,10 +2,12 @@ package flow
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"atlas/line/internal/play"
 )
@@ -63,6 +65,187 @@ func branchSpec() Spec {
 			{From: "e", To: "b", When: "pass"},
 			{From: "e", To: "c", When: "fail"},
 		}}
+}
+
+// --- retry: it answers an ERROR, and never a verdict ------------------------
+//
+// Taken from the sovereign-microkernel read on 2026-09-12, which was the one
+// thing in that WorkflowEngine this engine genuinely lacked. Everything else
+// it offered, this ground already had and had proved.
+
+// flakyEngine fails its first `failures` turns outright -- no answer at all,
+// which is what `rerr` means -- and answers normally after that.
+type flakyEngine struct {
+	stubEngine
+	failures int
+	turns    int
+}
+
+func (f *flakyEngine) Turn(ctx context.Context, objective, feed, method string) (string, error) {
+	f.turns++
+	if f.turns <= f.failures {
+		return "", fmt.Errorf("the door is not open")
+	}
+	return f.stubEngine.Turn(ctx, objective, feed, method)
+}
+
+func retrySpec(retries int) Spec {
+	return Spec{Name: "flaky", BudgetS: 600, Nodes: []Node{
+		{Name: "work", Kind: "run", Question: "do the thing", Retries: retries},
+	}}
+}
+
+// Two dead turns, two retries allowed, and the run lands -- with BOTH failures
+// on the record, because a retry nobody can see is flakiness being hidden.
+func TestANodeThatErrorsIsRetriedAndTheRunSurvives(t *testing.T) {
+	home := t.TempDir()
+	eng := &flakyEngine{failures: 2}
+	res, err := Run(home, eng, retrySpec(2), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s, want COMPLETE", res.Verdict)
+	}
+	if eng.turns != 3 {
+		t.Fatalf("engine was called %d times, want 3 (one try, two retries)", eng.turns)
+	}
+
+	lines, err := runLog(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retries, okLines := 0, 0
+	for _, l := range lines {
+		if l["kind"] != "node" {
+			continue
+		}
+		switch l["status"] {
+		case "retry":
+			retries++
+			if e, _ := l["error"].(string); !strings.Contains(e, "door is not open") {
+				t.Fatalf("a retry line must carry the reason, got %q", e)
+			}
+			if a, ok := l["attempt"].(float64); !ok || a < 1 {
+				t.Fatalf("a retry line must number the attempt, got %v", l["attempt"])
+			}
+			// THE PAUSE IS COUNTED, so the budget sees what retry spends.
+			if ms, ok := l["latency_ms"].(float64); !ok || ms < 900 {
+				t.Fatalf("a retry line must carry the attempt AND its pause, got %v ms", l["latency_ms"])
+			}
+		case "ok":
+			okLines++
+		}
+	}
+	if retries != 2 {
+		t.Fatalf("%d retries written down, want 2", retries)
+	}
+	if okLines != 1 {
+		t.Fatalf("%d ok lines, want exactly 1 -- the attempt that worked", okLines)
+	}
+}
+
+// The other way: the count is a ceiling, not a promise.
+func TestRetryStopsAtTheCountAndTheRunStillFails(t *testing.T) {
+	home := t.TempDir()
+	eng := &flakyEngine{failures: 99}
+	res, err := Run(home, eng, retrySpec(1), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictFail {
+		t.Fatalf("verdict = %s, want FAIL", res.Verdict)
+	}
+	if eng.turns != 2 {
+		t.Fatalf("engine was called %d times, want 2 (one try, one retry)", eng.turns)
+	}
+}
+
+// AND WITH NO RETRIES DECLARED, NOTHING CHANGED. Every flow folded before this
+// existed behaves exactly as it did: one call, one failure, one FAIL.
+func TestWithoutRetriesTheEngineIsCalledExactlyOnce(t *testing.T) {
+	home := t.TempDir()
+	eng := &flakyEngine{failures: 99}
+	res, err := Run(home, eng, retrySpec(0), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictFail {
+		t.Fatalf("verdict = %s, want FAIL", res.Verdict)
+	}
+	if eng.turns != 1 {
+		t.Fatalf("engine was called %d times, want 1", eng.turns)
+	}
+	lines, err := runLog(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range lines {
+		if l["status"] == "retry" {
+			t.Fatal("a flow that asked for no retries must write no retry line")
+		}
+	}
+}
+
+// THE REFUSAL THAT MATTERS MOST. Retrying an eval until it agrees is the
+// laundering path by another name, so the shape is not offered at all.
+func TestAVerdictIsNeverRetried(t *testing.T) {
+	for _, kind := range []string{"eval", "gate"} {
+		s := Spec{Name: "argue", Nodes: []Node{
+			{Name: "a", Kind: "ask", Question: "Q"},
+			{Name: "v", Kind: kind, Ref: "a", Expected: "yes", Title: "decide", Retries: 2},
+		}, Edges: []Edge{{From: "a", To: "v"}}}
+		_, err := Validate(s)
+		if err == nil {
+			t.Fatalf("a %s with retries must be refused", kind)
+		}
+		if !strings.Contains(err.Error(), "never a verdict") {
+			t.Fatalf("the refusal must say why, got: %v", err)
+		}
+	}
+	// Both ways: the kinds that DO call out are allowed to ask.
+	for _, kind := range []string{"run", "ask", "seat"} {
+		n := Node{Name: "n", Kind: kind, Question: "Q", Seat: "s", Retries: 2}
+		if _, err := Validate(Spec{Name: "fine", Nodes: []Node{n}}); err != nil {
+			t.Fatalf("a %s may ask for retries: %v", kind, err)
+		}
+	}
+}
+
+func TestRetriesOutsideTheRangeAreRefused(t *testing.T) {
+	for _, n := range []int{-1, MaxRetries + 1} {
+		s := Spec{Name: "greedy", Nodes: []Node{
+			{Name: "a", Kind: "run", Question: "Q", Retries: n}}}
+		_, err := Validate(s)
+		if err == nil {
+			t.Fatalf("retries=%d must be refused", n)
+		}
+		if !strings.Contains(err.Error(), "the range is 0 to") {
+			t.Fatalf("the refusal must name the range, got: %v", err)
+		}
+	}
+	for _, n := range []int{0, MaxRetries} {
+		s := Spec{Name: "fine", Nodes: []Node{
+			{Name: "a", Kind: "run", Question: "Q", Retries: n}}}
+		if _, err := Validate(s); err != nil {
+			t.Fatalf("retries=%d must be allowed: %v", n, err)
+		}
+	}
+}
+
+// Bounded, and it says so in numbers rather than in a comment.
+func TestTheBackoffIsBoundedAndClimbs(t *testing.T) {
+	if retryWait(1) >= retryWait(2) || retryWait(2) >= retryWait(3) {
+		t.Fatal("the pause must grow with the attempt")
+	}
+	for _, a := range []int{5, 50, 5000} {
+		if retryWait(a) > 8*time.Second {
+			t.Fatalf("retryWait(%d) = %v, past the cap", a, retryWait(a))
+		}
+	}
+	if retryWait(0) != time.Second {
+		t.Fatalf("a nonsense attempt must still return a sane pause, got %v", retryWait(0))
+	}
 }
 
 func TestBranchPass(t *testing.T) {

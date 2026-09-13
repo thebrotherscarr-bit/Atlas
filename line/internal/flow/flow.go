@@ -68,7 +68,14 @@ type Node struct {
 	Expected string            `json:"expected,omitempty"`
 	Match    string            `json:"match,omitempty"`
 	Title    string            `json:"title,omitempty"`
+	Retries  int               `json:"retries,omitempty"`
 }
+
+// MaxRetries caps what a node may ask for. BOUNDED EVERYTHING (ESTATE LAW 7):
+// an unbounded retry is an indefinite ticker wearing a different hat, and the
+// budget is the only other thing standing between a stuck engine and a run
+// that never ends.
+const MaxRetries = 5
 
 // Matches is the closed set of tests an eval node may make of the answer it
 // checks. Empty means `equals`, so every spec folded before this existed keeps
@@ -177,6 +184,20 @@ func Validate(s Spec) ([]string, error) {
 		if n.Kind != "eval" && strings.TrimSpace(n.Match) != "" {
 			return nil, fmt.Errorf("refused: node %q is a %s and has no answer to "+
 				"test, so `match` means nothing on it", n.Name, n.Kind)
+		}
+		if n.Retries < 0 || n.Retries > MaxRetries {
+			return nil, fmt.Errorf("refused: node %q asks for %d retries; the range "+
+				"is 0 to %d", n.Name, n.Retries, MaxRetries)
+		}
+		// A VERDICT IS NOT RETRIED. An eval scores the same answer the same way
+		// every time, so a second run of it can only return what the first did --
+		// and if it ever did not, retrying until the check agrees is the exact
+		// laundering path this estate spent 2026-09-12 closing. A gate never
+		// executes at all; it pauses. Both are refused by name so nobody reads
+		// `retries` on them as a way to argue with a FAIL.
+		if n.Retries > 0 && (n.Kind == "eval" || n.Kind == "gate") {
+			return nil, fmt.Errorf("refused: node %q is a %s, and a %s is not "+
+				"retried -- retry answers an ERROR, never a verdict", n.Name, n.Kind, n.Kind)
 		}
 		byName[n.Name] = n
 	}

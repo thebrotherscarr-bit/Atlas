@@ -12,6 +12,90 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### A node may be retried, and a verdict may not
+
+From the read of the three `sovereign-agent-harness-&-os-microkernel` folders
+he built with Google, on his order to diff them against this estate and merge
+what is worth merging.
+
+**THE DIFF BETWEEN HIS THREE VERSIONS COLLAPSED FIRST.** `microkernel.py`,
+`cli.py`, `tui.py` and `gateway.py` are BYTE-IDENTICAL in all three -- the
+Python backend never changed across v1, v2 and v3. v2 added a prover, docs,
+deploy and CI; v3 is v2 with two frontend files moved and six spent patch
+scripts deleted. So there was one system to read, not three.
+
+**AND MOST OF IT, THIS GROUND ALREADY HAD -- REALLY, WHERE THAT ONE PRETENDS.**
+Measured, not asserted:
+
+    its PPMIRouter        keyword scoring in an information-theory coat; the
+                          slot regexes it declares are never called, and three
+                          of its five intents are scored and never acted on.
+                          Against manjuel's intent.py, which is stroked.
+    its MCPServer         four tools over a two-entry DICT. `execute_bash`
+                          RETURNS "[SIMULATED_EXECUTION_STDOUT] ... exit code
+                          0" WITHOUT RUNNING ANYTHING, always success. Against
+                          the door's real tools, ground.Barred and the jail.
+    its AgentDaemon       never calls a model. The "neural loop" is a hardcoded
+                          if/elif named `simulated_decision`.
+    its telemetry         VRAM 4.8/24.0, 42.6 tok/s, "ledger_verified": true --
+                          asserted, never measured. Its CLI prints a DIFFERENT
+                          hardcoded set (VRAM=14.2GB, CPU=22%) two files away.
+    its ledger            hashes prev|timestamp|payload and LEAVES event_type
+                          OUT of the signature, so any row's type can be
+                          rewritten and verify_ledger_integrity still says
+                          VERIFIED. Against law/law.py, which signs the link.
+    its checkpointing     the one thing I expected to be a genuine gap here --
+                          and it is not. flow.Resume already rebuilds outputs,
+                          outText and pass from the append-only run log and
+                          runFrom skips every fired node. Ours is append-only
+                          (ESTATE LAW 8); its UPSERTs one row.
+
+Two of its files cannot run on this machine at all: `tui.py` dies on a bare
+`import curses` (Windows Python has no `_curses`), and `LedgerDB.query()` does
+not exist -- nor does the table `ledger_events`, the column `previous_hash`, or
+the column `payload`. Four call sites in the CLI and TUI use them. Proven, not
+read: `python cli.py ledger tail` raises AttributeError.
+
+**WHAT WAS ACTUALLY WORTH TAKING WAS ONE IDEA: PER-STEP RETRY.** This engine
+had none -- a node whose engine failed to answer ended the run, and a flow that
+lost a race with a model still loading was simply dead.
+
+    Node.Retries      0 to MaxRetries(5), and 0 is the default, so every flow
+                      folded before this behaves EXACTLY as it did.
+    retryWait         1s, 2s, 4s, then held at 8s. Backing off because the
+                      usual cause needs a moment; capped because doubling
+                      forever is the unbounded ticker ESTATE LAW 7 refuses.
+
+**AND THE LINE THAT MATTERS MORE THAN THE FEATURE: RETRY ANSWERS AN ERROR AND
+NEVER A VERDICT.** `rerr` is the engine failing to answer at all -- no door, a
+dead socket, a template that will not render. A node that ANSWERED and was then
+judged FAIL never reaches the retry loop, and `Validate` refuses `retries` on
+`eval` and `gate` outright, by name, so the other reading is not available even
+to someone looking for it. Re-rolling a check until it says PASS is the
+laundering path this engine spent 2026-09-12 closing, and it would have arrived
+dressed as a reliability feature.
+
+**EVERY ATTEMPT IS WRITTEN DOWN, AND THE CLOCK KEEPS RUNNING.** Each abandoned
+attempt gets its own line in `runs.jsonl` with its error and its number, and
+`Status` renders it on the waterfall like any other node -- a silent retry
+hides the flakiness it papers over. The attempt AND the pause after it are both
+counted into `elapsed`, so a node that keeps failing runs the flow OUT_OF_TIME
+rather than past it; every millisecond is accounted exactly once.
+
+**THE GLASS OFFERS IT ONLY WHERE THE ENGINE ALLOWS IT.** A `retries` box on
+ask, run, seat, prompt and memory -- and NOT on eval or gate, because a field
+the engine will refuse is a field the glass must not offer. It is typed as a
+NUMBER on the way out: Go unmarshals `Retries` into an int and rejects a string
+outright, so a box left as text would not degrade, it would fail the whole
+save. `version` had been special-cased inline for that exact reason; the set is
+named now so the next number field cannot forget.
+
+Six strokes, each both ways, and proved non-vacuous: with the retry loop
+mutated to `false &&`, the two that assert retrying go red and the one that
+asserts UNCHANGED behaviour without retries stays green, which is the pair
+doing its job. Both Go modules green, gofmt clean.
+
+
 ### 0.1.5 — THE FLOW CONFIRMATION
 
 His word, 2026-09-12: *"0.1.5 the flow confirmation."*

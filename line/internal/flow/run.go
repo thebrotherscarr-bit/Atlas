@@ -228,6 +228,48 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 		start := time.Now()
 		outcome, pok, status, rerr := execNode(ctx, eng, nd, vars, byName)
 		ms := time.Since(start).Milliseconds()
+
+		// RETRY ANSWERS AN ERROR AND NEVER A VERDICT.
+		//
+		// `rerr` is the engine failing to answer at all -- no door, a dead
+		// socket, a template that will not render. A node that answered and was
+		// then judged FAIL never reaches here, and that separation is the whole
+		// of it: re-rolling a check until it says PASS is the laundering path
+		// this engine spent 2026-09-12 closing, and it would arrive dressed as a
+		// reliability feature. Validate refuses `retries` on eval and gate so the
+		// reading is not even available.
+		//
+		// EVERY ATTEMPT IS WRITTEN DOWN. A silent retry hides the flakiness it is
+		// papering over, and the operator learns nothing until it stops working
+		// entirely. Each abandoned attempt gets its own line, with its error, and
+		// Status renders it on the waterfall like any other.
+		//
+		// THE CLOCK KEEPS RUNNING. The attempt AND the pause after it are both
+		// counted into `elapsed`, so retry cannot buy time the budget did not
+		// grant: a node that keeps failing runs the flow OUT_OF_TIME rather than
+		// past it. Each millisecond is accounted exactly once, here or below.
+		for attempt := 1; rerr != nil && attempt <= nd.Retries; attempt++ {
+			wait := retryWait(attempt)
+			select {
+			case <-ctx.Done():
+			case <-time.After(wait):
+			}
+			spent := ms + wait.Milliseconds()
+			appendLog(home, map[string]any{
+				"run": run, "ts": nowUTC(), "kind": "node", "node": name,
+				"nkind": nd.Kind, "status": "retry", "attempt": attempt,
+				"error": rerr.Error(), "latency_ms": spent,
+			})
+			elapsed = append(elapsed, spent)
+			total += spent
+			if ctx.Err() != nil || OverBudget(elapsed, budget) {
+				ms = 0 // already accounted in `spent`
+				break
+			}
+			start = time.Now()
+			outcome, pok, status, rerr = execNode(ctx, eng, nd, vars, byName)
+			ms = time.Since(start).Milliseconds()
+		}
 		elapsed = append(elapsed, ms)
 		total += ms
 		ts := nowUTC()
@@ -271,6 +313,21 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 	markSkipped(home, run, order, firedSet)
 	return finishRun(run, VerdictComplete, total, outputs, outText),
 		appendStopped(home, run, VerdictComplete, total)
+}
+
+// retryWait is the pause before the next attempt: 1s, 2s, 4s, then held at
+// 8s. Backing off matters because the usual cause is something that needs a
+// moment -- a model still loading, a door still binding its port -- and
+// hammering it is how a slow start becomes a hard failure. The cap is there
+// because doubling forever is the unbounded ticker again (ESTATE LAW 7).
+func retryWait(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	if attempt > 4 {
+		return 8 * time.Second
+	}
+	return time.Second << (attempt - 1)
 }
 
 // fires reports whether a node has a live in-edge (the start always fires).
