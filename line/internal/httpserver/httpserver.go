@@ -180,7 +180,7 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 // strangers get 401, out-of-scope keys get 403. Gate off: straight through.
 func (s *Server) handleGated(line []byte, cred credential) any {
 	if !s.auth.On {
-		return s.handle(line)
+		return s.handle(line, cred)
 	}
 	var peek struct {
 		ID     json.RawMessage `json:"id"`
@@ -209,10 +209,15 @@ func (s *Server) handleGated(line []byte, cred credential) any {
 	} else {
 		s.m.inc(peek.Method)
 	}
-	return s.handle(line)
+	return s.handle(line, cred)
 }
 
-func (s *Server) handle(line []byte) any {
+// handle carries the CREDENTIAL through to the tool call. It is the door's own
+// judgement of who is asking -- taken from the transport at handleRPC, never
+// from the message -- and the hold queue in internal/tools turns on that one
+// bit. With the gate off it is the zero value for everyone, which is exactly
+// what "we cannot tell" should look like.
+func (s *Server) handle(line []byte, cred credential) any {
 	var req toolsRequest
 	if err := json.Unmarshal(line, &req); err != nil {
 		return errResponse(nil, -32700, "parse error")
@@ -264,7 +269,8 @@ func (s *Server) handle(line []byte) any {
 			return errResponse(req.ID, -32602,
 				fmt.Sprintf("unknown tool %q", req.Params.Name))
 		}
-		out, err := s.tools.Call(s.tenants, req.Params.Name, req.Params.Arguments)
+		out, err := s.tools.Call(s.tenants, req.Params.Name, req.Params.Arguments,
+			tools.Caller{Name: cred.keyID, Service: cred.service})
 		if err != nil {
 			// THE TOOL'S OWN WORDS OUTRANK THE GO ERROR. `out` was discarded
 			// here, one line before it would have been sent, and the caller

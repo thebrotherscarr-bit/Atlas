@@ -216,7 +216,12 @@ func main() {
 		os.Exit(runProve())
 	}
 
-	surface := tools.Build(reg, tools.Options{AtlasBin: *atlasBin, CoreCmd: *coreCmd})
+	// HOLDS ARM OFF THE SAME DIAL AS THE GATE, and they have to: without
+	// --auth the door reads no credential, so it cannot tell a seat from the
+	// operator's glass. Arming on that would stop his own panel while stopping
+	// no agent that thought to send a header (internal/tools/holds.go).
+	surface := tools.Build(reg, tools.Options{
+		AtlasBin: *atlasBin, CoreCmd: *coreCmd, HoldWrites: *authOn})
 
 	// EVERY ENGINE IS REAPED ON THE WAY DOWN. An orphan holds its world's
 	// sitting open, and an open sitting is what RULE 9 forbids editing under
@@ -241,7 +246,16 @@ func main() {
 			INSTRUCTIONS, surface, reg,
 			httpserver.Auth{On: *authOn, Service: svc},
 		)
-		fmt.Fprintf(os.Stderr, "atlas-mcp %s listening on %s (auth=%v)\n", Version(), *httpAddr, *authOn)
+		// THE BOOT LINE NAMES WHETHER RULE 6 IS ENFORCED HERE. "holds off" is
+		// the honest word for a door that cannot tell who is calling. A line
+		// that said nothing would let this estate believe it was guarded, which
+		// is the one failure mode a guard must never have.
+		holds := "holds off -- any caller may write"
+		if *authOn {
+			holds = "holds ARMED -- a writing call from anything but the glass waits"
+		}
+		fmt.Fprintf(os.Stderr, "atlas-mcp %s listening on %s (auth=%v, %s)\n",
+			Version(), *httpAddr, *authOn, holds)
 		if err := srv.ListenAndServe(*httpAddr); err != nil {
 			fatal(err)
 		}

@@ -101,6 +101,8 @@ type Tool struct {
 type Registry struct {
 	order  []string
 	byName map[string]Tool
+	// The hold queue and whether it is armed (holds.go).
+	holdState
 }
 
 func (r *Registry) add(t Tool) {
@@ -133,11 +135,26 @@ func (r *Registry) All() []Tool {
 // the named tool on that ground. Unknown tools and unknown projects refuse
 // by name -- strangers get nothing. RBAC is checked when a policy is set;
 // open mode (no policy) allows all.
-func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any) (string, error) {
+// The CALLER is the door's own judgement of who is asking, taken from the
+// transport and never from the message. See holds.go.
+func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, caller Caller) (string, error) {
 	t, ok := r.byName[name]
 	if !ok {
 		return "", fmt.Errorf("%w: %q", ErrUnknownTool, name)
 	}
+	// THE RESERVED KEYS ARE DISCARDED, UNREAD. This is defence in depth and
+	// not the load-bearing line -- measured, not assumed: removing it changes
+	// no verdict, because the hold below reads the CALLER PARAMETER, which the
+	// door derived from the transport, and the assignment further down
+	// overwrites anything a caller sent anyway. The line that actually holds
+	// is `!caller.Service`; mutate it to read the args instead and a forged
+	// call writes straight through. `actor` two lines down IS read from the
+	// caller's own args, which is exactly the mistake being avoided here.
+	if args == nil {
+		args = map[string]any{}
+	}
+	delete(args, CallerKey)
+	delete(args, registryKey)
 	project := ""
 	if p, ok := args["project"].(string); ok {
 		project = p
@@ -154,6 +171,14 @@ func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any) 
 			return "", fmt.Errorf("rbac: agent %q (role %q) denied tool %q: %s", actor, role, name, reason)
 		}
 	}
+	// A WRITING CALL FROM A HAND THAT IS NOT HIS WAITS. Armed only when the
+	// door can actually tell them apart (--auth); inert and honest about it
+	// otherwise, because a gate that silently passes everyone is believed.
+	if r.holdWrites && t.Writes && !caller.Service && !heldExempt[name] {
+		return heldAnswer(r.park(tn, t, args, caller)), nil
+	}
+	args[CallerKey] = caller
+	args[registryKey] = r
 	return t.Fn(tn, args)
 }
 
@@ -165,6 +190,11 @@ type Options struct {
 	// was not given. Empty means the glass can read the record but not run a
 	// turn, and env_open says so rather than failing obscurely.
 	CoreCmd string
+	// HoldWrites arms the hold queue (holds.go). Set from the door's --auth:
+	// without it there is no credential to judge, so holding would stop the
+	// operator's own glass and stop no agent that sent a header. Off is not a
+	// weaker setting, it is an HONEST one -- hold_list says so in words.
+	HoldWrites bool
 }
 
 // findAtlas resolves the Rust spine. In order: an explicit path that is not
@@ -248,6 +278,7 @@ func Engines() *engine.Registry { return engines }
 // for real; later-stone tools refuse honestly rather than fabricate.
 func Build(reg *tenant.Registry, opts Options) *Registry {
 	r := &Registry{byName: map[string]Tool{}}
+	r.holdWrites = opts.HoldWrites
 
 	str := func(args map[string]any, key string) string {
 		if v, ok := args[key].(string); ok {
@@ -380,6 +411,20 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Description: "the lines of work: list them (which one you are on, which is the main line, which have been sent), or open, switch to, or close one",
 		Args:        []string{"action?", "name?", "project?"},
 		Fn:          toolGitBranch,
+	})
+
+	r.add(Tool{
+		Name: "hold_list", Writes: false,
+		Description: "the writing calls parked waiting for the operator's hand, and whether holding is armed at all",
+		Args:        []string{"project?"},
+		Fn:          toolHoldList,
+	})
+
+	r.add(Tool{
+		Name: "hold_answer", Writes: true,
+		Description: "approve or deny one parked call by id; the operator's act alone, and it runs exactly the call that was parked",
+		Args:        []string{"id", "decision", "project?"},
+		Fn:          toolHoldAnswer,
 	})
 
 	r.add(Tool{

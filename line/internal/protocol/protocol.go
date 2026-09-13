@@ -126,7 +126,12 @@ func (s *server) handle(line []byte) any {
 			return errResponse(req.ID, -32602,
 				fmt.Sprintf("unknown tool %q", req.Params.Name))
 		}
-		out, err := s.tools.Call(s.tenants, req.Params.Name, req.Params.Arguments)
+		// STDIO IS NEVER THE GLASS. The panel speaks HTTP with the service
+		// wire; a pipe is a seat, an editor, or a hand at a terminal, and
+		// none of those is the operator's button. Service stays false here
+		// by construction rather than by check.
+		out, err := s.tools.Call(s.tenants, req.Params.Name, req.Params.Arguments,
+			tools.Caller{Name: "stdio client"})
 		if err != nil {
 			// Honest refusal as tool content: the caller sees the named why.
 			return resultResponse(req.ID, map[string]any{

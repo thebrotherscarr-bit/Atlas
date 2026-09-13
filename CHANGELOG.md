@@ -12,6 +12,75 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### RULE 6 stops being a convention and becomes a gate
+
+The second of the three things worth taking from the sovereign-microkernel
+read: its `high_impact` + `pending_approvals` queue. Everything else that
+MCPServer offered, this door already had in a real form rather than a
+simulated one.
+
+**WHAT WAS ACTUALLY TRUE HERE BEFORE THIS.** RULE 6 says no agent commits,
+pushes, lands, approves or authorises a spend -- and this door enforced that by
+NOBODY HAVING WIRED AN AGENT TO THE WRITING VERBS. That is a convention. A seat
+that reached `git_commit` would have committed.
+
+**AND THE DOOR COULD NOT TELL WHO WAS ASKING.** `Registry.Call` took
+`(tenants, name, args)` and no principal at all: the operator's glass and a
+seat were the same request. The `actor` argument RBAC already reads comes
+straight out of the caller's own args, so anyone may declare themselves anyone.
+
+    Caller{Name, Service}   built by the DOOR from the transport. `Service` is
+                            the only bit that decides anything: the request
+                            carried the service wire, so it is his own glass.
+    two call sites          httpserver (from the credential the gate already
+                            builds) and protocol (stdio is never the glass, by
+                            construction rather than by check).
+    the hold                a Writes:true tool called by a non-service caller
+                            PARKS. Nothing runs. The caller is told HELD, told
+                            nothing was written, told which rule holds it, and
+                            told not to work around it.
+    hold_list/hold_answer   the operator's alone -- both refuse a non-service
+                            caller. If an agent could answer its own hold the
+                            queue would be a formality it walks through itself.
+    the record              every park, approval and denial appends to the
+                            ground's own `state/holds.jsonl`, written BEFORE
+                            the answer: a hold he cannot find later is a call
+                            that vanished.
+
+**IT IS INERT WITHOUT `--auth`, AND IT SAYS SO IN THREE PLACES.** With the gate
+off the door reads no credential, so `Service` is false for everyone; holding
+on that would stop his own panel while stopping no agent that thought to send a
+header. So holds arm off the same dial as the gate, `hold_list` answers
+`"armed": false` with the reason and the fix, and the boot line now reads
+`holds off -- any caller may write` or `holds ARMED`. A guard that quietly does
+nothing is worse than no guard, because it is believed.
+
+**A CORRECTION I MADE TO MY OWN COMMENT, BECAUSE THE MUTATION POINTED AT THE
+WRONG LINE.** The header first claimed the load-bearing guard was `Call`
+deleting the reserved key out of inbound args. Mutating that line away changed
+NO verdict -- the decision never consults the args, and the door overwrites
+them on the way out. The line that actually holds is `!caller.Service`: point
+it at the args instead and a forged call writes straight through, which the
+stroke reports as `WROTE smuggled`. The comment now says which is which, and
+the strip is named as belt and braces rather than as the reason.
+
+**AND THE STROKES FOUND A REAL BUG BEFORE THE FIELD DID.** A hold's id was
+`hold_<millis>_<tool>`, so TWO PARKS IN THE SAME MILLISECOND COLLIDED: the
+second silently replaced the first in the map, one call vanished, and approving
+the surviving id would have run the other one's arguments. Two agent writes
+inside one millisecond is a Tuesday. A sequence under the same lock fixes it.
+
+Eight strokes, each both ways -- held and not held, read and write, glass and
+seat, armed and disarmed, approved and denied, and a hold answered twice.
+Nineteen packages green, gofmt clean, the door's own battery PROVEN.
+
+**WHAT THIS CHANGES FOR HIM TODAY: NOTHING, DELIBERATELY.** The running door
+was started without `--auth`, so holds are off and every path behaves exactly
+as it did. Arming it is his call and it is a relaunch, not an edit -- and the
+glass has no panel for the queue yet, so until that lands the answer path is
+`hold_answer` through the door. Both are named here rather than discovered.
+
+
 ### A node may be retried, and a verdict may not
 
 From the read of the three `sovereign-agent-harness-&-os-microkernel` folders

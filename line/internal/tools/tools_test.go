@@ -464,7 +464,7 @@ func TestEveryCoreToolStandsAlone(t *testing.T) {
 					t.Fatalf("a core tool panicked against a bare tenant: %v", r)
 				}
 			}()
-			_, err := reg.Call(tr, tool.Name, argsFor(tool, home))
+			_, err := reg.Call(tr, tool.Name, argsFor(tool, home), Caller{Name: "prove"})
 			if err == nil {
 				return // answered; nothing more to ask of it
 			}
