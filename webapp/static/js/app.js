@@ -872,6 +872,11 @@ const App = {
         return `<div class="cev cev-fail"><b>${escHtml(k.toUpperCase())}</b> ${escHtml(d.text || d.error || '')}</div>`;
       case 'closed':
         return `<div class="cev cev-meta"><b>closed</b> ${escHtml(d.text || 'the sitting is tolled')}</div>`;
+      // A /command, or any turn that finished without running a pipeline, ends
+      // with `command` (serve.py's seventh terminal). It fell to the default
+      // below and was drawn as raw JSON (2026-09-14).
+      case 'command':
+        return `<div class="cev cev-meta"><b>command</b> ${escHtml(d.text || '')} <span class="muted">· finished without running a pipeline</span></div>`;
       default:
         return `<div class="cev cev-other"><b>${escHtml(String(k))}</b> <code>${escHtml(JSON.stringify(d)).slice(0, 400)}</code></div>`;
     }

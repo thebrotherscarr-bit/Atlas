@@ -646,6 +646,21 @@ const Home = {
   bootStep(command, header) {
     return new Promise((done) => {
       this.bootLine(header, true);
+      // THIS TAB'S OWN STREAM, SO ITS ECHO IS NOT SOMEONE ELSE'S TURN
+      // (2026-09-14). The webapp puts every council line on the broadcast bus,
+      // and Run.mirror() follows the bus to show turns other windows start. It
+      // ignored only turns begun through Run.start, so these steps came back as
+      // a watched "/warm" in the run card -- unnamed rows, and a clock that
+      // never stopped. Counted up here, down once the echo has had time to land.
+      Run.own++;
+      let over = false;
+      const end = () => {
+        if (over) return;
+        over = true;
+        es.close();
+        setTimeout(() => { Run.own = Math.max(0, Run.own - 1); }, Run.ECHO_GRACE_MS);
+        done();
+      };
       const es = new EventSource(API.base + '/council/stream?' +
                                  new URLSearchParams({ objective: command }));
       es.addEventListener('engine', (e) => {
@@ -653,13 +668,13 @@ const Home = {
         if (d.event === 'text' || d.event === 'report') this.bootLine(d.text || '', true);
         if (d.event === 'error') this.bootLine('\n' + (d.text || '') + '\n', true);
       });
-      es.addEventListener('stream_end', () => { es.close(); done(); });
+      es.addEventListener('stream_end', end);
       es.addEventListener('stream_error', (e) => {
         let d = {}; try { d = JSON.parse(e.data); } catch {}
         this.bootLine('\nREFUSED: ' + (d.error || 'the step was refused') + '\n', true);
-        es.close(); done();
+        end();
       });
-      es.onerror = () => { es.close(); done(); };
+      es.onerror = end;
     });
   },
 

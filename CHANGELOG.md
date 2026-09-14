@@ -12,6 +12,82 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The boot no longer shows up as a run, and a watched turn's clock stops
+
+On his order, 2026-09-14: *"keep going"* -- the third piece of the day's
+diagnostics findings.
+
+**WHAT THE DIAGNOSTICS PASS SAW.** After a Boot, the Dashboard's run card held a
+turn nobody had typed, its rows drawn as `unnamed` and raw JSON, under a badge
+reading "done" whose seconds never stopped climbing.
+
+**THREE FAULTS, ONE PATH: `Run.mirror()`.**
+
+    the tab watched       the mirror follows the broadcast bus so a turn
+    its own boot          started in another window shows here, and ignores
+                          its own echo -- but `running` covers only turns
+                          begun through `Run.start`. `Home.bootStep` opens
+                          /council/stream itself, so /warm came back as a
+                          WATCHED turn, and /status's lines landed in it too,
+                          because that turn never ended
+    a watched turn        it ended on `delivery` or `refused` alone. A
+    never ended           /command ends with `command`, and `aborted`,
+                          `cancelled` and `unreachable` end turns as well;
+                          none of them closed it, so the clock ran on
+    the door's frames     `pipeSSE` re-broadcasts each `data:` line WITHOUT its
+    became `unnamed`      frame name, so stream_open, stream_end and
+                          stream_error arrived with no `event` and were kept as
+                          `unnamed` rows the run card drew as raw JSON. The
+                          runner keeps no row for any of them
+
+**FIXED IN THE GLASS ALONE; the door and the engine are untouched.**
+
+    Run.own          counts council streams a tab opens outside Run.start.
+                     bootStep raises it for its stream and lowers it
+                     ECHO_GRACE_MS (a second) after the stream ends, because
+                     the bus copy of a line can trail the direct one
+    Run.TERMINAL     serve.py's TERMINAL, spelled the same: delivery, refused,
+                     aborted, cancelled, unreachable, command. A watched turn
+                     ends on any of them. `error` is not one, and stays not one
+    door frames      told apart by the one field each carries that the others
+                     do not -- runstream.go gives stream_open `objective`,
+                     stream_error `error`, stream_end `dropped` -- and kept as
+                     no row. stream_error ends a watched turn as refused; a
+                     turn waiting on its gate stays open, so the answer's
+                     stream still lands in it
+    App.runRow       `command` has a row of its own instead of raw JSON
+
+council.js's header said PROTOCOL 1 carries seventeen events. It has carried
+nineteen since `heard` and `command` joined on 2026-09-09; corrected in place,
+and dated.
+
+**PROVED OUTSIDE A BROWSER, BOTH WAYS.** This console has no JS suite, so the
+proof is a node harness in scratch, not shipped: council.js and home.js loaded
+with the browser stubbed, and the exact bus sequences replayed -- the booting
+tab's own /warm and /status, a watched /warm, a delivery, a door refusal, a gate
+and its answer, the three other terminals, and a non-terminal `error`.
+
+    before the fix   5 of 16 held. The booting tab's run card got a "/warm"
+                     turn holding `unnamed, command, unnamed, unnamed, command,
+                     unnamed` -- the sighting, reproduced
+    after            16 of 16
+    reversal         each of four parts undone on a copy turns its own checks
+                     red: the echo test in council.js, the count in bootStep,
+                     the terminal list, and the frames
+
+`node --check` on the three scripts, `go vet` clean, the webapp's tests green,
+built. The glass was stopped, rebuilt in place and restarted on RUNBOOK's own
+command line; it serves all three scripts byte-identical to disk, and a fresh
+page load logs no script error.
+
+**NOT FIRED LIVE.** No engine was booted to watch it end to end, because a boot
+opens a sitting in his record. The next Boot is the proof -- and an open
+dashboard tab needs a reload before it carries the new scripts.
+
+**Named, not fixed:** the mirror ends a watched turn with `done`, and neither the
+Dashboard's thread nor the Watchboard listens for it -- both close a bubble on
+`end` -- so a watched turn's bubble stays marked live after it lands.
+
 ### The record caught up with its own tag
 
 On his order, 2026-09-14: *"bring the record up to date first."*

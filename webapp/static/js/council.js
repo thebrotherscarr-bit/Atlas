@@ -16,9 +16,11 @@
 //
 // Both read THIS object, so the two pages can never disagree about what ran.
 //
-// PROTOCOL 1's seventeen, verbatim from manjuel/serve.py:
+// PROTOCOL 1's nineteen, verbatim from manjuel/serve.py's EVENTS. This line read
+// "seventeen" until 2026-09-14; `heard` and `command` joined on 2026-09-09:
 //   opened text run report seat token tool tool_result needs_answer
-//   delivery refused aborted cancelled unreachable error note closed
+//   delivery refused aborted cancelled unreachable error note heard command
+//   closed
 //
 // They all arrive on ONE SSE frame (`event: engine`) with the kind inside, so
 // an event this file has never heard of still lands and is kept. EventSource
@@ -36,6 +38,17 @@ const Run = {
   sitting: '',
   pending: '',
   unreachable: false,
+
+  // THE EVENTS THAT END A TURN -- serve.py's TERMINAL, spelled the same. `error`
+  // is not one: the door emits it for a malformed command and carries on.
+  TERMINAL: ['delivery', 'refused', 'aborted', 'cancelled', 'unreachable', 'command'],
+
+  // COUNCIL STREAMS THIS TAB OPENED WITHOUT start() -- the boot's /warm and
+  // /status. Counted so mirror() can tell this tab's own echo from a turn another
+  // window started. The count stays up ECHO_GRACE_MS past a stream's end, because
+  // the bus copy of a line can trail the direct one.
+  own: 0,
+  ECHO_GRACE_MS: 1000,
 
   // The current (or most recent) turn. Evals reads this AFTER the fact, which
   // is why it is never cleared when the stream closes.
@@ -196,9 +209,37 @@ const Run = {
     if (this._mirror) return;
     this._mirror = true;
     API.sse((e) => {
-      if (!e || e.type !== 'council' || this.running) return;
+      // THE BOOT'S OWN STEPS ARE NOT A TURN SOMEONE ELSE STARTED (2026-09-14).
+      // `running` covers only turns begun through start(). Home.bootStep opens
+      // /council/stream itself, so this tab's /warm and /status came back off
+      // the bus as a WATCHED turn: "/warm" opened a trace in the run card, took
+      // /status's lines as well, and never ended.
+      if (!e || e.type !== 'council' || this.running || this.own) return;
       const d = e.data;
       if (!d || typeof d !== 'object') return;
+
+      // THE DOOR'S OWN THREE FRAMES CARRY NO `event`, and the bus does not carry
+      // the frame NAME -- the webapp re-broadcasts each `data:` line alone. They
+      // were absorbed as 'unnamed' and drawn as raw JSON. runstream.go gives each
+      // one a field the others lack: stream_open has `objective`, stream_error
+      // `error`, stream_end `dropped`. The runner keeps no row for any of them,
+      // and neither does a watcher now.
+      if (!d.event) {
+        if ('error' in d) {
+          // stream_error: the door refused, and no engine event will end the
+          // turn after it.
+          if (this.turn && this.turn.watching && !this.turn.ended) {
+            this.turn.refusal = String(d.error || 'refused');
+            this.turn.verdict = this.turn.verdict || 'refused';
+            this.endWatched();
+          }
+          return;
+        }
+        // stream_end: the engine's own terminal has already ended the turn, or
+        // it is waiting on a gate and the answer's stream will continue it.
+        if (!('objective' in d)) return;
+        // stream_open falls through: it is what opens a watched turn below.
+      }
       // The first line of a turn nobody here started opens a trace to hold it,
       // so the page has somewhere to paint. Marked so the reader can tell a
       // turn it is WATCHING from one it asked for.
@@ -220,13 +261,21 @@ const Run = {
         };
         this.emit('start');
       }
-      this.absorb(d.event || 'unnamed', d);
-      if (d.event === 'delivery' || d.event === 'refused') {
-        this.turn.ended = Date.now();
-        this.keep();
-        this.emit('done');
-      }
+      if (!d.event) return;          // stream_open: it opened the turn; no row
+      this.absorb(d.event, d);
+      // A WATCHED TURN ENDS WHERE THE ENGINE SAYS ANY TURN ENDS. This ended on
+      // delivery or refused alone, so a /command -- which ends with `command` --
+      // and an aborted, cancelled or unreachable turn stayed open for good, and
+      // the run card's clock read "done" over a number that never stopped.
+      if (this.TERMINAL.indexOf(d.event) >= 0) this.endWatched();
     });
+  },
+
+  endWatched() {
+    if (!this.turn || this.turn.ended) return;
+    this.turn.ended = Date.now();
+    this.keep();
+    this.emit('done');
   },
 
   // Drops the READER, not the run. A closed glass does not cancel the
