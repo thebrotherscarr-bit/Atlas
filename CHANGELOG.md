@@ -12,6 +12,56 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The record caught up with its own tag
+
+On his order, 2026-09-14: *"bring the record up to date first."*
+
+**v0.1.5 WAS CUT ON 2026-09-12 AND THIS FILE NEVER SAID SO.** Everything from
+0.1.3 on still sat under `[Unreleased]`, so the one heading a reader trusts to
+mean "not shipped" covered two days of shipped work. `[0.1.5] — 2026-09-12
+(tag on 3dacdbc)` heads it now. 0.1.3 and 0.1.4 were built and never tagged;
+they ride inside that tag, and the heading says so.
+
+**AND TWO BLOCKS I WROTE INTO THE RELEASE HAD LANDED AFTER IT.** The release.yml
+fix and the version-tag flow were appended to the git_tag entry as it grew, but
+`git log v0.1.5..HEAD` puts both commits after the tag. Each is its own entry
+under `[Unreleased]` now, words unchanged, carrying the commit it landed in.
+Moving them is not rewriting them: a release's section should describe what the
+tag holds.
+
+**THREE DOCUMENTS PINNED TO 0.1.5 WERE WRONG ABOUT 0.1.5 -- MEASURED AT THE
+TAG, NOT AGAINST TODAY.** The tagged tree was exported with `git archive v0.1.5`,
+and its own door was built and asked:
+
+    the door's surface   DELIVERABLE, ACCEPTANCE and PIPELINES said 78; the
+                         tag's door reports 79 -- git_tag landed inside the
+                         release, after the count was taken
+    line test fns        DELIVERABLE said 229; `go test -list` on the tag
+                         lists 167, and every func in the test files, helpers
+                         included, is 239 -- 229 matches neither
+    webapp test fns      DELIVERABLE said 1 fn / 1 pkg; the tag has 15 / 3
+    the glass's pass     DELIVERABLE said it had not happened; 572186d, the
+                         commit that wrote that sentence, is the one that did it
+    workflows            DELIVERABLE's inventory said ONE; its own CI section,
+                         and the tag, hold two
+    release.yml          PIPELINES' last line had it running all six pipelines
+                         and building cross-platform; the section above that
+                         line already says it does neither
+
+The 125 prove strokes that ACCEPTANCE and PIPELINES state were built from the
+same tag and held.
+
+**THE ORIGINALS STAND.** Every correction is dated and sits beside the number it
+corrects; no count was overwritten. These are snapshots of a release, and the
+0.1.3 entry below already holds the ruling on that shape: renaming a snapshot
+"would claim it was proven at 0.1.3, which it was not."
+
+**NOT CARRIED FORWARD, deliberately.** The door carries 81 tools today, not 79:
+`hold_list` and `hold_answer` came after the tag. That number belongs to the next
+deliverable, written when the next number is cut -- not to a document about
+0.1.5. ADR-006 keeps its 78 and its 71 core, because a decision record's
+measurements are part of what was decided.
+
 ### The hold queue reaches the glass, and the whole loop was FIRED
 
 **AND THE FIRST THING FIRING IT FOUND WAS THAT THE WARNING COULD NOT BE SEEN.**
@@ -202,6 +252,88 @@ mutated to `false &&`, the two that assert retrying go red and the one that
 asserts UNCHANGED behaviour without retries stays green, which is the pair
 doing its job. Both Go modules green, gofmt clean.
 
+### A version-control flow, and the council's only road to the new verb measured before it was built on
+
+*Landed after the `v0.1.5` tag, in 6e8248a. First written inside the release's git_tag entry, and moved here on 2026-09-14 when 0.1.5 was marked released, so that section describes only what the tag holds. The words are unchanged.*
+
+**AND A VERSION-CONTROL FLOW, BECAUSE THERE WAS NONE.** His words: *"add the
+workflow if there is no version control workflow existing."* The engine held
+`coder`, `smoke` and `version-bump` -- and `version-bump` only READS
+pyproject twice around a gate. `version-tag` v1, seven nodes, 900s:
+
+    read       run   list the marks in {{world}} and say what the ground
+                     declares, which file said so, and what GitHub has
+    judge      gate  stop if the number is wrong -- the version file is
+                     bumped and SAVED before a mark is cut, never after
+    cut        run   cut {{mark}} with the message {{what}}
+    proof      eval  contains `Cut {{mark}} at`, scored on the EVIDENCE
+    send_gate  gate  the irreversible half, named before it is taken
+    send       run   send that one mark by name
+    sent       eval  contains `Sent {{mark}} to origin.`
+
+THE EDGE CONDITIONS ARE THE DESIGN. `proof -> send_gate` is `pass` and there
+is NO fail edge anywhere, so a cut that did not happen ends the run FAIL and
+the send gate is never offered -- the rule this estate learned the hard way
+today, that no gate is offered for work that failed. Both irreversible steps
+sit behind a `gate`, whose verdict is PAUSED: the engine prepares, the hand
+decides (RULE 6).
+
+**THE COUNCIL HAS NO TAG SKILL, AND THE ROUTE IT DOES HAVE WAS MEASURED, NOT
+ASSUMED.** A `run` node goes to the COUNCIL -- manjuel's Router and its 42
+skills -- and none of them is a tag. Its only road to this new verb is
+`mcp_call`. That road was tested before a single node was written on it, with
+the read-only action and no model in the loop:
+
+    atlas git_tag {"project": "atlas", "action": "list"}   -> v0.1.5, 3dacdbc
+    atlas git_tag                                          -> v0.1.11, c766ce7
+
+So three of the four links are proven: skill -> door -> tool -> answer. THE
+FOURTH IS NOT. Whether the Router reliably dispatches `mcp_call` and writes
+the right JSON into `<content>` needs a model and a real mark, and there is no
+mark left to cut today. **THE FLOW IS SAVED AND VALIDATED, AND IT HAS NEVER
+BEEN FIRED** -- said here rather than discovered later, because a flow that
+has only been read is exactly what this version is named after. The honest
+first firing is the next number; a first-class `git_tag` skill in the core
+would remove the uncertain link altogether, and that is a decision, not a fix.
+
+### The release workflow built the spine in release and the door looked in debug
+
+*Landed after the `v0.1.5` tag, in 94c085d. First written inside the release's git_tag entry, and moved here on 2026-09-14 when 0.1.5 was marked released, so that section describes only what the tag holds. The words are unchanged.*
+
+**AND THEN THE TAG WENT, AND THE RELEASE WORKFLOW FAILED ON ITS OWN FAULT.**
+`release.yml` was written this morning and had never been FIRED. The first
+real tag through it, v0.1.5, died at `Go tests, both modules`:
+
+    prove refused: no working atlas binary behind "atlas"
+    build it first (cargo build -p atlas) or set ATLAS_BIN.
+
+`Build the spine` runs `--release`, so the binary is in `target/release`.
+`findAtlas` walks only `target/DEBUG` -- while `prove_test.go`'s skip check
+deliberately looks in BOTH profiles, its own comment reading "a tree built
+with --release would skip here and refuse there". So the stroke declined to
+skip, the finder found nothing, and the leg went red. `prove.yml` never met
+this because it builds the DEBUG profile, with a comment saying it builds
+first precisely so that leg is an answer rather than a shrug.
+
+The step now names `ATLAS_BIN` at the release binary and refuses outright if
+it is missing. That is a better answer than also building debug: a release
+run should prove THE BYTES IT IS ABOUT TO PUBLISH, not a second copy built a
+different way. The disagreement between finder and skip-check is left alone
+and named -- which profiles findAtlas walks is how the door behaves at
+RUNTIME, and that is a decision rather than a workflow fix.
+
+**WHAT THIS MEANS FOR v0.1.5, said plainly.** The mark is sound and the code
+under it is proven: `prove.yml` passed on 3dacdbc, both jobs, and the core's
+passed on c766ce7. What did NOT happen is the draft release -- the packaging
+run failed, and it cannot be re-run green, because a dispatch uses the
+workflow file AS IT STANDS AT THAT REF and the fix is not there. THE MARK IS
+NOT MOVED TO FETCH IT: that is the rule this door enforces on everyone else,
+and it is not waived for its author. The fix rides the next number.
+
+## [0.1.5] — 2026-09-12 (tag on 3dacdbc)
+
+0.1.3 and 0.1.4 were built and never tagged, so both ship inside this tag; their
+headers below mark where each began.
 
 ### 0.1.5 — THE FLOW CONFIRMATION
 
@@ -344,76 +476,6 @@ That is three faults in one afternoon found by USING the thing, with every
 stroke green throughout: a sha that pointed at nothing a reader could find, a
 button that did nothing, and before either of them a panel that had no such
 button at all. It is the same lesson this version is named for.
-
-**AND THEN THE TAG WENT, AND THE RELEASE WORKFLOW FAILED ON ITS OWN FAULT.**
-`release.yml` was written this morning and had never been FIRED. The first
-real tag through it, v0.1.5, died at `Go tests, both modules`:
-
-    prove refused: no working atlas binary behind "atlas"
-    build it first (cargo build -p atlas) or set ATLAS_BIN.
-
-`Build the spine` runs `--release`, so the binary is in `target/release`.
-`findAtlas` walks only `target/DEBUG` -- while `prove_test.go`'s skip check
-deliberately looks in BOTH profiles, its own comment reading "a tree built
-with --release would skip here and refuse there". So the stroke declined to
-skip, the finder found nothing, and the leg went red. `prove.yml` never met
-this because it builds the DEBUG profile, with a comment saying it builds
-first precisely so that leg is an answer rather than a shrug.
-
-The step now names `ATLAS_BIN` at the release binary and refuses outright if
-it is missing. That is a better answer than also building debug: a release
-run should prove THE BYTES IT IS ABOUT TO PUBLISH, not a second copy built a
-different way. The disagreement between finder and skip-check is left alone
-and named -- which profiles findAtlas walks is how the door behaves at
-RUNTIME, and that is a decision rather than a workflow fix.
-
-**WHAT THIS MEANS FOR v0.1.5, said plainly.** The mark is sound and the code
-under it is proven: `prove.yml` passed on 3dacdbc, both jobs, and the core's
-passed on c766ce7. What did NOT happen is the draft release -- the packaging
-run failed, and it cannot be re-run green, because a dispatch uses the
-workflow file AS IT STANDS AT THAT REF and the fix is not there. THE MARK IS
-NOT MOVED TO FETCH IT: that is the rule this door enforces on everyone else,
-and it is not waived for its author. The fix rides the next number.
-
-**AND A VERSION-CONTROL FLOW, BECAUSE THERE WAS NONE.** His words: *"add the
-workflow if there is no version control workflow existing."* The engine held
-`coder`, `smoke` and `version-bump` -- and `version-bump` only READS
-pyproject twice around a gate. `version-tag` v1, seven nodes, 900s:
-
-    read       run   list the marks in {{world}} and say what the ground
-                     declares, which file said so, and what GitHub has
-    judge      gate  stop if the number is wrong -- the version file is
-                     bumped and SAVED before a mark is cut, never after
-    cut        run   cut {{mark}} with the message {{what}}
-    proof      eval  contains `Cut {{mark}} at`, scored on the EVIDENCE
-    send_gate  gate  the irreversible half, named before it is taken
-    send       run   send that one mark by name
-    sent       eval  contains `Sent {{mark}} to origin.`
-
-THE EDGE CONDITIONS ARE THE DESIGN. `proof -> send_gate` is `pass` and there
-is NO fail edge anywhere, so a cut that did not happen ends the run FAIL and
-the send gate is never offered -- the rule this estate learned the hard way
-today, that no gate is offered for work that failed. Both irreversible steps
-sit behind a `gate`, whose verdict is PAUSED: the engine prepares, the hand
-decides (RULE 6).
-
-**THE COUNCIL HAS NO TAG SKILL, AND THE ROUTE IT DOES HAVE WAS MEASURED, NOT
-ASSUMED.** A `run` node goes to the COUNCIL -- manjuel's Router and its 42
-skills -- and none of them is a tag. Its only road to this new verb is
-`mcp_call`. That road was tested before a single node was written on it, with
-the read-only action and no model in the loop:
-
-    atlas git_tag {"project": "atlas", "action": "list"}   -> v0.1.5, 3dacdbc
-    atlas git_tag                                          -> v0.1.11, c766ce7
-
-So three of the four links are proven: skill -> door -> tool -> answer. THE
-FOURTH IS NOT. Whether the Router reliably dispatches `mcp_call` and writes
-the right JSON into `<content>` needs a model and a real mark, and there is no
-mark left to cut today. **THE FLOW IS SAVED AND VALIDATED, AND IT HAS NEVER
-BEEN FIRED** -- said here rather than discovered later, because a flow that
-has only been read is exactly what this version is named after. The honest
-first firing is the next number; a first-class `git_tag` skill in the core
-would remove the uncertain link altogether, and that is a decision, not a fix.
 
 Both Go modules green and gofmt-clean; the door's own battery PROVEN.
 

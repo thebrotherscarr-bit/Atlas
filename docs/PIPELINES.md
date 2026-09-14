@@ -54,7 +54,7 @@
 | test-line | `cd line && go test ./...` | 92+ pass |
 | build-webapp | `cd webapp && go build ./...` | exit 0 |
 | vet-webapp | `cd webapp && go vet ./...` | clean |
-| mcp-tools | `cd line && go run ./cmd/atlas-mcp --prove` | surface carries 78 tools |
+| mcp-tools | `cd line && go run ./cmd/atlas-mcp --prove` | surface carries 78 tools (79 at the `v0.1.5` tag -- corrected 2026-09-14) |
 | mcp-version | `cd line && go run ./cmd/atlas-mcp --version` | 0.1.5 |
 | mcp-prove | `cd line && go run ./cmd/atlas-mcp --prove` | 125 strokes PASS |
 | town-prove | `cd line && go run ./cmd/atlas-town --prove` | 11 strokes PASS |
@@ -281,3 +281,7 @@ binary asked its version), and publishes a DRAFT. It does not cut the tag:
 no agent tags (RULE 6).
 
 For release, `release.yml` runs all 6 as a gate before cross-platform build.
+**CORRECTED 2026-09-14: not so, and the section above already says what it
+does run** -- the battery and both Go modules, on Windows, every binary asked
+its version, then a draft. The six pipelines are a design, and nothing is
+built cross-platform.

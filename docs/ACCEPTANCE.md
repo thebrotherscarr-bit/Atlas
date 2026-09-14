@@ -24,7 +24,9 @@
 - [ ] `go build ./...` exits 0
 - [ ] `go vet ./...` clean
 - [ ] `go test ./...` passes 92+ tests
-- [ ] `atlas-mcp --prove` reports the surface carries 78 tools
+- [ ] `atlas-mcp --prove` reports the surface carries 78 tools -- CORRECTED
+      2026-09-14: the door built from the `v0.1.5` tag reports 79; `git_tag`
+      landed inside the release
 - [ ] `atlas-mcp --version` prints `0.1.5`
 - [ ] `atlas-mcp --prove` 125 strokes PASS
 - [ ] `atlas-town --prove` 11 strokes PASS

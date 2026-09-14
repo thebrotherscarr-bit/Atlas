@@ -22,6 +22,17 @@ says so rather than carrying a PASS it did not earn.
 | Webapp build + vet | — | PASS |
 | Version consistency | 8 VERSION files + Cargo.toml + version.rs | PASS — every binary asked and agreed |
 
+**CORRECTED 2026-09-14, MEASURED AT THE `v0.1.5` TAG.** This table was counted
+mid-day, before the release was finished, and two of its rows were wrong about
+the release it describes. Both were already wrong when this file was written,
+in 572186d -- the same commit that gave the glass its tests. The originals stay
+above as what was counted then; this is what the tag holds:
+
+| Row | Above | At the tag | How it was measured |
+|---|---|---|---|
+| Go tests, `line` | 229 fns / 19 pkgs | **167** test functions / 19 pkgs | `go test -list` on the tagged tree exported by `git archive v0.1.5`. 229 matches no count there: every `func` in the test files, helpers included, is 239 |
+| Go tests, `webapp` | 1 fn / 1 pkg | **15** test functions / **3** pkgs | the same |
+
 **ABSENT IS NOT A PASS.** All 15 absent legs name the same missing thing: the
 private oracle ground (`ATLAS_ORACLE_ROOT`). They are legs that would cut
 golden vectors against material this repository does not carry, and on a clone
@@ -31,7 +42,9 @@ artifact. Nothing is claimed for them.
 **Known thin:** the `webapp` module has one test function. ADR-006 measured
 this before — the protocol layer and the tenant model were the two least
 tested things in the door, and both were given first strokes on 2026-09-11.
-The glass has not had that pass yet.
+The glass has not had that pass yet. **CORRECTED 2026-09-14: false at the tag.**
+572186d, the commit that wrote this paragraph, is the one that gave the glass
+fifteen test functions over three packages -- `db`, `handlers`, `server`.
 
 ## Binaries
 
@@ -51,6 +64,10 @@ fifth command and was missing from this table entirely.
 | `atlas-webapp` | Go | 0.1.5 | answers (`/api/health`) |
 
 ## MCP Tool Surface (78 tools)
+
+**CORRECTED 2026-09-14:** the door built from the `v0.1.5` tag reports
+**79** -- `git_tag` landed inside the release, after this was counted. The
+table below is a sample of the surface, not all of it.
 
 | Tool | Writes | Description |
 |---|---|---|
@@ -228,7 +245,9 @@ local path for cutting the tag itself — no agent tags (RULE 6).
 
 ```
 atlas/
-├── .github/workflows/     prove.yml -- ONE workflow, not two
+├── .github/workflows/     prove.yml, release.yml -- TWO at the tag (first
+│                          written "ONE workflow, not two"; release.yml
+│                          landed in the release -- corrected 2026-09-14)
 ├── agents/                40 .us declarations + docs/
 ├── apps/atlas/            Rust CLI
 ├── core/                  Rust crate (42 tests)
@@ -241,7 +260,7 @@ atlas/
 ├── faces/                 Console + bridge
 ├── kernels/               C++ (prove, digest, foldall, bench)
 ├── line/                  Go workspace (229 test fns over 19 pkgs)
-│   ├── cmd/atlas-mcp/     MCP server (78 tools)
+│   ├── cmd/atlas-mcp/     MCP server (78 tools; 79 at the tag, corrected 2026-09-14)
 │   ├── cmd/atlas-tui/     Terminal UI
 │   ├── cmd/atlas-town/    Town square
 │   ├── cmd/atlas-door/    Door gateway
