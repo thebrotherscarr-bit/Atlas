@@ -164,7 +164,24 @@ const App = {
     el.hidden = false;
   },
 
+  // PAUSED WHILE THE TAB IS HIDDEN, the rule Home.watch already keeps
+  // (2026-09-15). This asked every five seconds on every page for the life of
+  // the tab, looked at or not: 17,280 requests a day for a dot in a sidebar
+  // nobody could see. A hidden tab asks nothing; coming back checks at once,
+  // because that is the moment the dot is read, and resumes the cycle.
+  //
+  // ONE CYCLE, however the checks overlap. The return to the tab can start a
+  // check while a timed one still waits on its answer, so the timer is cleared
+  // again before the next is set -- two cycles would halve the interval for
+  // good.
   async loadHealth() {
+    if (!this._healthVis) {
+      this._healthVis = () => { if (!document.hidden) this.loadHealth(); };
+      document.addEventListener('visibilitychange', this._healthVis);
+    }
+    clearTimeout(this._health);
+    this._health = null;
+    if (document.hidden) return;        // resumed by the listener above
     try {
       const h = await API.health();
       document.getElementById('version').textContent = h.version;
@@ -174,7 +191,8 @@ const App = {
       document.getElementById('operator-status').textContent = 'offline';
       document.getElementById('status-dot').className = 'status-dot red';
     }
-    setTimeout(() => this.loadHealth(), 5000);
+    clearTimeout(this._health);
+    this._health = document.hidden ? null : setTimeout(() => this.loadHealth(), 5000);
   },
 
   onEvent(e) {
@@ -225,8 +243,13 @@ const App = {
   // record cannot prove is not shown -- SPEC 3 invariant 10, and the reason
   // this page used to read Agents 0 / Traces 0 / Evals 0 on a full estate:
   // it was counting its own store instead of asking the record (P0-11).
-  async tool(name, args) {
-    const r = await API.callTool(name, args || {});
+  //
+  // `background` IS FOR THE DASHBOARD'S OWN READS AND NOTHING ELSE (2026-09-16).
+  // Home.read passes it, and the glass answers such a read without keeping it
+  // as a trace (handlers.go, backgroundReads). Every other caller leaves it
+  // off, so whatever he asks for himself is kept as before.
+  async tool(name, args, background) {
+    const r = await API.callTool(name, args || {}, background);
     try {
       const env = JSON.parse(r.output);
       if (env.error) throw new Error(env.error.message || 'refused');
@@ -955,13 +978,26 @@ const App = {
   //   'scores' -- strokes, smoke, standup, standups run, parity
   //   'estate' -- sittings, tolls, runs, and the live standups table
   //   omitted  -- both, as before
-  async paintProof(boxId, only) {
+  //
+  // `read` IS AN ANSWER THE CALLER ALREADY HOLDS (2026-09-15): the tool's text,
+  // or the {err} Home.read's ask() hands back for a refusal. The Dashboard's
+  // 15-second read asked for `proofs` in its own Promise.all and this function
+  // then asked again, so every refresh read the record files twice and wrote
+  // two 20 KB traces -- 14,440 `proofs` calls over 2026-09-12..14, half of
+  // everything the glass called. A caller holding the answer hands it over; a
+  // caller that holds none (Records, the end of a turn) still asks.
+  async paintProof(boxId, only, read) {
     const box = document.getElementById(boxId || 'rec-proof');
     if (!box) return;
-    box.innerHTML = '<div class="loading">Reading the record...</div>';
     let p;
     try {
-      p = JSON.parse(await this.tool('proofs', {}));
+      let text = read;
+      if (text === undefined) {
+        box.innerHTML = '<div class="loading">Reading the record...</div>';
+        text = await this.tool('proofs', {});
+      }
+      if (text && typeof text === 'object') throw new Error(text.err || 'unreadable');
+      p = JSON.parse(text);
     } catch (e) {
       box.innerHTML = `<div class="card"><div class="eng-row eng-bad">
         The record could not be read: ${escHtml(e.message || 'refused')}

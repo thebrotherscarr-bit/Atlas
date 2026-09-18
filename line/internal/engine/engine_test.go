@@ -1,9 +1,12 @@
 package engine
 
 import (
+	"bufio"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // I8: this package had no tests at all. SittingOpen is pure and it is the
@@ -127,6 +130,203 @@ func TestRingBufferKeepsTheTail(t *testing.T) {
 	r.Write([]byte("0123456789abcdef"))
 	if got := r.String(); got != "9abcdef" && got != "89abcdef" {
 		t.Fatalf("ring kept %q; it must keep the TAIL, which is where the error is", got)
+	}
+}
+
+// ---- the stale check: the engine's code, and nothing else -------------------
+
+// What a running engine holds: the script, the package, and the law the gate
+// loads -- law/pen/jesster.py is imported by name and kept for the process.
+var engineLoads = []string{
+	"manjuel.py",
+	"manjuel/pipeline.py",
+	"law/law.py",
+	"law/pen/jesster.py",
+}
+
+// .py a ground carries that no engine imports.
+var notEngineCode = []string{
+	"atlas/tools/cut_vectors.py",
+	"atlas/line/engine/manjuel_ask.py",
+	"skills/helper.py",
+	"agent_workspace/scratch.py",
+	"worlds/w/tool.py",
+	"manjuel/__pycache__/pipeline.py",
+}
+
+var codeBase = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// codeGround writes every file above, all stamped codeBase, and returns the
+// command that runs its manjuel.py. Quoted, so a temp path with a space holds.
+func codeGround(t *testing.T) (root, cmd string) {
+	t.Helper()
+	root = t.TempDir()
+	for _, rel := range append(append([]string{}, engineLoads...), notEngineCode...) {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("# code\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		stamp(t, p, codeBase)
+	}
+	return root, `python "` + filepath.Join(root, "manjuel.py") + `"`
+}
+
+func stamp(t *testing.T, p string, at time.Time) {
+	t.Helper()
+	if err := os.Chtimes(p, at, at); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// 30 of the 64 .py the old walk counted on this ground were atlas/'s tools and
+// tests. An edit to code no engine runs must never read as "restart".
+func TestTheStaleCheckIgnoresCodeNoEngineLoads(t *testing.T) {
+	for _, rel := range notEngineCode {
+		t.Run(rel, func(t *testing.T) {
+			root, cmd := codeGround(t)
+			stamp(t, filepath.Join(root, filepath.FromSlash(rel)), codeBase.Add(time.Hour))
+			if when, what := CodeChanged(cmd); !when.Equal(codeBase) {
+				t.Fatalf("reported %s changed at %s; an engine never runs %s", what, when, rel)
+			}
+		})
+	}
+}
+
+// law/ is what a walk of manjuel/ alone would have dropped, and the pen inside
+// it is one level down -- the folder rule is for the top of the ground only.
+func TestTheStaleCheckSeesEveryPlaceAnEngineLoadsCodeFrom(t *testing.T) {
+	for _, rel := range engineLoads {
+		t.Run(rel, func(t *testing.T) {
+			root, cmd := codeGround(t)
+			p := filepath.Join(root, filepath.FromSlash(rel))
+			stamp(t, p, codeBase.Add(time.Hour))
+			if when, what := CodeChanged(cmd); what != p || !when.Equal(codeBase.Add(time.Hour)) {
+				t.Fatalf("reported %q at %s; wanted %s, which a running engine holds", what, when, rel)
+			}
+		})
+	}
+}
+
+// The row the operator reads: stale over the engine's code, not over the ground.
+func TestAnEngineIsStaleOverItsCodeNotOverTheGround(t *testing.T) {
+	root, cmd := codeGround(t)
+	e := &Engine{Started: codeBase.Add(time.Hour), CoreCmd: cmd}
+	stamp(t, filepath.Join(root, "atlas", "tools", "cut_vectors.py"), codeBase.Add(2*time.Hour))
+	if stale, _, what := e.Stale(); stale {
+		t.Fatalf("stale over %s, which the engine never loaded", what)
+	}
+	stamp(t, filepath.Join(root, "law", "pen", "jesster.py"), codeBase.Add(2*time.Hour))
+	if stale, _, what := e.Stale(); !stale || filepath.Base(what) != "jesster.py" {
+		t.Fatalf("stale=%v over %q; the pen changed after the engine started", stale, what)
+	}
+}
+
+// ---- a real process: whether the engine is still there --------------------
+
+const stubEngineEnv = "ATLAS_STUB_ENGINE"
+
+// TestStubEngineProcess is not a stroke. It is the engine the strokes below
+// spawn: this test binary run again as a child, speaking serve.py's wire --
+// `opened` at start, a delivery per objective, `closed` on close. The
+// objective "die" ends the process mid-turn with no terminal event, the way a
+// crash does. Run any other way, it skips.
+func TestStubEngineProcess(t *testing.T) {
+	if os.Getenv(stubEngineEnv) != "1" {
+		t.Skip("the stub engine runs only as the child of a stroke that spawns it")
+	}
+	out := bufio.NewWriter(os.Stdout)
+	say := func(ev map[string]any) {
+		b, _ := json.Marshal(ev)
+		out.Write(append(b, '\n'))
+		out.Flush()
+	}
+	say(map[string]any{"event": "opened", "sitting": "1", "session": "stub"})
+	in := bufio.NewScanner(os.Stdin)
+	for in.Scan() {
+		var row map[string]any
+		if json.Unmarshal(in.Bytes(), &row) != nil {
+			continue
+		}
+		switch row["cmd"] {
+		case "close":
+			say(map[string]any{"event": "closed"})
+			os.Exit(0)
+		case "objective":
+			if row["text"] == "die" {
+				os.Exit(3)
+			}
+			say(map[string]any{"event": "delivery", "text": row["text"]})
+		}
+	}
+	os.Exit(0)
+}
+
+// stubEngine is the command that runs TestStubEngineProcess as a child.
+func stubEngine(t *testing.T) string {
+	t.Helper()
+	t.Setenv(stubEngineEnv, "1")
+	return `"` + os.Args[0] + `" -test.run=^TestStubEngineProcess$ --`
+}
+
+// I5 SAID A DEAD ENGINE MUST NOT BE HANDED BACK, and the check written for it
+// could not see a death. A real engine is told to die mid-turn; it must read
+// as gone to Alive, and to the registry every /run/state asks.
+func TestAnEngineThatDiesIsNotHandedBack(t *testing.T) {
+	ground := t.TempDir()
+	r := NewRegistry()
+	e, err := r.Open("w", ground, stubEngine(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = r.CloseOne(ground) })
+	if !e.Alive() {
+		t.Fatal("a standing engine reads as dead")
+	}
+	if _, ok := r.Get(ground); !ok {
+		t.Fatal("the registry does not hand back a standing engine")
+	}
+	if _, err := e.Run("die", "", "", nil); err == nil {
+		t.Fatal("a turn whose engine died reported success")
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for e.Alive() {
+		if time.Now().After(deadline) {
+			t.Fatal("the engine's process is gone and Alive still says it is standing")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, ok := r.Get(ground); ok {
+		t.Fatal("the registry handed back an engine whose process is gone")
+	}
+}
+
+// A CLOSE IS STILL WAITED FOR, by the same waiter Alive reads: the engine is
+// asked to close, goes, and the close reports its toll paid inside the grace
+// rather than a minute later.
+func TestACloseIsSeenByTheProcesssOneWaiter(t *testing.T) {
+	e, err := Open("w", t.TempDir(), stubEngine(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	type closing struct {
+		paid bool
+		err  error
+	}
+	got := make(chan closing, 1)
+	go func() {
+		paid, err := e.Close()
+		got <- closing{paid, err}
+	}()
+	select {
+	case c := <-got:
+		if c.err != nil || !c.paid {
+			t.Fatalf("close = (%v, %v); an engine that went when asked has paid its toll", c.paid, c.err)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("the close never returned: nothing saw the process go")
 	}
 }
 

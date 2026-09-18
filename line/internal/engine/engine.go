@@ -103,6 +103,10 @@ type Engine struct {
 	pending Event
 	closed  atomic.Bool
 	reaped  atomic.Bool
+	// exited is closed by the process's one waiter, started in Open, the
+	// moment the process ends -- asked to or not. Alive and shutdown both
+	// read it; neither waits on the process itself.
+	exited chan struct{}
 
 	// WHAT THIS ENGINE HAS ACTUALLY DONE. `Started` alone cannot tell an
 	// engine hard at work from one standing open doing nothing, and the
@@ -177,13 +181,29 @@ func CodeRoot(coreCmd string) string {
 	return ""
 }
 
-// CodeChanged reports the newest .py under the core, and when it changed.
+// CodeChanged reports the newest .py the engine loads, and when it changed.
 //
 // ONLY .py IS COUNTED, and that is the whole point. CLAUDE.md's rule: agents/,
 // skills/, pipelines.md and commands.md are HOT-RELOADED into a running engine
 // at the next turn, so editing a skill needs no restart and must not raise an
 // alarm. manjuel/*.py is NOT reloaded -- a code edit sits on disk while the old
 // code keeps running -- so that, and only that, makes an engine stale.
+//
+// AND ONLY WHERE THAT CODE LIVES IS WALKED (2026-09-15). This used to walk the
+// whole ground past a skip list: 289 folders and 5,891 files, 28ms and 3.5MB
+// on every /run/state an open engine answered, and the Dashboard asks on
+// every refresh. 30 of the 64 .py it counted were atlas/'s tools and tests,
+// which no engine imports, so editing one said "restart" over code the engine
+// never ran. The walk now reads the top of the ground and enters two folders:
+//
+//	top level   manjuel.py, the script the command runs
+//	manjuel/    the package, which Python never reloads under a live process
+//	law/        the law gate loads law/law.py into the process on every chain
+//	            walk, and the pen it walks imports law/pen/jesster.py by
+//	            name -- Python keeps that one until the process ends
+//
+// law/ is not optional: a walk of manjuel/ alone misses an edit to the pen
+// while the engine is still running the old copy of it.
 //
 // A corner it cannot read reports no change rather than a false alarm. A
 // dashboard that cried "restart" over an unreadable directory would train him
@@ -193,14 +213,13 @@ func CodeChanged(coreCmd string) (when time.Time, what string) {
 	if root == "" {
 		return time.Time{}, ""
 	}
+	top := filepath.Clean(root)
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			switch d.Name() {
-			case "__pycache__", ".git", "logs", "index", "sessions", "worlds",
-				"agent_workspace", "node_modules", "tests":
+			if d.Name() == "__pycache__" || (filepath.Dir(p) == top && !engineCode[d.Name()]) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -219,6 +238,10 @@ func CodeChanged(coreCmd string) (when time.Time, what string) {
 	})
 	return when, what
 }
+
+// engineCode is the folders at the top of the ground that a running engine
+// loads code from. Every other folder there is skipped whole.
+var engineCode = map[string]bool{"manjuel": true, "law": true}
 
 // Stale answers the question the operator used to carry in his head across a
 // day of edits: is this engine running code that has since changed on disk?
@@ -301,7 +324,16 @@ func Open(name, ground, coreCmd string) (*Engine, error) {
 		// it: together they answer whether this engine is older than the code
 		// it is running, which used to be a thing the operator had to hold in
 		// his head across a day of edits.
-		Started: time.Now(), CoreCmd: coreCmd}
+		Started: time.Now(), CoreCmd: coreCmd, exited: make(chan struct{})}
+
+	// ONE WAITER, FOR THE LIFE OF THE PROCESS (2026-09-15). Started before
+	// anything here can call shutdown. os.Process.Wait and not exec.Cmd.Wait:
+	// Cmd.Wait closes the stdout pipe as soon as the process ends, while pump
+	// may still be reading the last lines a dying engine wrote.
+	go func() {
+		_, _ = cmd.Process.Wait()
+		close(e.exited)
+	}()
 
 	done := make(chan Event, 1)
 	go func() {
@@ -618,14 +650,14 @@ func (e *Engine) shutdown() (tollPaid bool) {
 	}
 	e.sendMu.Unlock()
 
-	done := make(chan struct{})
-	go func() { _, _ = e.cmd.Process.Wait(); close(done) }()
+	// The process's one waiter (Open) says when it has gone. A second Wait
+	// here would race that one for the process.
 	select {
-	case <-done:
+	case <-e.exited:
 		tollPaid = true
 	case <-time.After(ShutdownGrace):
 		_ = e.cmd.Process.Kill()
-		<-done
+		<-e.exited
 	}
 	_ = e.in.Close()
 	return tollPaid
@@ -658,11 +690,22 @@ func (e *Engine) Close() (tollPaid bool, err error) {
 // "already open: idempotent", while env_list printed its stale sitting number
 // as live and run_start advised "env_open first" -- the one thing that could
 // not help.
+//
+// AND THE CHECK WRITTEN FOR I5 COULD NEVER SEE A DEATH (2026-09-15). It read
+// `e.cmd.ProcessState == nil`, and exec.Cmd fills ProcessState only in Wait
+// (or Run, which calls Wait), and nothing in this package calls either. So it
+// was nil for the life of every process, and a crashed engine stayed in the
+// registry exactly as I5 describes. It asks the process's one waiter now.
 func (e *Engine) Alive() bool {
 	if e.closed.Load() || e.reaped.Load() {
 		return false
 	}
-	return e.cmd.ProcessState == nil
+	select {
+	case <-e.exited:
+		return false
+	default:
+		return true
+	}
 }
 
 // ---------------------------------------------------------------------

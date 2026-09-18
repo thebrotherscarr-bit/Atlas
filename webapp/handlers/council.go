@@ -8,6 +8,7 @@ package handlers
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -70,7 +71,9 @@ func (h *Handlers) ListenCouncil(w http.ResponseWriter, r *http.Request) {
 // is it waiting on an answer? The glass asks before it offers a send box, so a
 // refusal is a disabled control with a reason rather than a turn that fails.
 func (h *Handlers) CouncilState(w http.ResponseWriter, r *http.Request) {
-	req, err := http.NewRequest("GET", h.mcpURL()+"/run/state", nil)
+	ctx, cancel := context.WithTimeout(r.Context(), pollWait)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", h.mcpURL()+"/run/state", nil)
 	if err != nil {
 		jsonErr(w, 502, err.Error())
 		return
@@ -124,7 +127,11 @@ func (h *Handlers) pipeSSE(w http.ResponseWriter, r *http.Request, req *http.Req
 	if h.service != "" {
 		req.Header.Set("Authorization", "Bearer "+h.service)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	// A stream has one reader, the browser that opened it, so it also ends when
+	// that browser leaves -- including while the door has yet to say a word.
+	ctx, cancel := context.WithTimeout(r.Context(), callWait)
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		jsonErr(w, 502, fmt.Sprintf("mcp unreachable: %v", err))
 		return

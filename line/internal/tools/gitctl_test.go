@@ -600,10 +600,366 @@ func TestTheColumnNamesTheCommitAndNotTheMarksOwnObject(t *testing.T) {
 	}
 }
 
+// `delete` stood here as the unknown verb until 2026-09-18, when it became a
+// real one -- which is why this stroke now names something the door genuinely
+// does not do. A verb list that grows must take its own stroke with it.
 func TestAnUnknownTagActionIsRefusedByName(t *testing.T) {
 	tn := versionWorld(t, "0.1.5")
-	out := call(t, toolGitTag, tn, map[string]any{"action": "delete", "name": "v0.1.5"})
-	mustContain(t, out, `"delete" is not something this does`, "an unknown verb must be named")
+	out := call(t, toolGitTag, tn, map[string]any{"action": "move", "name": "v0.1.5"})
+	mustContain(t, out, `"move" is not something this does`, "an unknown verb must be named")
+	mustContain(t, out, "remove", "the refusal must name the verbs there ARE")
+}
+
+// --- where a mark may stand, and when it may leave ---------------------------
+//
+// EARNED 2026-09-17. Six marks on the estate's own ground pointed into a
+// history that had been stripped of client material, and four of them had
+// lawful names -- so the Version marks panel offered each a Send button, and
+// this door would have pushed the stripped history with it. A mark stands on
+// the main line, and it leaves only after its line has.
+
+// mustGit runs git in a world for a stroke's own setup, where a failure is the
+// stroke's fault rather than the door's.
+func mustGit(t *testing.T, tn tenant.Tenant, args ...string) {
+	t.Helper()
+	if out, err := gitRun(tn, 30*time.Second, args...); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+}
+
+// originFor gives a world a remote -- a bare repository on this disk, so no
+// stroke reaches a network -- and sends its main line there once, which is
+// what makes origin/main something this machine has seen.
+func originFor(t *testing.T, tn tenant.Tenant) string {
+	t.Helper()
+	bare := filepath.Join(t.TempDir(), "origin.git")
+	cmd := exec.Command("git", "init", "--bare", "-b", "main", bare)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare: %v\n%s", err, out)
+	}
+	mustGit(t, tn, "remote", "add", "origin", bare)
+	mustGit(t, tn, "push", "-u", "origin", "main")
+	return bare
+}
+
+// remoteHas asks the bare remote itself whether it holds an object or a ref.
+func remoteHas(bare, what string) bool {
+	return exec.Command("git", "--git-dir", bare, "cat-file", "-e", what).Run() == nil
+}
+
+func TestAMarkIsCutOnlyOnTheMainLine(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	onMain := headOf(t, tn)
+	call(t, toolGitBranch, tn, map[string]any{"action": "new", "name": "side"})
+	write(t, tn.Home, "side.txt", "work on a side line\n")
+	call(t, toolGitCommit, tn, map[string]any{"message": "side work"})
+	side := headOf(t, tn)
+
+	out := call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "on a side line", "at": side})
+	mustContain(t, out, "not on the main line", "a mark off the main line must be refused")
+	mustNotContain(t, out, "Cut v", "nothing may be cut off the main line")
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/tags/v0.1.5"); err == nil {
+		t.Fatal("the refused mark exists anyway")
+	}
+
+	// AND THE MAIN LINE'S OWN COMMIT TAKES IT, wherever the hand is standing.
+	out = call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "on the main line", "at": onMain})
+	mustContain(t, out, "Cut v0.1.5", "a mark on the main line must land")
+}
+
+func TestAMarkLeavesOnlyAfterItsHistoryHas(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	bare := originFor(t, tn)
+
+	// Its line is already there, so the mark goes.
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "the line went first"})
+	out := call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.5"})
+	mustContain(t, out, "Sent v0.1.5 to origin", "a mark whose commit origin carries must go")
+	if !remoteHas(bare, "refs/tags/v0.1.5") {
+		t.Fatal("the door said Sent and the remote holds no mark")
+	}
+
+	// A newer save, not yet sent: its mark waits for its line.
+	saveVersion(t, tn, "0.1.6")
+	ahead := headOf(t, tn)
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.6", "message": "ahead of its line"})
+	out = call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.6"})
+	mustContain(t, out, "Send the main line first", "a mark ahead of origin's main line must wait")
+	mustNotContain(t, out, "Sent v0.1.6", "nothing may be sent on that refusal")
+	if remoteHas(bare, "refs/tags/v0.1.6") || remoteHas(bare, ahead) {
+		t.Fatal("the refused send reached the remote anyway")
+	}
+
+	// Send the line, and the same mark follows.
+	mustContain(t, call(t, toolGitPush, tn, nil), "Sent main", "the main line must go")
+	out = call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.6"})
+	mustContain(t, out, "Sent v0.1.6 to origin", "once its line is there the mark follows")
+
+	// THE SIX, IN MINIATURE. A mark on a history origin's main line never
+	// carried -- made by hand, around this door, as those were -- is refused,
+	// and that history stays on this machine.
+	mustGit(t, tn, "switch", "-c", "stripped")
+	write(t, tn.Home, "private.txt", "never to leave\n")
+	mustGit(t, tn, "add", "-A")
+	mustGit(t, tn, "commit", "-m", "history that must not travel")
+	private := headOf(t, tn)
+	mustGit(t, tn, "tag", "v0.0.9", private)
+	mustGit(t, tn, "switch", "main")
+	out = call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.0.9"})
+	mustContain(t, out, "Send the main line first", "a mark off the main line must never leave")
+	if remoteHas(bare, "refs/tags/v0.0.9") || remoteHas(bare, private) {
+		t.Fatal("the stripped history reached the remote")
+	}
+}
+
+// THE BUTTON ASKS THE DOOR FIRST (2026-09-17, his word). The panel offered
+// Send on every mark GitHub lacked and learned the refusal after the click. The
+// list answers it now, per mark, in the same words the send itself would use --
+// which is the half that matters: two judgements would drift, and the operator
+// would be told one thing by a button and another by the act behind it.
+func TestTheListSaysWhetherAMarkCouldBeSentAndWhyNot(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	originFor(t, tn)
+
+	type mark struct {
+		Name     string `json:"name"`
+		Sent     bool   `json:"sent"`
+		Sendable bool   `json:"sendable"`
+		WhyNot   string `json:"why_not"`
+	}
+	read := func() map[string]mark {
+		t.Helper()
+		var d struct {
+			Tags []mark `json:"tags"`
+		}
+		if err := json.Unmarshal([]byte(call(t, toolGitTag, tn, nil)), &d); err != nil {
+			t.Fatalf("the list must be JSON: %v", err)
+		}
+		by := map[string]mark{}
+		for _, m := range d.Tags {
+			by[m.Name] = m
+		}
+		return by
+	}
+
+	// One mark whose commit origin's main line carries, one ahead of it.
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "the line went first"})
+	saveVersion(t, tn, "0.1.6")
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.6", "message": "ahead of its line"})
+
+	marks := read()
+	if !marks["v0.1.5"].Sendable || marks["v0.1.5"].WhyNot != "" {
+		t.Fatalf("a mark origin's main line carries must be offered: %+v", marks["v0.1.5"])
+	}
+	if marks["v0.1.6"].Sendable {
+		t.Fatalf("a mark ahead of its line must not be offered: %+v", marks["v0.1.6"])
+	}
+	mustContain(t, marks["v0.1.6"].WhyNot, "Send the main line first",
+		"the list must carry the reason, not just a false")
+
+	// THE SAME WORDS AS THE ACT. A button that says one thing while the send
+	// says another is the fault this piece exists to close.
+	send := call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.6"})
+	if strings.TrimSpace(send) != strings.TrimSpace(marks["v0.1.6"].WhyNot) {
+		t.Fatalf("the list and the send refuse differently:\n  list: %s\n  send: %s",
+			marks["v0.1.6"].WhyNot, send)
+	}
+
+	// AND IT MOVES WITH THE GROUND. Send the line, and the same mark is offered.
+	mustContain(t, call(t, toolGitPush, tn, nil), "Sent main", "the main line must go")
+	marks = read()
+	if !marks["v0.1.6"].Sendable || marks["v0.1.6"].WhyNot != "" {
+		t.Fatalf("once its line is sent the mark must be offered: %+v", marks["v0.1.6"])
+	}
+
+	// A MARK WITH AN UNLAWFUL NAME IS REFUSED BEFORE ANY OF THAT, and the list
+	// says so rather than offering a button git itself would take.
+	mustGit(t, tn, "tag", "0.1.7", "HEAD")
+	marks = read()
+	if marks["0.1.7"].Sendable {
+		t.Fatalf("a mark that is not vMAJOR.MINOR.PATCH must not be offered: %+v", marks["0.1.7"])
+	}
+	mustContain(t, marks["0.1.7"].WhyNot, "does not begin with 'v'",
+		"the list must carry the name's own refusal")
+
+	// WITH THE WALL SHUT NOTHING IS OFFERED, and the reason is the wall's.
+	t.Setenv("MANJUEL_GIT_REMOTE", "")
+	t.Setenv("CHAINKIT_GIT_REMOTE", "")
+	marks = read()
+	if marks["v0.1.5"].Sendable {
+		t.Fatal("a shut wall must offer nothing")
+	}
+	mustContain(t, marks["v0.1.5"].WhyNot, "MANJUEL_GIT_REMOTE",
+		"the refusal must name the dial when the wall is what stops it")
+}
+
+// --- taking a mark back -------------------------------------------------------
+//
+// EARNED 2026-09-18. A mark was cut at a terminal on a commit that did not carry
+// the work it named, and this door -- which lists, cuts and sends -- had no verb
+// for taking it back, so it was removed outside the glass. These strokes prove
+// the verb and, more importantly, the one thing it refuses.
+
+func TestAMarkOnlyOnThisMachineComesBackAndOneGitHubHasDoesNot(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	bare := originFor(t, tn)
+
+	// One mark sent, one kept here.
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "the line went first"})
+	mustContain(t, call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.5"}),
+		"Sent v0.1.5", "the first mark must go to the remote")
+	saveVersion(t, tn, "0.1.6")
+	mustContain(t, call(t, toolGitPush, tn, nil), "Sent main", "the line must go before the second mark")
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.6", "message": "kept on this machine"})
+
+	// THE ONE GITHUB HAS IS REFUSED, and the refusal says why and what to do.
+	out := call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": "v0.1.5"})
+	mustContain(t, out, "GitHub has v0.1.5", "a sent mark must be refused by name")
+	mustContain(t, out, "may already have been fetched", "the refusal must say who it would hurt")
+	mustContain(t, out, "Cut the next number instead", "the refusal must name the lawful way on")
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "refs/tags/v0.1.5"); err != nil {
+		t.Fatal("the refused removal took the mark anyway")
+	}
+	if !remoteHas(bare, "refs/tags/v0.1.5") {
+		t.Fatal("the refused removal reached the remote")
+	}
+
+	// AND THE ONE THAT NEVER LEFT COMES BACK, with where it stood said out loud.
+	commit := headOf(t, tn)
+	out = call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": "v0.1.6"})
+	mustContain(t, out, "Removed v0.1.6", "a mark that never left must come back")
+	mustContain(t, out, commit[:7], "the answer must name the commit it stood on")
+	mustContain(t, out, "only the name is gone", "the answer must say the history is untouched")
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/tags/v0.1.6"); err == nil {
+		t.Fatal("the mark is still here after a removal that said it was gone")
+	}
+	// THE COMMIT IS UNTOUCHED, which is the whole claim the answer makes.
+	if _, err := gitRun(tn, 10*time.Second, "cat-file", "-e", commit); err != nil {
+		t.Fatal("removing the mark destroyed the commit under it")
+	}
+
+	// A mark that was never cut is named, not shrugged at.
+	out = call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": "v9.9.9"})
+	mustContain(t, out, "no mark called v9.9.9", "an uncut mark must be named")
+}
+
+// THE SIX, AGAIN. Every mark this estate has actually had to remove was named
+// unlawfully -- `0.1.4`, `0.1.5`, no `v` -- so a remove that demanded a lawful
+// name would refuse exactly the marks that need removing. The version law is
+// tagCut's; removal judges mechanics and the remote, nothing else.
+func TestAnUnlawfullyNamedMarkCanStillBeTakenBack(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	originFor(t, tn)
+	mustGit(t, tn, "tag", "0.1.4", "HEAD")
+
+	out := call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": "0.1.4"})
+	mustContain(t, out, "Removed 0.1.4", "a mark git accepted must be removable whatever it is called")
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/tags/0.1.4"); err == nil {
+		t.Fatal("the unlawfully named mark is still here")
+	}
+
+	// And a name git itself would read as a flag never reaches git.
+	for _, bad := range []string{"", "-d", "two words", "a..b", "a@{0}"} {
+		out = call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": bad})
+		mustContain(t, out, "Refused", "a name git would misread must be refused: "+bad)
+		mustNotContain(t, out, "Removed", "nothing may be removed on that refusal")
+	}
+}
+
+// A GUARD THAT CANNOT CHECK FAILS SHUT. With the wall down this door cannot ask
+// GitHub whether it holds the mark, and "I could not ask" is not "it is not
+// there" -- the wall may have been open when the mark was cut and sent.
+func TestRemovingRefusesWhileTheWallIsShutBecauseGitHubCannotBeAsked(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	originFor(t, tn)
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "cut while the wall was open"})
+
+	t.Setenv("MANJUEL_GIT_REMOTE", "")
+	t.Setenv("CHAINKIT_GIT_REMOTE", "")
+	out := call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": "v0.1.5"})
+	mustContain(t, out, "cannot tell whether GitHub already has", "an unanswerable question must refuse")
+	mustContain(t, out, "MANJUEL_GIT_REMOTE", "the refusal must name the dial that shut it")
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "refs/tags/v0.1.5"); err != nil {
+		t.Fatal("the mark was removed on an answer nobody could give")
+	}
+}
+
+// THE BUTTON ASKS THE DOOR FIRST, for this verb too. The list carries
+// `removable` and, when it is false, the door's own sentence -- so the glass
+// greys the button with the reason on it instead of learning after the click.
+func TestTheListSaysWhetherAMarkCouldBeRemovedAndWhyNot(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	originFor(t, tn)
+
+	type mark struct {
+		Name         string `json:"name"`
+		Removable    bool   `json:"removable"`
+		WhyNotRemove string `json:"why_not_remove"`
+	}
+	read := func() map[string]mark {
+		t.Helper()
+		var d struct {
+			Tags []mark `json:"tags"`
+		}
+		if err := json.Unmarshal([]byte(call(t, toolGitTag, tn, nil)), &d); err != nil {
+			t.Fatalf("the list must be JSON: %v", err)
+		}
+		by := map[string]mark{}
+		for _, m := range d.Tags {
+			by[m.Name] = m
+		}
+		return by
+	}
+
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.5", "message": "the line went first"})
+	call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.5"})
+	saveVersion(t, tn, "0.1.6")
+	call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.6", "message": "kept here"})
+
+	marks := read()
+	if marks["v0.1.6"].Removable != true || marks["v0.1.6"].WhyNotRemove != "" {
+		t.Fatalf("a mark GitHub does not have must be offered: %+v", marks["v0.1.6"])
+	}
+	if marks["v0.1.5"].Removable {
+		t.Fatalf("a mark GitHub has must not be offered: %+v", marks["v0.1.5"])
+	}
+
+	// THE SAME WORDS AS THE ACT, which is the half that matters: two judgements
+	// would drift and the operator would be told one thing by the button and
+	// another by the door behind it.
+	act := call(t, toolGitTag, tn, map[string]any{"action": "remove", "name": "v0.1.5"})
+	if strings.TrimSpace(act) != strings.TrimSpace(marks["v0.1.5"].WhyNotRemove) {
+		t.Fatalf("the list and the removal refuse differently:\n  list: %s\n  act: %s",
+			marks["v0.1.5"].WhyNotRemove, act)
+	}
+
+	// WITH THE WALL SHUT NOTHING IS OFFERED, because nothing can be asked.
+	t.Setenv("MANJUEL_GIT_REMOTE", "")
+	t.Setenv("CHAINKIT_GIT_REMOTE", "")
+	marks = read()
+	if marks["v0.1.6"].Removable {
+		t.Fatal("a shut wall must offer no removal -- it cannot know what GitHub has")
+	}
+	mustContain(t, marks["v0.1.6"].WhyNotRemove, "cannot tell whether GitHub already has",
+		"the list must carry the reason the question could not be asked")
 }
 
 // --- absence ----------------------------------------------------------------

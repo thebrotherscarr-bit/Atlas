@@ -992,6 +992,17 @@ hanging off H3 in parallel. Every stone lands inside `Desktop\Research`,
 one piece at a time, at his word (RULE 10); the Archive copy is never
 written.
 
+**WHERE THESE STONES SIT IN THE ESTATE'S PLAN, 2026-09-17** (his word: "set a
+spec plan and a build path for the vision going forward"). The core's SPEC
+gained section 8, the versions ahead for both repositories in the order they
+are cut. It does not replace this table: the stones say WHAT must stand, the
+versions say WHEN a number is cut over work that already stands. H3 is
+largely built and living under atlas 0.1.x -- the Dashboard runs a sitting
+start to finish -- and H7, the glass as the front door, is the named horizon
+in both. A stone is proved by its gate row here; a number is cut by the core's
+release gate and the mark procedure in BUILDPATH. Neither one moves without
+him.
+
 ---
 
 ## 11. ADR-001 — Manjuel is the permanent engine

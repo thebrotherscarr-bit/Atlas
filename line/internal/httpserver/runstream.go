@@ -78,13 +78,25 @@ func (s *Server) handleRunStream(w http.ResponseWriter, r *http.Request) {
 	// record of what the council did.
 	frames := make(chan engine.Event, 256)
 	done := make(chan struct{})
+	gone := r.Context().Done()
 
 	var res engine.Result
 	var callErr error
 	go func() {
 		defer close(done)
 		defer close(frames)
-		sink := func(ev engine.Event) { frames <- ev }
+		// A BROWSER THAT HAS LEFT IS NOT WAITED FOR (2026-09-15). The sink
+		// used to be a bare send, and nothing reads `frames` once this handler
+		// returns: the 257th event stopped the pump, the pump stopped reading
+		// the engine, and the turn never ended -- holding the world's run lock
+		// for good. Once the request is gone an event that would wait is
+		// dropped instead, because there is no one left to show it to.
+		sink := func(ev engine.Event) {
+			select {
+			case frames <- ev:
+			case <-gone:
+			}
+		}
 		if hasAnswer {
 			res, callErr = tools.AnswerStream(tn, answer, sink)
 			return
@@ -99,7 +111,6 @@ func (s *Server) handleRunStream(w http.ResponseWriter, r *http.Request) {
 	}
 	emit("stream_open", map[string]any{"world": tn.Name, "objective": objective, "answering": hasAnswer})
 
-	gone := r.Context().Done()
 	for {
 		select {
 		case ev, ok := <-frames:
@@ -139,6 +150,10 @@ func (s *Server) handleRunStream(w http.ResponseWriter, r *http.Request) {
 			// The browser closed the tab. The turn keeps running inside the
 			// engine and its transcript still lands -- a closed glass does not
 			// cancel the council's work, and only run_cancel does that.
+			//
+			// TRUE ONLY SINCE 2026-09-15: until the sink above stopped waiting
+			// on a reader that had gone, a turn with more events left than the
+			// queue had room for never ended at all.
 			return
 		}
 	}

@@ -2,13 +2,15 @@
 
 A polyglot agent provenance system with cryptographic chain integrity, structural governance, and a modern observability webapp.
 
-**Version:** 0.1.0+f1  
+**Version:** 0.1.5  
 **Covenant:** 1512741580b7239b  
 **License:** MIT
 
 ## What This Is
 
 ATLAS is an operator-first agent harness that treats every tool call, trace, and agent declaration as a cryptographically chained, append-only record. It is not a framework — it is a governance layer that sits on top of any agent runtime and refuses to let the system lie about what happened.
+
+One exception, since 2026-09-16 and on the operator's ruling: the Dashboard's own refresh reads (`muster`, `rack_list`, `proofs`, asked every 15 seconds while the page is on screen) are answered and not kept. Every other tool call through the glass is kept as a trace.
 
 ### Core Properties
 
@@ -43,7 +45,7 @@ atlas/
 | Binary | Language | Description |
 |---|---|---|
 | `atlas` | Rust | CLI: version, ground-init, ground-prove |
-| `atlas-mcp` | Go | MCP server: 78 tools + HTTP + GUI on :8090 |
+| `atlas-mcp` | Go | MCP server: 81 tools + HTTP + GUI on :8090 |
 | `atlas-tui` | Go | Terminal UI: dashboard, traces, agents, chain view |
 | `atlas-town` | Go | Town square: multi-agent coordination |
 | `atlas-door` | Go | Door: per-module MCP gateway |

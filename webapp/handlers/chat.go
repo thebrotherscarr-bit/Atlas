@@ -7,11 +7,34 @@ package handlers
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
+)
+
+// THE GLASS WAITS ON THE DOOR FOR A STATED TIME, AND NO LONGER (2026-09-15).
+// Every call to the door went through http.DefaultClient, which has no timeout
+// at all, so a door that stopped answering held each caller -- a goroutine and a
+// connection -- for as long as it stayed silent. ESTATE LAW 7: bounded
+// everything, timeouts on calls. Variables, not constants, only so a stroke can
+// shorten them.
+var (
+	// pollWait bounds the two quick reads: /run/state, which every page polls,
+	// and /tools. Both answer in milliseconds, and the Dashboard asks for
+	// /run/state again every fifteen seconds.
+	pollWait = 15 * time.Second
+	// callWait bounds everything else: a tool call, a proxied call, a turn's
+	// stream. It is the longest fixed bound the door sets on any tool of its own
+	// -- rack_pull's download, thirty minutes -- so nothing the door itself
+	// promises to finish is cut short here. A flow's budget_s and a prompt_eval's
+	// cases are bounded by what the operator wrote, not by the door; past this
+	// the glass stops waiting, and the door still finishes them and writes their
+	// runs.
+	callWait = 30 * time.Minute
 )
 
 func (h *Handlers) mcpURL() string {
@@ -27,7 +50,11 @@ func (h *Handlers) rpcCall(tool string, args map[string]any) (string, error) {
 		"jsonrpc": "2.0", "id": 1, "method": "tools/call",
 		"params": map[string]any{"name": tool, "arguments": args},
 	})
-	req, err := http.NewRequest("POST", h.mcpURL()+"/rpc", bytes.NewReader(payload))
+	// Not tied to the asker: callers announce the answer to every open window,
+	// and it is still announced after the one that asked has gone.
+	ctx, cancel := context.WithTimeout(context.Background(), callWait)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", h.mcpURL()+"/rpc", bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +184,11 @@ func (h *Handlers) StreamChat(w http.ResponseWriter, r *http.Request) {
 	if h.service != "" {
 		req.Header.Set("Authorization", "Bearer "+h.service)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	// A stream has one reader, the browser that opened it, so it also ends when
+	// that browser leaves -- including while the door has yet to say a word.
+	ctx, cancel := context.WithTimeout(r.Context(), callWait)
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		jsonErr(w, 502, fmt.Sprintf("mcp unreachable: %v", err))
 		return

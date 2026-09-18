@@ -28,8 +28,10 @@ func (s *Store) Get(id string) *db.Trace {
 	return s.db.GetTrace(id)
 }
 
+// Count is every trace recorded, read off the ledger's own tally. It copied the
+// whole list to measure it, on /api/health, which each open tab polls.
 func (s *Store) Count() int {
-	return len(s.db.GetTraces("", 0))
+	return s.db.TraceCount()
 }
 
 func (s *Store) GetSetting(key string) string {

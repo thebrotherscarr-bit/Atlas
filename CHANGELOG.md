@@ -12,6 +12,845 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### A mark can be taken back, and the panel says which GitHub it sends to
+
+On his word, 2026-09-18: *"implement any missing features for github repo management that
+arent on our version control panel yet."* **RESTART REQUIRED** -- `line/internal/tools/`
+and `webapp/static/js/flows.js` moved, and the webapp EMBEDS its JavaScript, so neither
+half is live until both binaries are rebuilt and restarted. No sitting was open.
+
+**WHAT WAS ACTUALLY MISSING**, measured by reading the door's whole git surface against
+the page: `git_tag` listed marks, cut them and sent them, and could not REMOVE one -- and
+`git_remote` has answered where a world sends since 2026-09-10 while nothing in the glass
+has ever called it. Everything else the panel needs was already there.
+
+**THE DAY EARNED THE FIRST ONE TWICE.** `v0.1.12` was cut at a terminal on `7e64f20`, a
+save that declares 0.1.11 and carried none of the work the mark names; the glass's own Cut
+would have refused it on two separate guards. Taking it back then had to happen OUTSIDE the
+glass, at the same terminal that made the mess -- `git tag -d`, no door, no record.
+
+**`git_tag remove`, AND WHAT IT WILL NOT DO IS THE POINT.** A mark GitHub already has is
+never withdrawn from here: somebody may have fetched it, and a name that vanishes leaves
+them holding a version this ground no longer knows -- the same harm as moving one, which
+`tagCut` has always refused in the same breath. Three guards, in this order:
+
+    the name       mechanics only (`badMarkName`): a leading dash git would read as a
+                   flag, the characters no ref may carry. NOT the version law -- four
+                   of the six marks this estate has actually had to remove were named
+                   `0.1.4`, `0.1.5`, with no `v`, and a remove that demanded a lawful
+                   name would refuse exactly the marks that most need removing
+    it exists      an uncut mark is named, not shrugged at
+    GitHub         asked, and a question that CANNOT be asked fails shut: with the wall
+                   down "I could not ask" is not "it is not there", because the wall may
+                   have been open when the mark was cut and sent
+
+**THE BUTTON ASKS THE DOOR FIRST, for this verb too**, which is the doctrine the Send
+button earned the day before. The list now carries `removable` and, when it is false,
+`why_not_remove` in the door's own words -- one judgement (`removeRefusal`) called by the
+act before it deletes and by the list for every mark, so the greyed button and the refusal
+behind it cannot drift apart. `remoteTags` came out of `tagList` for the same reason: the
+list asks GitHub once for every mark, the act asks about one, and both must count an
+unreachable remote as NOT KNOWN rather than as an empty set.
+
+**ON THE GLASS.** A `Remove` button per mark, armed twice like Send -- it is the only
+button on the page that destroys anything -- and greyed with the door's sentence where the
+door would refuse. The row already says *on GitHub*, which IS the reason, so nothing is
+repeated underneath it.
+
+**AND THE ROW THAT NAMES THE REPOSITORY.** Every line on that card spoke of "GitHub"
+without ever saying WHICH: this estate carries more than one world and they point
+different places. `Sends to` now reads it from `git_remote` -- and prints the HOST the
+door lifted out plus the path after it, never the raw URL, because a remote URL can carry
+a token in its userinfo (RULE 7). A door that does not answer leaves the row saying so and
+the rest of the card standing.
+
+**PROVED.** Every Go package in `line` and `webapp` green, `go vet` clean. Four new
+strokes: the sent mark refused and the local one taken back with the commit it stood on
+named and that commit still readable afterwards; an unlawfully named mark removed anyway;
+the wall-shut refusal; and the list's answer byte-identical to the act's. **By reversal,
+four ways** -- the wall-shut guard, the GitHub-has guard, the name law and the list's
+question each redden exactly the strokes that own them and nothing else. The stroke that
+used `delete` as its example of a verb this door does NOT have now uses `move`: a verb list
+that grows takes its own stroke with it.
+
+**WHAT WAS DELIBERATELY NOT BUILT.** Pull requests, issues, releases and CI runs are
+GitHub-side objects and need someone else's server -- RULE 4, and this file's own header
+has said since it was written that they are "a separate wall to open deliberately, not a
+dependency to acquire by accident". Pointing a world at a different remote is still not a
+button (`git_remote` stays read-only): that is a decision, not a verb.
+
+### The version-tag flow asks the door before it asks the hand
+
+On his word, 2026-09-17: *"fix the version-tag flow's send node too"* -- and, when the hand
+went looking in the wrong place, *"we are working on 127.0.0.1:8091/workflows ... there is
+all the version control, EVERYTHING you need is on the webapp already."* He was right: the
+builder came back on 2026-09-11 and the flow was edited THROUGH IT, not by hand on the
+spec file. **No binary moved; no restart is owed.** No sitting was open.
+
+**WHAT IT WAS.** `version-tag` v1 cut a mark, proved the cut, then paused at `send_gate`
+with a static warning about irreversibility and carried on to `send`. Nothing in it asked
+whether the mark COULD be sent. With the door's new refusal in place -- a mark leaves only
+after origin's main line carries its commit -- the flow would have failed at its LAST node,
+on `sent`, after the hand had already answered the only question it was asked.
+
+**v2, EIGHT NODES.** One new step, `check` (kind `run`), between `proof` and `send_gate`:
+it asks `git_tag list` again now the mark exists and reports THAT MARK ONLY -- whether the
+door says it is sendable and, if not, the door's `why_not` word for word. The wiring moved
+with it: `proof -pass-> check -always-> send_gate`, so everything after the cut still hangs
+off the cut's own proof.
+
+    read       run   the marks, and what the ground declares
+    judge      gate  stop if the number is wrong
+    cut        run   cut {{mark}} with {{what}}
+    proof      eval  contains `Cut {{mark}} at`, scored on the EVIDENCE
+    check      run   NEW -- would this door send {{mark}}, and if not, why not
+    send_gate  gate  now renders {{out_check}}: the door's answer is IN the question
+    send       run   one mark, by name
+    sent       eval  contains `Sent {{mark}} to origin.`
+
+**THE GATE CARRIES THE DOOR'S OWN SENTENCE.** A gate title is rendered against the run's
+vars, so `{{out_check}}` puts what the door actually said into the pause the operator walks
+back to -- hours later, on the waterfall, whole. The title also names the remedy in his own
+terms: send the main line first from Version control, then fire this flow again. The
+`send` step's objective says the same thing from the other side: report the refusal word
+for word, and never push anything else -- the main line is sent by a hand, never by a flow.
+
+**PROVED ON THE SAVED SPEC, against a stub engine in a temp home** -- no network, no
+engine, no sitting, and the estate's record untouched. Three ways: with the door answering
+`"sendable": true`, the send gate pauses carrying that; with the door refusing, the gate
+carries the refusal's own words; and a refused CUT still ends the run FAIL with `check`,
+`send_gate` and `send` never firing, which is the older rule this rewiring had to keep.
+
+**AND BY REVERSAL.** The same harness against the folded `version-tag.v1.json` reddens both
+door-answer strokes -- the old gate carried no answer because nothing had asked -- while
+the refused-cut stroke stays green, because that half did not change.
+
+**FOLDED, NOT REWRITTEN.** Saving through the page wrote v2 and kept v1 whole beside it.
+The flow has still NEVER BEEN FIRED; firing it opens a sitting and spends the council, and
+that is his.
+
+### The Send button asks the door before it offers itself
+
+On his word, 2026-09-17: *"make the send button ask the door first."* **RESTART REQUIRED,
+BOTH: the door and the glass.** No sitting was open.
+
+**WHAT IT WAS.** The Version marks panel offered Send on every mark GitHub lacked, and
+the door's answer arrived after the click -- in fact after two, because sending arms
+first. On a mark that is the worst moment to learn it: the answer is never "try again"
+but "that mark may not go at all", and the operator has already decided by then. The
+guards placed the same morning made this certain rather than theoretical: three of the
+four shapes a mark can have are refused, and the panel advertised all of them.
+
+**THE DOOR ANSWERS THE QUESTION BEFORE IT IS ASKED** (`internal/tools/gitctl.go`).
+`sendRefusal` is now the one place that judges whether a mark may leave -- the name, the
+mark's existence, the commit, and whether origin's main line carries it. `tagSend` calls
+it before the push; `tagList` calls it for every mark GitHub does not already have, and
+the list carries the verdict per mark: `sendable`, and `why_not` in the door's own
+sentence when it is false. The wall is answered per mark too, in the wall's own words, so
+a shut wall offers nothing and says why. A mark GitHub already has is not asked about --
+there is no button on it.
+
+**ONE JUDGEMENT, ONE WORDING.** Two judgements would drift, and then a button would say
+one thing while the act behind it said another. The stroke holds them together: it reads
+the list's `why_not` for a mark and the refusal the send itself returns, and fails unless
+they are the same string.
+
+**THE GLASS RENDERS IT AND DOES NOT SECOND-GUESS IT** (`webapp/static/js/flows.js`). A
+mark the door will not send is a dead button carrying the refusal, and the reason is
+printed under the table as well -- a refusal that lives only in a tooltip is a refusal
+nobody reads. A `sendable:false` with no reason keeps the button live and lets the door
+speak on the click, because a glass that invents its own refusal is the fault this piece
+closes, from the other side.
+
+**STROKES 61 -> 62** in `internal/tools`. `TestTheListSaysWhetherAMarkCouldBeSentAndWhyNot`
+runs against a bare repository on this disk -- no stroke reaches a network -- and proves
+all five answers: a mark origin's main line carries is offered; one ahead of its line is
+not, and carries the reason; the list and the send refuse in the same words; sending the
+line makes the same mark offerable; a name that is not `vMAJOR.MINOR.PATCH` is refused
+before any of that; and a shut wall offers nothing and names the dial.
+
+**PROVEN BY REVERSAL** on scratch copies, six ways: the piece as written is green; the
+door as it stood this morning with the new stroke kept reddens it; the list not asking at
+all, not judging the wall, and not judging the name each redden it alone; and making the
+send speak its own words instead of the shared one reddens the new stroke AND the two
+older send strokes -- which is the drift the design prevents, shown as it would look.
+`gofmt` and `go vet` clean, every package in `line/` green, the door's battery 125/125,
+the surface at 81 tools.
+
+**AND FIRED, NOT ONLY READ.** A scratch door and a scratch glass, on their own ports,
+against a scratch world carrying four marks -- one origin's main line carries, one ahead
+of the line, one named `0.1.7`, and one on a side history. The panel greyed three with
+their reasons under the table and left one live; clicking a greyed one did nothing and
+armed nothing; the live one armed on the first click and sent on the second. The scratch
+remote ended up holding `v0.1.5` and NOT the side history's commit, and that row then read
+*on GitHub* with no button at all. His own door and glass were not touched: they kept
+running throughout, and the scratch pair was stopped by pid.
+
+### A mark stands on the main line, and leaves only after its history has
+
+On his word, 2026-09-17: *"fix the tags ... make sure the version tags are being used
+properly."* **RESTART REQUIRED -- and done: the door was rebuilt and restarted the same
+hour (pid 14512).**
+
+**WHAT IT WAS FOR.** Six marks on the core's ground -- `v0.1.0`, `v0.1.1`, `v0.1.3`,
+`v0.1.4` and the lightweight `0.1.4` and `0.1.5` -- pointed into `pre-strip-master`, the
+history kept from before `worlds/` was stripped, which still carries 383 paths under it,
+268 of them under a `vault/`. Four of the six had names `git_tag` calls lawful, and the
+Version marks panel offers a Send button for every mark GitHub lacks. Two clicks would
+have published that history. `tagSend` checked the name, the wall and that the mark
+existed; nothing asked WHERE its commit stood. The marks themselves were removed on the
+core's side (see its CHANGELOG); this is the door learning to refuse the shape.
+
+**THE CHANGE, both halves in `internal/tools/gitctl.go`.**
+
+    cut    a mark is cut only on a commit the main line carries -- `main`, or
+           `master` where a world calls it that. A world with neither is told so.
+           The check sits after "a mark is never moved" and before the unsaved-work
+           one, so the older refusals keep their order and their words
+    send    a mark is sent only when origin's main line already carries its commit,
+           as this machine last saw it. Then the push publishes the mark and nothing
+           else. A mark ahead of its line is told to send the line first
+    carries `merge-base --is-ancestor`, and any doubt -- a ref that is not there, a
+           commit git cannot read -- is NO. A guard that fails open is not a guard
+
+**STROKES, 59 -> 61 in `internal/tools`.** `TestAMarkIsCutOnlyOnTheMainLine`: a cut on a
+side line is refused and creates nothing, and the main line's own commit still takes the
+mark. `TestAMarkLeavesOnlyAfterItsHistoryHas` runs against a bare repository on this disk
+-- no stroke reaches a network -- and proves the whole shape: a mark whose commit origin
+carries is sent and the remote has it; a newer mark whose line has not been sent is
+refused and NEITHER the mark NOR its commit reaches the remote; sending the line lets the
+same mark through; and a mark made by hand around this door, on a line that was never
+sent, is refused with its history left at home. That last case is the six, in miniature.
+
+**PROVEN BY REVERSAL** on scratch copies: the door as it was (with the new strokes) turns
+both red -- which is the measurement of what the old door would have done; each guard
+undone alone turns only its own stroke red; judging the LOCAL main line instead of
+origin's turns the send stroke red; and `carries` failing open turns both red. `gofmt`
+and `go vet` clean, every package in `line/` green, and the door's own battery 125/125
+with the surface at 81 tools.
+
+**AND ON HIS DOOR.** Stopped by pid, the build placed, started on RUNBOOK's own line: it
+lists the three marks the core carries, all three already on GitHub, and a cut asked at
+`baa4f32` -- a commit `main` does not carry -- comes back *"Refused: baa4f32 is not on the
+main line (main)."* Nothing was created, and nothing was sent.
+
+**LEFT AS IT IS.** The Version marks panel still offers Send on any mark GitHub lacks and
+learns the refusal after the click; nothing off the main line exists to press it on today.
+*(CLOSED THE SAME DAY on his word -- the entry above.)*
+The `version-tag` flow's `send` node now needs the main line sent first -- its own gate
+does not say so yet, and it has never been fired.
+
+### The record caught up with the week
+
+On his word, 2026-09-17: *"tick the finished work, update the records to reflect the current
+system."* The core's half, and the list of what is still owed, are in the core's CHANGELOG
+("The record caught up with the week") and TASKS. Here, docs only; no code moved.
+
+    README.md      "Version: 0.1.0+f1" -> 0.1.5, which VERSION says and the binaries
+                   answer; the door's "78 tools" -> 81, counted off /tools; and, under
+                   the sentence that says every tool call is a record, one paragraph
+                   naming the exception D1 made: the Dashboard's own refresh reads are
+                   answered and not kept. The sentence itself stands
+    THE_ROAD.md    the 2026-09-08 snapshot kept as written, and a dated section under
+                   it: the door's 81 tools, 31 with no page in the glass; the versions
+                   since the cutover; what is unreleased; and that SEAT_LOG.md and
+                   STATE_OF_BUILD.md, the road's own witnesses, were last written
+                   2026-09-09
+
+**Measured for it.** Of the door's 81 tools, 31 are named nowhere in `webapp/` outside its
+tests -- a word match over the pages and the Go, the same one the 2026-09-11 count used. The
+one mark this repository holds is `v0.1.5`, on 3dacdbc.
+
+### The Dashboard's own reads are no longer traces
+
+On his ruling, 2026-09-16: *"D1 b D2 30 minutes  D3 no"* -- the three decisions the
+optimization pass left for him. This is D1, as he chose it: the Dashboard's own reads are
+answered and not kept. D2, an idle engine closing itself after thirty minutes, is the next
+piece, on his word. D3, a slower refresh while no engine is open, is ruled out.
+
+**WHAT WAS THERE.** `Home.read` asks the door for `muster`, `rack_list` and `proofs` when the
+Dashboard opens, when it is shown again and every fifteen seconds it is on screen.
+`CallTool` kept every call as a trace carrying the tool's whole output and sent it to every
+open tab, and every tab toasted "New trace recorded". One refresh was three traces and about
+22 KB, so a Dashboard on screen for an eight-hour day wrote about 5,760 traces and 42 MB, and
+the Traces page, which lists the newest 100, showed only its last eight minutes. Those three
+tools were 99% of the 29,312 traces the ledger held when it was folded on 2026-09-14.
+
+**THE CHANGE.**
+
+    Home.read        asks its three as background reads: App.tool(n, a, true)
+    App.tool         passes `background` on; nothing else sets it
+    API.callTool     sends "background": true only when asked, so every other call's body
+                     is exactly what it was
+    CallTool         a call marked background, for a tool in backgroundReads, is answered
+                     -- the door is still asked, and the reply still carries its output,
+                     hash and duration -- and not kept: no trace, no broadcast, no toast,
+                     and no trace_id in the reply, because there is none to name
+    backgroundReads  muster, rack_list, proofs, each of which the door declares Writes:
+                     false. Anything else marked background is kept as before, so no call
+                     that writes can leave the record by asking to
+
+Kept as before: the same three asked by anything else -- Records reading `proofs`, the end of
+a turn repainting it, a call from the Tools page -- the sidebar's badges, every write and
+every turn. A background read that fails is shown on the page as before, and is not kept
+either. The 310 MB already in the ledger stays where it is.
+
+**STROKES, 10 -> 15 in `webapp/handlers`**, in one new file, `handlers/trace_test.go`, against
+a loopback door that answers every call: the three asked in the background leave no trace and
+name none; no open tab hears of them; the door is still asked, and its words come back with
+their hash and duration; the same three asked plainly, or with `background` false, are kept
+and announced; and `git_commit`, `env_close`, `records` and `seats` marked background are kept
+and announced. On the glass as it was, the first two are red and the other three green. The
+module green on the mirror: `db` 13, `handlers` 15, `server` 4.
+
+**AND THE PAGE, OUTSIDE A BROWSER.** A harness in scratch, not shipped, loads the real api.js,
+council.js, home.js and app.js with the browser stubbed and reads every body the page posts.
+Opening the Dashboard, and one refresh, each send the three and only the three, all marked
+background; the page still paints from their answers, and a refused one still reaches the
+brief; Records, the end of a turn, a bare App.tool, the sidebar's badges and a bare
+API.callTool send no `background` key at all. Before: 9 of 11. After: 11 of 11.
+
+**PROVEN BY REVERSAL, on a scratch copy.** Six undos of the glass -- the glass as it was, any
+tool marked background left out, the list naming a call that writes, a background read still
+announced, one still kept, a reply naming a trace it did not keep -- and seven of the page --
+the scripts as they were, Home.read without the flag, App.tool dropping it, API.callTool
+dropping it, API.callTool marking every call, API.callTool always sending the key, App.tool
+marking every call -- each turned its own strokes red and no other. One stroke has no undo of
+its own: that a background read is still answered, which nothing in this change would break.
+`gofmt` and `go vet` clean, `node --check` on the three scripts.
+
+**AND ON REAL BINARIES, IN A REAL PAGE.** His glass and his door were both down when this was
+proved, and neither was started. The binary from before this piece and the new build each ran
+from scratch, on a port and with a store of their own, and the browser pane opened each one's
+Dashboard. With the door down every call came back "mcp error:"; what is kept does not depend
+on the answer.
+
+    opening the Dashboard   before: 6 kept -- seats, records, muster 2, rack_list, proofs
+                            after:  3 kept -- seats, records, muster (the sidebar's)
+    one refresh             before: 3 more, and the toast
+    two refreshes           after:  none, no toast, and the brief still showed the rack refused
+    a plain muster call     after:  kept, and the toast
+
+The new build served api.js, app.js and home.js byte-identical to disk. Both were stopped by
+pid.
+
+**THE NEW BUILD IS NOT IN PLACE.** Copying it over `webapp/atlas-webapp.exe` was refused by the
+session's permission check, and nothing was forced: the copy never ran, so the binary there is
+still the build from before this piece, and a glass started from it asks as it always did. The
+new build waits in the hand's scratch.
+
+**AND ON 2026-09-17 IT WAS PLACED.** On his word, *"finish d1, then proceed to d2"*. Tried on
+that order, the copy was refused by the permission check a second time; it ran after he answered
+*"Yes, copy it now"* to a question naming that one copy, with no atlas-webapp running. It is the
+build this entry describes -- the forty files under `webapp/` were compared with the tree it was
+built from, unchanged -- and `webapp/atlas-webapp.exe` now hashes as that build does: sha256
+e01791bd86729738, 10,613,248 bytes. Its file time still reads the build's, 2026-09-16 15:19,
+because the copy keeps it. A copy of the binary it replaced, the piece-6 build of 2026-09-15,
+is in the hand's scratch. The glass was down and was not started: its next start serves the new
+build, and a Dashboard tab left open from before keeps the old scripts, which mark nothing as
+background, until it is reloaded.
+
+**AND ON HIS GLASS, THE SAME DAY.** On his word, *"start the door and glass, test it live"*,
+both were started on RUNBOOK's own lines, and the glass served api.js, app.js and home.js
+byte-identical to disk. The browser pane opened the Dashboard with the page's `fetch`, `toast`
+and `App.onEvent` wrapped to log every call, and its Boot was pressed once, for D2's own test.
+
+    opening the Dashboard   5 kept -- seats, records and muster, the sidebar's, and git
+                            twice. The same page kept 8 on 2026-09-15
+    the Boot                env_open kept, as a call that writes is
+    one plain muster call   kept; its trace_added reached the page and the toast rose,
+                            which is the proof that the wrapped functions see what they
+                            are there to see
+    the refreshes           408 background reads from 08:19:58 to 08:53:43, three every
+                            15 seconds, 366 of them while the engine stood open, and not
+                            one kept: the ledger went from 30,561 to 30,563 in that time,
+                            and the two are the Boot and the plain call. In the 324 read
+                            after the plain call was checked, no trace_added reached the
+                            page and no toast rose
+    afterwards              the wrappers put back and the tab closed; the glass and the
+                            door left running
+
+The first toast check was blind and is not counted. It watched for new elements, and `toast`
+rewrites the one `#toast` element in place, so it could never have seen one. The wrapped
+`toast` replaced it before any of the numbers above were taken.
+
+**Named, not fixed.** The opening sentence of `README.md` still says ATLAS treats every tool
+call as a record. It speaks for the whole harness rather than the glass, and was already wider
+than the glass's ledger, which has only ever held the calls that passed through the glass.
+
+### The glass stops waiting forever on the door, and its store's saves stop racing
+
+On his order, 2026-09-15: *"continue to piece 6"* -- piece 6 of the optimization pass's plan,
+"the glass stops waiting forever on the door, and its key store's save race is closed".
+
+**WHAT WAS THERE.**
+
+    no timeout       every call the glass made to the door -- /run/state, /tools, every
+                     tool call, every proxied flow, prompt and chat call, and every
+                     stream -- went through http.DefaultClient or http.Get, and neither
+                     ever times out. A door that stopped answering held each caller, a
+                     goroutine and a connection, for as long as it stayed silent.
+                     ESTATE LAW 7: bounded everything, timeouts on calls
+    a racing Save    Save took the store's read lock only to copy four fields and
+                     marshalled after letting go -- but a map and three slices copy as
+                     references to the same data. A SetKey landing mid-marshal ended in
+                     Go's fatal "concurrent map iteration and map write", which takes
+                     the whole glass down, or in a panic inside the JSON encoder; an
+                     UpsertAgent was a torn read. And every Save wrote the one
+                     store.json.tmp: sixteen Saves at once failed 265 to 277 times in
+                     320, on that file's open or its rename, and every caller of Save
+                     discards its error
+
+**THE CHANGE.**
+
+    pollWait 15 s    /run/state, which every page polls, and /tools. Both answer in
+                     milliseconds
+    callWait 30 min  every tool call, proxied call and stream. The longest fixed bound
+                     the door sets on any tool of its own is rack_pull's download,
+                     thirty minutes, so nothing the door promises to finish is cut
+                     short. A flow's budget_s and a prompt_eval's cases are bounded by
+                     what the operator wrote, not by the door: past thirty minutes the
+                     glass stops waiting, and the door still finishes them and writes
+                     their runs
+    streams          also end when the browser that opened them leaves, even while the
+                     door has yet to send a byte. Tool calls do not: their answer is
+                     still written to the trace ledger and announced to every open
+                     window after the one that asked has gone
+    Save             holds a new saveMu from its snapshot to its rename, and marshals
+                     under the read lock, so the Save that renames last wrote the
+                     newest state
+
+**STROKES, 11 -> 13 in `webapp/db` and 5 -> 10 in `webapp/handlers`**, the second five in one
+new file, `handlers/door_test.go`. A door that never answers -- a real loopback server that
+accepts every request and says nothing -- holds each call to its bound: /run/state and
+/tools come back 502 saying the deadline passed; a tool call says so too, and its trace
+records it; a proxied call; the council and chat streams end when their browser leaves
+before the door has spoken; a WebSocket turn tells its socket. For the store: eight writers
+set 800 keys, each write saving, and all 800 are on disk; sixteen Saves at once, twenty times
+each, all land.
+
+**PROVEN BY REVERSAL, on a scratch copy.** The whole piece undone: every one of those strokes
+red, the store's taking the test process down with the encoder's panic. The old Save alone:
+crashed 3 runs in 3, twice with the encoder's index out of range and once with the fatal
+concurrent map write. saveMu removed and the marshal kept under the lock: the simultaneous
+Saves red 3 in 3. The marshal moved back after the lock with saveMu kept: crashed 3 in 3.
+Each of the seven door-call undos -- /run/state without its bound, /tools back on http.Get,
+a tool call, a proxied call, the council stream and the chat stream untied from their
+browser, the WebSocket turn -- turned its own stroke red and no other. The race detector
+could not be used, because this machine has no C compiler for cgo, so the store's strokes
+prove the race by its crashes and its failed Saves instead. `gofmt` and `go vet` clean over
+the module, and the module green on the mirror.
+
+**AND ON THE GLASS ITSELF.** The door was not touched. The glass -- pid 18408, the only
+atlas-webapp running, checked by pid and path before anything was stopped -- was stopped,
+the new binary put in place, and started on the same command line it had. /api/health
+answers 200 with 29,415 traces; /run/state and all 81 tools reach the door through it; the
+store opened with its settings.
+
+**NOT FIRED LIVE.** No silent door was stood up against the live glass; the strokes' silent
+door is a real server of its own.
+
+**Named, not fixed.** `GetAgent` hands back a pointer into the agents slice, so a reader
+holding it races an `UpsertAgent` the same way the Save did. And `Run.check` reads a 502 from
+/council/state as "no engine open", not as a door that did not answer -- true of a door that
+is down before this change, and now of one that is silent for fifteen seconds. The plan's
+other pieces are his to call; none was started.
+
+### The door stops waiting on a browser that left, and sees an engine that died
+
+On his order, 2026-09-15: *"keep going"* -- piece 5 of the optimization pass's plan, "the
+door drains a turn's events when a browser disconnects, and notices an engine that
+crashed".
+
+**TWO FAULTS IN THE DOOR, BOTH SILENT.**
+
+    a closed tab     /run/stream hands each engine event to the socket through a queue
+    stopped the      of 256. When the browser left, the handler returned and nothing
+    turn             read the queue again -- and the sink was a bare send, so the first
+                     event past the room left stopped the pump, the pump stopped
+                     reading the engine, and the turn never ended. Run holds the
+                     world's run lock for the whole turn, so every later turn on that
+                     world waited on it forever. The glass's proxy closes its door
+                     connection when a browser leaves, so closing a tab mid-turn, or
+                     restarting the glass, was enough. The comment on that case read
+                     "The turn keeps running inside the engine and its transcript
+                     still lands"
+    a dead engine    Alive read `exec.Cmd.ProcessState == nil`, and exec.Cmd fills that
+    read as alive    only in Wait -- or Run, which calls Wait -- and the door calls
+                     neither. It was nil for the life of every process: a crashed
+                     engine stayed in the registry, /run/state said open, and the glass
+                     offered a send box onto a process that was gone. That is the fault
+                     I5 was written to fix, and the check it was fixed with could never
+                     see it
+
+**THE CHANGE.**
+
+    the sink         sends; once the request is gone, an event that would wait is
+                     dropped, because there is no one left to show it to. While the
+                     browser is there it still waits, so a slow reader still slows the
+                     turn, as before
+    one waiter       Open starts one goroutine that waits on the process and closes
+                     `exited` when it ends, asked to or not. Alive reads it. shutdown
+                     reads it where it used to start a Wait of its own, and still kills
+                     after the grace. os.Process.Wait, not exec.Cmd.Wait: that one
+                     closes the stdout pipe the moment the process ends, while pump may
+                     still be reading a dying engine's last lines
+
+Both comments that said otherwise are corrected in place, dated, their sentences kept.
+
+**MEASURED ON MIRRORS OF THE DOOR BEFORE AND AFTER, with a real child process.** The strokes
+spawn the test binary itself as the engine, speaking serve.py's wire: `opened`, a delivery
+per objective, `closed` on close, one objective that ends the process mid-turn with no
+terminal event, and one that speaks as many tokens as it is told. It proves the door's
+side of the wire and nothing about the engine.
+
+    the crash    before: ten seconds after the process ended, Alive still said standing
+                 after:  gone, and not handed back by the registry, inside 0.14 s
+    the tab      before: a client that read the first line and hung up left a
+                 50,000-token turn unfinished at 20 s; the stroke took 80 s, the rest of
+                 it a close sitting out the 60 s grace
+                 after:  the turn ended and was counted inside 0.37 s
+    a close      0.01 s before and after, its toll reported paid
+
+**STROKES, 10 -> 12 in `internal/engine` and 12 -> 13 in `internal/httpserver`**, and one
+stub-engine function in each that skips unless it is the spawned child. PROVEN BY
+REVERSAL, three undos on a scratch copy -- Alive back on ProcessState, shutdown deaf to
+the waiter, the sink back to a bare send -- each turns its own stroke red and no other.
+One line has no stroke: os.Process.Wait over exec.Cmd.Wait. `gofmt` and `go vet` clean,
+the module green on the mirror, and the door's own battery 125 of 125 on the new binary.
+
+**AND ON THE DOOR ITSELF.** With no sitting open and no engine standing, the new binary was
+put in place and started on its own command line. It serves 81 tools; `env_list` names
+research and atlas, both closed; the proofs reply's sha256 is unchanged; the glass reaches
+it.
+
+**AND A PROCESS THAT WAS NOT THIS HAND'S WAS STOPPED WITH IT, which is the lesson.** The
+restart found the running door by its NAME rather than by the pid it had just looked at,
+and two processes answered: this door, and an `atlas-mcp.exe` running from
+`Desktop\Archive\atlas\line` with `--atlas-bin` and no `--http`, started by something else
+during this piece. Both were stopped. That process was outside the ground and not this
+hand's to touch, and it was not restarted: whatever launched it owns it. A door is stopped
+by the pid that was looked at, never by its name.
+
+**NOT FIRED LIVE.** Both faults need an open engine, and opening one opens a sitting in his
+record.
+
+**Named, not fixed.** `/run/listen` has the same shape with a queue of 64; how many lines a
+capture sends through it is voice.py's to say, and that file was not read in full.
+`/chat/stream` has a different one: when the browser leaves, its handler returns while the
+send's goroutine goes on writing tokens to the response. The plan's other pieces are his
+to call; none was started.
+
+### The door reads the record once per change, and looks for old code only where the engine keeps it
+
+On his order, 2026-09-15: *"continue the work"* -- piece 4 of the optimization pass's plan,
+"the door caches the record files until they change, and limits its running-old-code
+check to `manjuel/`".
+
+**WHAT THE PASS MEASURED, on the ground, from a mirror.**
+
+    proofs     15-16 ms and 7.6 MB of garbage a call, 11 ms and 6.0 MB of it parsing
+               sessions.jsonl -- 846 KB, append-only, changed once a sitting. The
+               Dashboard asks on every refresh
+    the walk   every /run/state an open engine answered walked the whole ground past
+               a skip list: 289 folders, 5,891 files, 27 ms and 3.5 MB. 30 of the 64
+               .py it counted were atlas/'s tools and tests, which no engine imports,
+               so an edit to one said "restart" over code the engine never ran
+
+**THE PLAN WAS WRONG ABOUT ONE FOLDER, AND THE DISK SAID SO.** `manjuel/` is not all the
+code a running engine holds. The law gate loads `law/law.py` into the process, that
+loads the pen's `links.py`, and `links.py` imports `jesster` by name -- which Python
+keeps until the process ends. A walk of `manjuel/` alone would miss an edit to the pen
+while the engine runs the old copy of it, so the walk enters `law/` as well. `law.py`
+and `links.py` themselves are loaded fresh each time the gate walks the chain, so an
+edit to either raises the row without the engine being stale. The old walk counted them
+too, and law.py's own header calls the pen never edited.
+
+**THE CHANGE.**
+
+    engine.CodeChanged   reads the top of the ground and enters manjuel/ and law/;
+                         every other folder at the top is skipped whole, and
+                         __pycache__ anywhere. Same question, same answer: the
+                         newest .py the engine holds, and when
+    tools.fromRecord     run_history.jsonl, parity_history.jsonl, sessions.jsonl and
+                         SEAT_LOG.md are read once, and what each was made into is
+                         kept -- the standups, the parity rows, the counts and the
+                         twelve recent sittings, never the bytes -- until the file's
+                         size or modification time moves. One stat a file a call.
+                         last_run.json, a few hundred bytes, is read every call as
+                         before
+    three rules          the stat is taken before the read, so a write landing
+                         between them costs one extra read and never an old answer;
+                         a read that fails is not kept; nothing kept is changed
+                         after, and every call builds its own reply around it
+
+**LEFT AS IT WAS, AND WHY.** `SittingOpen` reads sessions.jsonl whole, and the plan named
+it. It runs on `env_open` and `env_list` alone -- nothing polls it -- and it is the guard
+between a second engine and a forked ledger, so it still reads the disk every time.
+The listing of `logs/` for standup reports, 1.3 ms, is still read every call: a folder's
+time is a weaker key than a file's, and a report missing from the page would be the page
+lying about the record.
+
+**MEASURED ON THE GROUND, from mirrors of the door before and after, reading the same
+files.**
+
+    proofs      16.0 ms, 7,775 KB a call  ->  the first call 15.8 ms, then 1.6 ms, 352 KB
+    the walk    27.4 ms, 3,552 KB a call  ->  0.40 ms, 29 KB
+    the reply   14,828 bytes, sha256 05fd341190cdf6b1: before, after, first call and
+                thirty-first, all byte-identical, and identical to the live door's
+    the answer  manjuel/pipeline.py at 2026-09-14 12:41:20, before and after
+
+**STROKES, 7 -> 10 in `internal/engine` and 55 -> 59 in `internal/tools`.** The walk
+ignores atlas/'s tools, a skill's .py, agent_workspace, worlds and __pycache__ when each
+is newest; it finds manjuel.py, the package, law.py and the pen's jesster.py when each
+is; and an engine is stale when the pen changes after it started, and not when an atlas
+tool does. For proofs: an unchanged record is read once over four calls and answered
+byte for byte the same; a ledger that grew is read again with its time held still; a
+file rewritten to the same size is read again when its time moves; a read that failed is
+reported and not kept. PROVEN BY REVERSAL, twelve undos on a scratch copy -- the old skip
+list, law/ dropped, the folder rule applied at every depth, __pycache__ entered, nothing
+kept, the size dropped from the key, the time dropped, a failed read kept, and each of
+the four call sites reading its file directly again -- each turns its own strokes red and
+no other. Two lines have no stroke: the stat-before-read order, whose race a test cannot
+time, and the copy that keeps twelve rows rather than the array behind them. `gofmt` and
+`go vet` clean, the module green on the mirror before and after, and the door's own
+battery 125 of 125 on the new binary.
+
+**AND ON THE DOOR ITSELF.** With no sitting open and no engine standing, the door was
+stopped, the new binary put in place, and started on its own command line, unchanged. It
+serves 81 tools; `env_list` names research and atlas, both closed; the glass reaches it.
+`proofs` over the door's own /rpc, twelve calls each: median 13.8 ms before, 3.1 ms after,
+the reply's sha256 unchanged.
+
+**NOT FIRED LIVE.** The walk runs only for an open engine, and opening one opens a sitting
+in his record, so the new walk has run against the ground from a mirror and not inside the
+door. The next Boot is the proof.
+
+**WHAT IT SAVES:** per Dashboard tab on screen between sittings, 11 to 14 ms and 7.2 MB of
+garbage off every refresh -- 60 to 80 CPU-seconds in the door for a day of refreshes -- and
+with an engine standing, 27 ms and 3.4 MB off every /run/state. The plan's other pieces are
+his to call; none was started.
+
+### The health check rests while nobody is looking
+
+On his order, 2026-09-15: *"keep going"* -- piece 3 of the optimization pass's plan,
+"the health check pauses while a tab is hidden, the same rule the refresh already
+follows".
+
+**WHAT THE PASS FOUND.** `App.loadHealth` asked `/api/health` every five seconds, on
+every page, for the life of the tab, and rescheduled itself whether or not anyone
+could see the page -- 17,280 requests a day per open tab, to paint one dot and a
+version in the sidebar. The Dashboard's own refresh already stops while a tab is
+hidden and catches up the moment it is shown (`Home.watch`); this never learned
+that rule. Measured the day before, in a hidden pane: 12 health checks in 69 seconds.
+
+**THE CHANGE, in `loadHealth` alone.**
+
+    hidden          asks nothing and leaves nothing scheduled
+    shown again     checks at once -- that is the moment the dot is read -- and
+                    resumes the five-second cycle. The listener is installed by
+                    the first check, so the rule lives in one function
+    one cycle       a check started by the return to the tab can overlap a timed
+                    one still waiting on its answer; the timer is cleared again
+                    before the next is set, so two cycles can never form
+    hidden mid-check  the answer still paints; nothing is scheduled after it
+
+**MEASURED.** A harness in scratch, not shipped, drives the real app.js with timers
+captured and visibility switchable:
+
+    before   5 of 9: a hidden tab asked four times across three due timers, kept
+             a check scheduled, and nothing checked on the way back
+    after    9 of 9: a visible tab checks and keeps checking; a hidden tab asks
+             nothing and schedules nothing; coming back checks at once and
+             resumes one cycle; racing checks leave one cycle; a tab hidden
+             mid-check schedules nothing
+
+PROVEN BY REVERSAL: each of four parts undone on a copy turns its own check red.
+The reversal script itself was wrong once and is corrected: it expected removing the
+first hidden-test to also leave a check scheduled, and the second test, at the
+reschedule, rightly still prevents that. The harnesses for pieces 1 and 2 and the
+watched-turn fix still hold 9 of 9, 8 of 8 and 16 of 16. `node --check` clean,
+`go vet` clean, the webapp's tests green, built.
+
+**AND ON THE GLASS ITSELF**, rebuilt and restarted. The browser pane's page reports
+itself hidden, and it made no health check at all in 23 seconds after load. With the
+page marked visible and the visibility event fired in the real browser, it checked
+at 0 ms, then at 5.0 s and 5.0 s, and painted the dot green with version 0.1.5;
+marked hidden again, the next due check asked nothing and left no timer.
+
+**WHAT IT SAVES:** every health request from a tab nobody is looking at -- up to
+17,280 a day per tab. The plan's other pieces are his to call; none was started.
+
+### A tab holds one event stream, not two
+
+On his order, 2026-09-15: *"keep going"* -- piece 2 of the optimization pass's plan,
+"one event stream per tab, shared by both listeners".
+
+**WHAT THE PASS FOUND.** Two readers follow the broadcast bus: `App.onEvent`, for the
+toasts, and `Run.mirror`, which shows a turn another window started. Each called
+`API.sse`, and `API.sse` opened a new `EventSource` every time it was called -- so
+every tab held two `/api/events` streams, and the webapp sent that tab every
+broadcast twice: each trace with its tool's whole output, each token of each turn.
+Measured on the glass before this: one Dashboard tab, two `GET /api/events`.
+
+**AND ITS RECONNECT MULTIPLIED.** An error fires on every failed retry, and each one
+queued its own reconnect three seconds out. In the harness, two streams erroring
+twice opened six before they settled.
+
+**THE CHANGE, in `API.sse` alone.** The first caller opens the stream; every caller
+is a listener on it, and each message is parsed once and handed to each. A listener
+that throws is caught on its own, so it cannot stop the next one -- the isolation
+the two separate streams used to give. One reconnect is pending at a time, or none.
+Neither caller changed.
+
+**MEASURED.** A harness in scratch, not shipped, loads the real api.js and council.js
+with the browser stubbed:
+
+    before   4 of 8: a tab with both readers opened two streams; repeated errors
+             opened six and left two open
+    after    8 of 8: one stream; a broadcast reaches the toast reader and the
+             mirror, which opens its watched turn from it; a listener that
+             throws does not stop the next; a malformed line reaches no one;
+             repeated errors reconnect once, leave one stream open, and the new
+             stream still serves both readers
+
+PROVEN BY REVERSAL: each of four parts undone on a copy turns its own checks red.
+Piece 1's harness still holds 9 of 9 and the watched-turn harness 16 of 16.
+`node --check` clean, `go vet` clean, the webapp's tests green, built.
+
+**AND ON THE GLASS ITSELF**, rebuilt and restarted: a Dashboard tab opens one
+`GET /api/events`, the stream stands open with both readers on it, and one refresh's
+three trace broadcasts arrived over it with the toast raised.
+
+**WHAT IT SAVES:** half of every broadcast byte the webapp sends each open tab --
+every trace and every token, once instead of twice. The plan's other pieces are his
+to call; none was started.
+
+### The Dashboard reads the record once per refresh, not twice
+
+On his order, 2026-09-15: *"continue"* -- piece 1 of the optimization pass's plan,
+"one `proofs` fetch per refresh".
+
+**WHAT THE PASS MEASURED.** One open Dashboard tab made exactly 960 tool calls an
+hour, four per 15-second refresh, and two of the four were the same `proofs` call.
+`Home.read()` asked for it in its own `Promise.all` and kept the answer, then called
+`App.paintProof`, which asked again. The comment above that code read "proofs is
+asked for ONCE and kept"; the code beneath it did not. Over 2026-09-12..14 the trace
+ledger held 14,440 `proofs` calls at ~20 KB each -- half of every call the glass
+made, and 290 MB of its 300. Opening the page read it three times: `render()`
+painted the scores on a fetch of its own before `read()` fetched twice more.
+
+**THE CHANGE, SMALL ON PURPOSE.**
+
+    App.paintProof(box, only, read)   takes an answer the caller already holds --
+                                      the tool's text, or the {err} Home.read's
+                                      ask() hands back -- and fetches only when
+                                      it is handed nothing
+    Home.read                         hands its own read over, refusal included
+    Home.render                       paints no scores of its own; read() does,
+                                      and the box says "Reading the record..."
+                                      until it lands
+    unchanged                         Records and the end of a turn still ask for
+                                      themselves: neither holds an answer, and a
+                                      turn can change the record
+
+The comment that said otherwise is corrected in place, dated, its sentence kept.
+
+**MEASURED.** A harness in scratch, not shipped, loads the real council.js, home.js
+and app.js with the browser stubbed and counts every tool call:
+
+    before   opening the page reads proofs 3 times; one refresh is 4 calls with
+             proofs twice; a refused proofs read is asked for twice
+    after    9 of 9: opening reads proofs once; a refresh is 3 calls; a refusal is
+             painted as refused without a second ask; Records and a turn's end
+             still read for themselves
+
+PROVEN BY REVERSAL: each of four parts undone on a copy turns its own checks red.
+The harness for the watched-turn fix still holds 16 of 16. `node --check` on both
+scripts, `go vet` clean, the webapp's tests green, built.
+
+**AND ON THE GLASS ITSELF**, rebuilt and restarted: opening the Dashboard wrote 8
+traces, `proofs` once, where it wrote 10 with `proofs` three times the day before;
+one refresh, with the page's own timer paused so nothing else could land, wrote 3
+traces and 22 KB -- `muster`, `rack_list`, `proofs` -- where the tick had written 4
+and about 42 KB. The scores and the sitting card painted from that one read.
+
+**PER OPEN DASHBOARD TAB, PER DAY:** 5,760 fewer `proofs` calls and about 116 MB less
+trace ledger -- a quarter of the calls and nearly half the bytes. The plan's other
+pieces are his to call; none was started.
+
+### The glass stops rewriting its whole trace store to record one call
+
+On his order, 2026-09-14: *"address the found issues"* -- the first piece of the
+day's second diagnostics pass.
+
+**WHAT THE PASS MEASURED.** `atlas-webapp` held 17.3 GB and had used ~7,300
+CPU-seconds since a 13:21 start. Tool calls through it took 3-25 s (`muster` 2.9,
+`git` 13.2, `env_list` 16.0, `records` 25.3), and the Dashboard's Close the
+sitting did not reach the door for 9 min 20 s: sitting 224 stood open with its
+engine idle, and the close went through only after a second tab was shut.
+
+**ONE CAUSE.** `CallTool` keeps every call as a trace carrying the tool's full
+output, and `db.AddTrace` ended in `Save()`, which marshalled every trace ever
+recorded -- indented -- into `store.json` and renamed it into place. At the stop:
+29,312 traces, 303 MB, rewritten on every call, and every `SetKey`, `AddEval`
+and `AddMessage` rewrote them too. 99% of them are the panel's own polls:
+`proofs` 49%, `muster` 25%, `rack_list` 25%.
+
+**THE LEDGER** (`webapp/db/db.go`):
+
+    traces.jsonl   one line appended per trace, and nothing rewritten to add one.
+                   Every trace is kept
+    the window     memory holds the newest 1,000 -- more than any reader asks for
+                   (ListTraces 100, an agent's page 50, search 500)
+    by id          a trace older than the window is read from the ledger, so an
+                   eval that names an old trace still opens it
+    the count      /api/health reads the ledger's tally; it copied the whole list
+                   to measure it, on a route every open tab polls
+    store.json     evals, agents, messages and keys -- no traces
+    the fold       a store.json that carries traces moves them into the ledger at
+                   start: written beside it, renamed in one step, and only then is
+                   store.json rewritten without them. Run twice, it writes no
+                   trace twice. A store whose traces cannot be moved refuses to
+                   start, rather than lose them at the next save
+    a torn line    half a line left by a killed process is not counted, and the
+                   next trace starts on a line of its own
+
+**MEASURED BEFORE AND AFTER, on synthetic stores in scratch** -- no record content
+left the ground; each binary on its own port, the door unreachable, twenty traces
+posted one after another:
+
+    5,000 traces, 57 MB      392 ms a trace, 1.1 GB peak   ->  0.9 ms, 171 MB
+    15,000 traces, 173 MB    1,176 ms, 2.6 GB              ->  0.8 ms, 480 MB (the fold)
+
+**AND ON THE GLASS ITSELF.** Stopped, rebuilt in place, restarted on RUNBOOK's own
+line; the door untouched. The fold moved 29,312 traces into a 301 MB ledger of
+29,312 lines, `/api/health` reads 29,312, and the oldest trace (`muster`,
+2026-09-12) and the newest (`proofs`) open by id with their hashes unchanged.
+`store.json` is 2,821 bytes. The same six tool calls: 0.01-0.37 s. The process:
+80 MB. A fresh Dashboard load: 14 calls, median 9 ms, no script error.
+
+**STROKES, 6 -> 11 in `webapp/db`.** A trace is one line and store.json is not
+touched (its mtime stamped first, so a same-bytes rewrite still shows); the window
+is bounded while the count and an out-of-window lookup survive a reopen; a
+pre-ledger store folds in order with nothing lost, and folds nothing the next
+time; a fold that died between its rename and its rewrite writes no trace twice;
+a torn last line is skipped and the trace after it kept.
+`TestTheSaveIsAtomicAndLeavesNoScratch` drove its save through `AddTrace`, which no
+longer saves; it is driven through `SetKey`, and now also refuses a store.json
+that carries traces -- the guard unchanged. PROVEN BY REVERSAL, seven undos on a
+scratch copy: the save put back into AddTrace, the traces put back into
+store.json, the window unbounded, the ledger lookup removed, the fold's
+duplicate check removed, the torn-line newline removed, the torn-line test
+loosened -- each turns its own stroke red and no other. `gofmt` and `go vet`
+clean; the webapp's tests green.
+
+**NOT CHANGED, AND NAMED FOR HIM.** The ledger still grows with every call the
+panel makes, and its own polls are nearly all of them; whether a panel's reads
+should be traces at all is his call. And `Save()` still marshals the keys map
+after releasing its lock, so a `SetKey` landing mid-marshal can crash the process
+on a concurrent map write -- true before this change, and not touched by it.
+
 ### The boot no longer shows up as a run, and a watched turn's clock stops
 
 On his order, 2026-09-14: *"keep going"* -- the third piece of the day's

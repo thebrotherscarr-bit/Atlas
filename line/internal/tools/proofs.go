@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"atlas/line/internal/tenant"
 )
@@ -32,6 +34,10 @@ import (
 // suite is not an error, and one unreadable file must not blank the other two
 // -- a proof page that vanishes when one thing is missing is worse than a
 // proof page with a gap in it (boot.py's own rule).
+//
+// READ AGAIN ONLY WHEN THE RECORD CHANGES (2026-09-15). The three ledgers and
+// SEAT_LOG go through fromRecord, below. last_run.json is a few hundred bytes
+// and is read every call, as before.
 func toolProofs(t tenant.Tenant, _ map[string]any) (string, error) {
 	out := map[string]any{"world": t.Name}
 
@@ -51,20 +57,14 @@ func toolProofs(t tenant.Tenant, _ map[string]any) (string, error) {
 
 	// ---- the standups: tests/run_history.jsonl -------------------------
 	// The live harness's own line per run. Newest last, as the file is.
-	if rows, err := readJSONL(filepath.Join(t.Home, "tests", "run_history.jsonl")); err != nil {
+	if runs, err := fromRecord(filepath.Join(t.Home, "tests", "run_history.jsonl"), standupsIn); err != nil {
 		out["standups_error"] = readable(err)
 	} else {
-		runs := []map[string]any{}
-		for _, r := range rows {
-			if s, _ := r["suite"].(string); s == "standup" {
-				runs = append(runs, r)
-			}
-		}
 		out["standups"] = runs
 	}
 
 	// ---- the parity: sessions/parity_history.jsonl ---------------------
-	if rows, err := readJSONL(filepath.Join(t.Home, "sessions", "parity_history.jsonl")); err != nil {
+	if rows, err := fromRecord(filepath.Join(t.Home, "sessions", "parity_history.jsonl"), linesIn); err != nil {
 		out["parity_error"] = readable(err)
 	} else {
 		out["parity"] = rows
@@ -77,58 +77,17 @@ func toolProofs(t tenant.Tenant, _ map[string]any) (string, error) {
 	// sitting can appear twice). Keyed by n, last line wins -- so these counts
 	// are read exactly, with no format rule to get wrong.
 	rec := map[string]any{}
-	if rows, err := readJSONL(filepath.Join(t.Home, "sessions", "sessions.jsonl")); err != nil {
+	if sat, err := fromRecord(filepath.Join(t.Home, "sessions", "sessions.jsonl"), sittingsIn); err != nil {
 		rec["error"] = readable(err)
 	} else {
-		byN := map[float64]map[string]any{}
-		order := []float64{}
-		for _, r := range rows {
-			n, ok := r["n"].(float64)
-			if !ok {
-				continue
-			}
-			if _, seen := byN[n]; !seen {
-				order = append(order, n)
-			}
-			byN[n] = r
+		for k, v := range sat {
+			rec[k] = v
 		}
-		sort.Float64s(order)
-		tolled, runs, open := 0, 0, 0
-		recent := []map[string]any{}
-		for _, n := range order {
-			r := byN[n]
-			if b, _ := r["toll_paid"].(bool); b {
-				tolled++
-			}
-			rs, _ := r["runs"].([]any)
-			runs += len(rs)
-			if e, _ := r["ended"].(string); strings.TrimSpace(e) == "" {
-				open++
-			}
-			recent = append(recent, map[string]any{
-				"n": n, "started": r["started"], "ended": r["ended"],
-				"toll_paid": r["toll_paid"], "runs": len(rs),
-			})
-		}
-		if len(recent) > 12 {
-			recent = recent[len(recent)-12:]
-		}
-		rec["sittings"] = len(order)
-		rec["tolled"] = tolled
-		rec["runs"] = runs
-		rec["still_open"] = open
-		rec["recent"] = recent
 	}
 
 	// The tolls as SEAT_LOG carries them. Matched on " — sitting " alone: it is
 	// the one part of that heading the record has never varied.
-	if b, err := os.ReadFile(filepath.Join(t.Home, "SEAT_LOG.md")); err == nil {
-		n := 0
-		for _, line := range strings.Split(string(b), "\n") {
-			if strings.HasPrefix(line, "## ") && strings.Contains(line, " sitting ") {
-				n++
-			}
-		}
+	if n, err := fromRecord(filepath.Join(t.Home, "SEAT_LOG.md"), tollsIn); err == nil {
 		rec["seat_log_tolls"] = n
 	} else {
 		rec["seat_log_tolls"] = nil
@@ -161,17 +120,137 @@ func toolProofs(t tenant.Tenant, _ map[string]any) (string, error) {
 	return string(b), nil
 }
 
-// readJSONL reads one JSON object per line, skipping blanks and refusing
+// ---- the record, read again only when it changes ---------------------------
+//
+// WHY (2026-09-15). The Dashboard asks for proofs on every refresh, every 15
+// seconds while it is on screen, and every answer was built from the files
+// again: 15ms and 7.6MB of garbage a call, 11ms and 6.0MB of it parsing
+// sessions.jsonl -- 846KB, append-only, and changed once a sitting. Between
+// sittings every one of those answers was the same answer.
+//
+// So what a file was made into is kept, and made again only when the file's
+// size or modification time has moved: one stat a file, 17µs. An append moves
+// the size and a rewrite moves the time.
+//
+// THREE RULES:
+//   - the stat is taken BEFORE the read. A write landing between the two
+//     leaves an older key on newer bytes: one extra read next call, never an
+//     old answer.
+//   - a read that fails is not kept. A file a scanner holds for a moment
+//     would otherwise read "unreadable" until it next changed.
+//   - what is kept is what the file was made into -- counts, twelve rows, the
+//     standups -- never the bytes, and nothing changes it once kept. Every
+//     call builds its own reply around it.
+type kept struct {
+	size int64
+	mod  time.Time
+	val  any
+}
+
+var (
+	keptMu sync.Mutex
+	keptBy = map[string]kept{}
+	// readRecord is os.ReadFile. The strokes swap it to count reads and to
+	// fail one.
+	readRecord = os.ReadFile
+)
+
+// fromRecord returns in(the file's bytes), reading the file again only when
+// its size or modification time has moved since the last read.
+func fromRecord[T any](path string, in func([]byte) T) (T, error) {
+	var zero T
+	st, err := os.Stat(path)
+	if err != nil {
+		return zero, err
+	}
+	keptMu.Lock()
+	k, ok := keptBy[path]
+	keptMu.Unlock()
+	if v, same := k.val.(T); ok && same && k.size == st.Size() && k.mod.Equal(st.ModTime()) {
+		return v, nil
+	}
+	b, err := readRecord(path)
+	if err != nil {
+		return zero, err
+	}
+	v := in(b)
+	keptMu.Lock()
+	keptBy[path] = kept{size: st.Size(), mod: st.ModTime(), val: v}
+	keptMu.Unlock()
+	return v, nil
+}
+
+// standupsIn is tests/run_history.jsonl's standup lines, newest last.
+func standupsIn(raw []byte) []map[string]any {
+	runs := []map[string]any{}
+	for _, r := range linesIn(raw) {
+		if s, _ := r["suite"].(string); s == "standup" {
+			runs = append(runs, r)
+		}
+	}
+	return runs
+}
+
+// sittingsIn counts sessions.jsonl by sitting, the last line for each n
+// winning.
+func sittingsIn(raw []byte) map[string]any {
+	byN := map[float64]map[string]any{}
+	order := []float64{}
+	for _, r := range linesIn(raw) {
+		n, ok := r["n"].(float64)
+		if !ok {
+			continue
+		}
+		if _, seen := byN[n]; !seen {
+			order = append(order, n)
+		}
+		byN[n] = r
+	}
+	sort.Float64s(order)
+	tolled, runs, open := 0, 0, 0
+	recent := []map[string]any{}
+	for _, n := range order {
+		r := byN[n]
+		if b, _ := r["toll_paid"].(bool); b {
+			tolled++
+		}
+		rs, _ := r["runs"].([]any)
+		runs += len(rs)
+		if e, _ := r["ended"].(string); strings.TrimSpace(e) == "" {
+			open++
+		}
+		recent = append(recent, map[string]any{
+			"n": n, "started": r["started"], "ended": r["ended"],
+			"toll_paid": r["toll_paid"], "runs": len(rs),
+		})
+	}
+	if len(recent) > 12 {
+		// Copied, not resliced: this is kept, and a reslice would keep every
+		// sitting's row alive behind the twelve shown.
+		recent = append([]map[string]any(nil), recent[len(recent)-12:]...)
+	}
+	return map[string]any{"sittings": len(order), "tolled": tolled, "runs": runs,
+		"still_open": open, "recent": recent}
+}
+
+// tollsIn counts SEAT_LOG's toll headings.
+func tollsIn(raw []byte) int {
+	n := 0
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(line, "## ") && strings.Contains(line, " sitting ") {
+			n++
+		}
+	}
+	return n
+}
+
+// linesIn reads one JSON object per line, skipping blanks and refusing
 // nothing: a half-written last line (what a killed process leaves) is dropped
 // rather than failing the whole read, because the lines before it are still
 // true.
-func readJSONL(path string) ([]map[string]any, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+func linesIn(raw []byte) []map[string]any {
 	out := []map[string]any{}
-	for _, line := range strings.Split(string(b), "\n") {
+	for _, line := range strings.Split(string(raw), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -182,7 +261,7 @@ func readJSONL(path string) ([]map[string]any, error) {
 		}
 		out = append(out, row)
 	}
-	return out, nil
+	return out
 }
 
 // readable turns a missing file into a sentence rather than a stack trace: a

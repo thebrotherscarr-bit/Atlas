@@ -30,7 +30,10 @@ const API = {
 
   addTrace(t)       { return this.post('/traces', t); },
   addEval(e)        { return this.post('/evals', e); },
-  callTool(t, a)    { return this.post('/tools/call', { tool: t, args: a }); },
+  // `bg` marks one of the Dashboard's own reads (Home.read), which the glass
+  // answers without keeping a trace (handlers.go, backgroundReads). The key is
+  // sent only when set, so every other call goes out exactly as it did.
+  callTool(t, a, bg) { return this.post('/tools/call', bg ? { tool: t, args: a, background: true } : { tool: t, args: a }); },
   sendMessage(m)    { return this.post('/messages/send', m); },
   upsertAgent(a)    { return this.post('/agents', a); },
   setSetting(k, v)  { return this.post('/settings/' + k, { value: v }); },
@@ -97,18 +100,42 @@ const API = {
     };
   },
 
+  // ONE STREAM PER TAB, HOWEVER MANY LISTEN (2026-09-15). Two readers follow
+  // the bus -- App.onEvent for the toasts, Run.mirror for turns another window
+  // starts -- and each call opened its own EventSource, so every tab held two
+  // /api/events streams and the webapp sent it every broadcast twice: each
+  // trace with its tool's whole output, each token of each turn. The first
+  // caller opens the stream; every caller is a listener on it. A listener that
+  // throws is its own problem, never the next listener's, as it was when each
+  // had a stream of its own.
+  //
+  // ONE RECONNECT AT A TIME. An error fires on every failed retry, and each
+  // queued its own reconnect three seconds out -- two streams erroring twice
+  // opened six before settling. One is pending, or none.
+  _subs: [],
+  _es: null,
+  _retry: null,
   sse(onEvent) {
-    let es;
+    this._subs.push(onEvent);
+    if (this._es) return this._es;
     const connect = () => {
-      if (es) es.close();
-      es = new EventSource(this.base + '/events');
+      this._retry = null;
+      if (this._es) this._es.close();
+      const es = new EventSource(this.base + '/events');
       es.onmessage = (e) => {
-        try { onEvent(JSON.parse(e.data)); } catch {}
+        let data;
+        try { data = JSON.parse(e.data); } catch { return; }
+        for (const fn of this._subs.slice()) {
+          try { fn(data); } catch {}
+        }
       };
-      es.onerror = () => { setTimeout(connect, 3000); };
+      es.onerror = () => {
+        if (!this._retry) this._retry = setTimeout(connect, 3000);
+      };
+      this._es = es;
     };
     connect();
-    return es;
+    return this._es;
   }
 };
 

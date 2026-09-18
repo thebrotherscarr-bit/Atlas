@@ -18,6 +18,7 @@ package handlers
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
@@ -228,7 +229,11 @@ func (h *Handlers) wsChatSend(c *wsConn, tenant, session, question, voice, actor
 	if h.service != "" {
 		req.Header.Set("Authorization", "Bearer "+h.service)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	// callWait alone: the socket this turn answers on has no request context
+	// that ends when it closes.
+	ctx, cancel := context.WithTimeout(context.Background(), callWait)
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		send("chat.error", map[string]string{"error": fmt.Sprintf("mcp unreachable: %v", err)})
 		return

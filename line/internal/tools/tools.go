@@ -429,7 +429,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 
 	r.add(Tool{
 		Name: "git_tag", Writes: true,
-		Description: "the marks a version is cut at: list them with what GitHub has, cut one at a commit whose declared version it must equal, or send one to GitHub by name",
+		Description: "the marks a version is cut at: list them with what GitHub has, cut one at a commit whose declared version it must equal, send one to GitHub by name, or remove one that never left this machine",
 		Args:        []string{"action?", "name?", "message?", "at?", "project?"},
 		Fn:          toolGitTag,
 	})

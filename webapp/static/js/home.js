@@ -47,7 +47,7 @@ const Home = {
            Moved here 2026-09-10 at the operator's word. One proofs call,
            read by App.paintProof, which still paints the estate half on
            Records. -->
-      <div id="home-proof"></div>
+      <div id="home-proof"><div class="loading">Reading the record...</div></div>
 
       <!-- THE BRIEF, ABOVE THE BOX. It is the interrupt channel -- a gate
            waiting, a refusal, an engine running code older than the ground --
@@ -117,7 +117,9 @@ const Home = {
     // The scores, and the turn's own step-by-step. Both are App's renderers:
     // one `proofs` read and one `paintRun`, shared with Records and with
     // whatever else asks -- never a second copy that can drift.
-    App.paintProof('home-proof', 'deck');
+    // THE SCORES ARE PAINTED BY read() BELOW, from the answer it already holds
+    // (2026-09-15). A paintProof here fetched `proofs` on its own, so opening
+    // this page read the record three times before the first refresh.
     if (!App._runBound) { Run.on(() => App.paintRun()); App._runBound = true; }
     App.paintRun();
     const cancel = document.getElementById('ev-run-cancel');
@@ -683,9 +685,16 @@ const Home = {
   // Each fact is asked for on its own and is allowed to fail on its own. A
   // silent organ is REPORTED silent, never guessed at -- an unreachable rack
   // that renders as a green tick is worse than no dashboard.
+  //
+  // THESE ARE BACKGROUND READS, AND THE LEDGER KEEPS NO TRACE OF THEM
+  // (2026-09-16, his ruling on the optimization pass: "D1 b"). This runs when
+  // the page opens, when it is shown again and every fifteen seconds it is on
+  // screen, and each of its three answers was kept whole as a trace, announced
+  // to every open tab and toasted there -- 99% of the ledger by 2026-09-14. The
+  // glass still asks the door and still answers; it keeps nothing of these.
   async read() {
     const ask = async (n, a) => {
-      try { return await App.tool(n, a); }
+      try { return await App.tool(n, a, true); }
       catch (e) { return { err: e.message || 'unreadable' }; }
     };
     const [state, muster, rack, proofs] = await Promise.all([
@@ -698,6 +707,9 @@ const Home = {
     // proofs is asked for ONCE and kept. It carries four things -- the suites,
     // the standups, the parity runs and the record -- and this page used to
     // fetch the whole document twice and render only the record.
+    // THAT SENTENCE WAS NOT TRUE UNTIL 2026-09-15, kept as written: the
+    // paintProof call below fetched `proofs` again on every refresh. It is
+    // handed this read now, refusal included, so one refresh is one read.
     let p = null;
     try { p = typeof proofs === 'string' ? JSON.parse(proofs) : null; } catch {}
     this.proofs = p;
@@ -705,7 +717,7 @@ const Home = {
     this.readAt = Date.now();       // stamped so the quiet line cannot lie
     this.paint();
     this.paintEngine();
-    App.paintProof('home-proof', 'deck');
+    App.paintProof('home-proof', 'deck', proofs);
   },
 
   bad(v) { return v && typeof v === 'object'; },

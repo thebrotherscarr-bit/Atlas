@@ -111,9 +111,17 @@ const Flows = {
   // NOTHING HERE ACTS. No commit, no push, no fetch -- a read that cannot
   // change the ground can be looked at without care, and the acting path
   // stays where the gate already is (git_cycle, through the council).
-  plain(g) {
+  plain(g, r) {
     const L = [];
     L.push(['You are on', g.branch ? `the ${escHtml(g.branch)} line of work` : 'no branch']);
+
+    // WHICH GITHUB, WHICH IS THE ONE FACT THIS PAGE NEVER SAID (2026-09-18).
+    // The door has answered `git_remote` since 2026-09-10 and nothing in the
+    // glass had ever called it, so every row below spoke of "GitHub" without
+    // naming which repository -- and this estate carries more than one world,
+    // each pointed somewhere different. A panel that offers to SEND must say
+    // where.
+    L.push(['Sends to', this.sendsTo(r)]);
 
     const subj = g.subject ? `“${escHtml(g.subject)}”` : '(no message)';
     L.push(['Last save', `${subj} — ${escHtml(g.head || '?')}, ${escHtml(g.when || 'unknown')}`]);
@@ -145,6 +153,29 @@ const Flows = {
       ? 'allowed'
       : 'OFF — sending and fetching refuse by name until you open that wall']);
     return L;
+  },
+
+  // WHERE A WORLD SENDS, WITH NO CREDENTIAL IN IT. RULE 7 is the whole shape of
+  // this function: a remote URL may carry a token in its userinfo
+  // (`https://x-access-token:ghp_SECRET@github.com/o/r.git`), and the door
+  // already lifts out a credential-free host for exactly that reason. So the
+  // host is the door's, and the path is taken from AFTER the host -- never the
+  // raw string, which is the one form that can carry the secret.
+  sendsTo(r) {
+    // NOT ASKED AND NONE ARE DIFFERENT ANSWERS, the same distinction the mark
+    // list draws with `sent_known`: a door that did not answer has not told you
+    // there is no remote.
+    if (!r) return 'could not be read — the door did not answer';
+    const all = r.remotes || [];
+    const rem = all.find(x => x.name === 'origin') || all[0];
+    if (!rem) return 'nowhere — this world has no remote, so nothing here can be sent';
+    const host = String(rem.host || '');
+    let path = String(rem.url || '');
+    if (host && path.includes(host)) path = path.slice(path.indexOf(host) + host.length);
+    else path = '';
+    path = path.replace(/^[:/]+/, '').replace(/\.git$/, '');
+    const name = rem.name === 'origin' ? '' : ` (as ${escHtml(rem.name)})`;
+    return `${escHtml(host || 'an unnamed host')}${path ? '/' + escHtml(path) : ''}${name}`;
   },
 
   // THE LAST JARGON ON THE PAGE, and a first cut left half of it standing.
@@ -187,7 +218,12 @@ const Flows = {
       try { g = JSON.parse(await App.tool('git', { project: w })); }
       catch { cards.push(`<div class="mt-16"><b>${escHtml(w)}</b><div class="muted">could not be read</div></div>`); continue; }
       if (!g.is_repo) { cards.push(`<div class="mt-16"><b>${escHtml(w)}</b><div class="muted">not a repository</div></div>`); continue; }
-      const rows = this.plain(g).map(([k, v]) =>
+      // ONE MORE CALL PER WORLD, and it degrades alone: a door that cannot
+      // answer where this world sends must not cost the panel everything else
+      // it already knows, so the row says so and the rest of the card stands.
+      let r = null;
+      try { r = JSON.parse(await App.tool('git_remote', { project: w })); } catch { r = null; }
+      const rows = this.plain(g, r).map(([k, v]) =>
         `<tr><td class="muted" style="padding-right:16px;white-space:nowrap">${escHtml(k)}</td><td>${v}</td></tr>`
       ).join('');
       // The files themselves, named AND OPENABLE. A count tells you something
@@ -460,9 +496,15 @@ const Flows = {
   // THE GLASS DOES NOT JUDGE ANY OF THAT. Every refusal -- a name that is not
   // plain semver, a number the version file does not agree with, a mark that
   // already exists, a dirty tree -- belongs to git_tag and is shown in its own
-  // words. What this decides is the same one thing the buttons above decide:
-  // what to grey out, so a button that cannot work says why before it is
-  // pressed rather than after.
+  // words.
+  //
+  // AND IT NO LONGER DECIDES WHAT TO GREY OUT EITHER (2026-09-17, his word:
+  // "make the send button ask the door first"). The list now carries the door's
+  // own answer per mark -- `sendable`, and `why_not` in the door's words when it
+  // is false -- so a mark that may not go is greyed with the reason on it
+  // BEFORE the operator's hand, instead of taking the click, arming, taking the
+  // second click and only then saying no. The glass renders that answer and
+  // does not second-guess it: if the door would refuse, the button is dead.
   //
   // WHICH WORLDS ARE OPEN IS REMEMBERED ON THE OBJECT, for the same reason
   // `open` is -- repos() replaces every node in this card, so a flag kept in
@@ -487,14 +529,32 @@ const Flows = {
       const where = !d.sent_known ? 'GitHub was not asked — the wall is shut'
         : m.sent ? 'on GitHub'
           : 'only on this machine';
+      // THE DOOR WAS ASKED FIRST, so a mark it will not send is greyed with its
+      // refusal on it. `why_not` is the door's sentence, verbatim; a false
+      // `sendable` with nothing to show would be the glass judging again, so a
+      // missing reason keeps the button live and lets the door speak on click.
       const send = (d.sent_known && !m.sent)
-        ? `<button class="btn btn-sm" data-mark="send" data-w="${q}" data-n="${escHtml(m.name)}">Send to GitHub</button>`
+        ? (m.sendable || !m.why_not
+          ? `<button class="btn btn-sm" data-mark="send" data-w="${q}" data-n="${escHtml(m.name)}">Send to GitHub</button>`
+          : `<button class="btn btn-sm" disabled title="${escHtml(m.why_not)}">Send to GitHub</button>`)
         : '';
+      // AND TAKING ONE BACK (2026-09-18). Until today the panel could cut a
+      // mark and send it and not undo either, so a mark cut on the wrong commit
+      // left the glass entirely and was removed at a terminal -- which is the
+      // exact path that put a wrong mark there in the first place.
+      //
+      // THE DOOR ANSWERS THIS ONE TOO, per mark, before the hand: `removable`,
+      // and `why_not_remove` in its own words when it is false. The greyed
+      // button's reason is also already on the row -- "on GitHub" IS the reason
+      // it cannot be taken back -- so this does not repeat itself underneath.
+      const remove = m.removable
+        ? `<button class="btn btn-sm btn-danger" data-mark="remove" data-w="${q}" data-n="${escHtml(m.name)}">Remove</button>`
+        : `<button class="btn btn-sm" disabled title="${escHtml(m.why_not_remove || '')}">Remove</button>`;
       return `<tr><td style="padding-right:12px;white-space:nowrap"><b>${escHtml(m.name)}</b></td>`
         + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(m.at || '')}</td>`
         + `<td class="muted" style="padding-right:12px">${escHtml(where)}</td>`
         + `<td class="muted" style="padding-right:12px">${escHtml(m.when || '')}</td>`
-        + `<td>${send}</td></tr>`;
+        + `<td>${send}${remove}</td></tr>`;
     }).join('');
 
     // THE NUMBER IS THE GROUND'S, NOT A GUESS. `next` is "v" + whatever the
@@ -512,8 +572,18 @@ const Flows = {
       : `<div class="muted mt-16">This world declares no version — no VERSION file and
          no version in pyproject.toml — so there is nothing here for a mark to mean.</div>`;
 
+    // AND THE REASON IS SAID OUT LOUD, not only on hover. A greyed button with
+    // its refusal in a tooltip is a refusal nobody reads; each mark the door is
+    // holding back says why under the table, in the door's own sentence.
+    const held = (d.tags || []).filter(m => d.sent_known && !m.sent && m.why_not);
+    const heldSay = held.length
+      ? `<div class="muted mt-16">` + held.map(m =>
+        `<div class="mb-16"><b>${escHtml(m.name)}</b> — ${escHtml(m.why_not)}</div>`).join('') + `</div>`
+      : '';
+
     box.innerHTML = `<div class="card-title mt-16">Version marks</div>`
       + (rows ? `<table>${rows}</table>` : `<div class="empty-text">No marks have been cut here.</div>`)
+      + heldSay
       + cut
       + `<div id="markout-${q}" class="muted"></div>`;
 
@@ -553,7 +623,7 @@ const Flows = {
         // being shown, so the button silently did nothing. Arming is visible,
         // it lives in the panel, and it cannot be answered by something that
         // is not the operator.
-        const key = w + ':' + name;
+        const key = w + ':' + name + ':send';
         if (this.arming !== key) {
           this.arming = key;
           const btn = document.querySelector(
@@ -567,6 +637,28 @@ const Flows = {
         this.arming = null;
         say('Sending...');
         answer = await App.tool('git_tag', { project: w, action: 'send', name: name });
+      } else if (action === 'remove') {
+        // ARMED THE SAME WAY, and for a plainer reason: this is the one button
+        // on the page that destroys something. The door has already refused it
+        // for every mark GitHub holds, so what survives to be clicked can only
+        // cost the name itself -- but the name is what a version IS here.
+        //
+        // The verb is part of the key: arming Send on a mark must not leave
+        // Remove armed on the same one, which a bare "<world>:<name>" would.
+        const key = w + ':' + name + ':remove';
+        if (this.arming !== key) {
+          this.arming = key;
+          const btn = document.querySelector(
+            `[data-mark="remove"][data-w="${CSS.escape(w)}"][data-n="${CSS.escape(name)}"]`);
+          if (btn) btn.textContent = 'Click again to remove';
+          say(`${name} will be taken back. Only the name goes -- the save it stands `
+            + `on is untouched -- and GitHub does not have this one, so nothing there `
+            + `changes. Click again to remove it; anything else leaves it alone.`);
+          return;
+        }
+        this.arming = null;
+        say('Removing...');
+        answer = await App.tool('git_tag', { project: w, action: 'remove', name: name });
       }
     } catch (e) { say('Refused: ' + e.message); return; }
     await this.repos();

@@ -8,6 +8,7 @@ import (
 	"atlas/webapp/search"
 	"atlas/webapp/traces"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -229,7 +230,14 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 	if mcpURL == "" {
 		mcpURL = "http://127.0.0.1:8090"
 	}
-	resp, err := http.Get(mcpURL + "/tools")
+	ctx, cancel := context.WithTimeout(r.Context(), pollWait)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", mcpURL+"/tools", nil)
+	if err != nil {
+		jsonErr(w, 502, err.Error())
+		return
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		jsonErr(w, 502, fmt.Sprintf("mcp unreachable: %v", err))
 		return
@@ -244,11 +252,23 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+// THE DASHBOARD'S OWN READS ARE NOT TRACES (2026-09-16, his ruling on the
+// optimization pass: "D1 b"). Home.read asks for these three when the page
+// opens, when it is shown again and every fifteen seconds it is on screen, and
+// each answer was kept whole in the ledger, announced to every open tab and
+// toasted there: 99% of the 29,312 traces the ledger held on 2026-09-14. A call
+// the page marks `background` is answered and not kept -- and only for a tool
+// named here, each of which the door declares Writes: false. Anything else
+// marked background is kept as before, so no call that writes can leave the
+// record by asking to.
+var backgroundReads = map[string]bool{"muster": true, "rack_list": true, "proofs": true}
+
 func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Tool    string         `json:"tool"`
-		Args    map[string]any `json:"args"`
-		AgentID string         `json:"agent_id"`
+		Tool       string         `json:"tool"`
+		Args       map[string]any `json:"args"`
+		AgentID    string         `json:"agent_id"`
+		Background bool           `json:"background"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonErr(w, 400, "invalid json")
@@ -287,7 +307,11 @@ func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 			"arguments": req.Args,
 		},
 	})
-	rpcReq, err := http.NewRequest("POST", mcpURL+"/rpc", bytes.NewReader(rpcPayload))
+	// Not tied to the asker: the answer is still written to the trace ledger and
+	// announced to every open window after the one that asked has gone.
+	ctx, cancel := context.WithTimeout(context.Background(), callWait)
+	defer cancel()
+	rpcReq, err := http.NewRequestWithContext(ctx, "POST", mcpURL+"/rpc", bytes.NewReader(rpcPayload))
 	if err != nil {
 		jsonErr(w, 502, err.Error())
 		return
@@ -324,15 +348,17 @@ func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  time.Now().UTC(),
 		Tenant:     sessTenant,
 	}
-	h.store.Add(trace)
-	h.broadcast("trace_added", trace)
-
-	jsonResp(w, map[string]interface{}{
+	reply := map[string]interface{}{
 		"output":      output,
 		"hash":        trace.Hash,
-		"trace_id":    trace.ID,
 		"duration_ms": duration,
-	})
+	}
+	if !(req.Background && backgroundReads[req.Tool]) {
+		h.store.Add(trace)
+		h.broadcast("trace_added", trace)
+		reply["trace_id"] = trace.ID
+	}
+	jsonResp(w, reply)
 }
 
 func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {

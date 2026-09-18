@@ -16,13 +16,18 @@
 package httpserver
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"atlas/line/internal/protocol"
 	"atlas/line/internal/tenant"
@@ -360,6 +365,102 @@ func TestHealthNamesTheServerAndWhetherTheGateIsOn(t *testing.T) {
 	}
 	if h["auth"] != false {
 		t.Errorf("auth = %v; this server was built with the gate off and must say so", h["auth"])
+	}
+}
+
+// ---- a turn outlives the browser that started it --------------------------
+
+const stubEngineEnv = "ATLAS_STUB_ENGINE"
+
+// TestStubEngineProcess is not a stroke. It is the engine the stroke below
+// spawns: this test binary run again as a child, speaking serve.py's wire. An
+// objective "tokens N" speaks N token events and then its delivery. Run any
+// other way, it skips.
+func TestStubEngineProcess(t *testing.T) {
+	if os.Getenv(stubEngineEnv) != "1" {
+		t.Skip("the stub engine runs only as the child of a stroke that spawns it")
+	}
+	out := bufio.NewWriter(os.Stdout)
+	say := func(ev map[string]any) {
+		b, _ := json.Marshal(ev)
+		out.Write(append(b, '\n'))
+		out.Flush()
+	}
+	say(map[string]any{"event": "opened", "sitting": "1", "session": "stub"})
+	in := bufio.NewScanner(os.Stdin)
+	for in.Scan() {
+		var row map[string]any
+		if json.Unmarshal(in.Bytes(), &row) != nil {
+			continue
+		}
+		switch row["cmd"] {
+		case "close":
+			say(map[string]any{"event": "closed"})
+			os.Exit(0)
+		case "objective":
+			text, _ := row["text"].(string)
+			if n, err := strconv.Atoi(strings.TrimPrefix(text, "tokens ")); err == nil {
+				for i := 0; i < n; i++ {
+					say(map[string]any{"event": "token", "text": "x"})
+				}
+			}
+			say(map[string]any{"event": "delivery", "text": text})
+		}
+	}
+	os.Exit(0)
+}
+
+// A CLOSED TAB DOES NOT STOP THE COUNCIL -- the `gone` case in runstream.go
+// always said so, and it was not true. The queue between the engine and the
+// socket holds 256 events, and nothing read it once the browser had left, so
+// the next event stopped the engine's reader and the turn never ended, holding
+// the world's run lock behind a turn nobody could see. A real engine speaks
+// 50,000 tokens to a client that reads the first line and hangs up; the turn
+// must still end, and the engine must count it.
+func TestATurnOutlivesTheBrowserThatStartedIt(t *testing.T) {
+	s, _ := newTestServer(t)
+	tn, err := s.tenants.Resolve("t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(stubEngineEnv, "1")
+	e, err := tools.Engines().Open("t", tn.Home,
+		`"`+os.Args[0]+`" -test.run=^TestStubEngineProcess$ --`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = tools.Engines().CloseOne(tn.Home) })
+
+	srv := httptest.NewServer(s.Handler())
+	t.Cleanup(srv.Close)
+	ctx, leave := context.WithCancel(context.Background())
+	defer leave()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		srv.URL+"/run/stream?project=t&objective="+url.QueryEscape("tokens 50000"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := bufio.NewReader(resp.Body).ReadString('\n')
+	if err != nil || !strings.Contains(first, "stream_open") {
+		t.Fatalf("the stream did not open: %q (%v)", first, err)
+	}
+	leave() // the browser goes
+	resp.Body.Close()
+
+	deadline := time.Now().Add(20 * time.Second)
+	for {
+		if n, _ := e.Runs(); n == 1 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the browser left and the turn never ended: the engine is stopped " +
+				"behind a queue nobody reads")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

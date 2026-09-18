@@ -20,10 +20,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"atlas/line/internal/tenant"
 )
@@ -296,6 +298,139 @@ func TestTheNumbersTheCoreOwnsAreNamedNotRecounted(t *testing.T) {
 	joined := strings.Join(named, " | ")
 	has(t, joined, "memory entries", "the core's own counts must be named")
 	has(t, joined, "index docs", "the core's own counts must be named")
+}
+
+// --- proofs: the record is read again only when it changes ------------------
+
+var recordAt = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+
+// recordWorld carries the four files fromRecord keeps, each stamped recordAt
+// so a stroke decides when that time moves.
+func recordWorld(t *testing.T) tenant.Tenant {
+	t.Helper()
+	tn := world(t, map[string]string{
+		"tests/run_history.jsonl":       `{"suite":"standup","run":"a"}` + "\n",
+		"sessions/parity_history.jsonl": `{"p":"a"}` + "\n",
+		"sessions/sessions.jsonl":       `{"n":1,"started":"a","ended":"z","runs":[]}` + "\n",
+		"SEAT_LOG.md":                   "## 1 — sitting 1\n## 2 — sitting 2\n",
+	})
+	for _, rel := range []string{"tests/run_history.jsonl", "sessions/parity_history.jsonl",
+		"sessions/sessions.jsonl", "SEAT_LOG.md"} {
+		stampAt(t, tn, rel, recordAt)
+	}
+	return tn
+}
+
+func stampAt(t *testing.T, tn tenant.Tenant, rel string, at time.Time) {
+	t.Helper()
+	if err := os.Chtimes(filepath.Join(tn.Home, filepath.FromSlash(rel)), at, at); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// readsCounted swaps readRecord for one that counts by file name.
+func readsCounted(t *testing.T) map[string]int {
+	t.Helper()
+	n := map[string]int{}
+	real := readRecord
+	readRecord = func(p string) ([]byte, error) {
+		n[filepath.Base(p)]++
+		return real(p)
+	}
+	t.Cleanup(func() { readRecord = real })
+	return n
+}
+
+// The Dashboard asks every 15 seconds for an answer that changes once a
+// sitting. An unchanged record is read once, and every later answer is the
+// first one, byte for byte.
+func TestAnUnchangedRecordIsReadOnceAndAnsweredTheSame(t *testing.T) {
+	tn := recordWorld(t)
+	reads := readsCounted(t)
+	first, err := toolProofs(tn, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 2; i <= 4; i++ {
+		if again, _ := toolProofs(tn, nil); again != first {
+			t.Fatalf("call %d answered differently from the first over an unchanged record", i)
+		}
+	}
+	for _, f := range []string{"run_history.jsonl", "parity_history.jsonl", "sessions.jsonl", "SEAT_LOG.md"} {
+		if reads[f] != 1 {
+			t.Fatalf("%s read %d times over four calls; an unchanged file is read once (%v)", f, reads[f], reads)
+		}
+	}
+}
+
+// An append moves the size. Held at the same time, a ledger that grew is still
+// read again, and the sitting appended to it is counted.
+func TestALedgerThatGrewIsReadAgainUnderAnUnmovedTime(t *testing.T) {
+	tn := recordWorld(t)
+	if n := jsonOf(t, toolProofs, tn, nil)["record"].(map[string]any)["sittings"]; n != 1.0 {
+		t.Fatalf("sittings %v, wanted 1", n)
+	}
+	p := filepath.Join(tn.Home, "sessions", "sessions.jsonl")
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.WriteString(`{"n":2,"started":"b","ended":"y","runs":[]}` + "\n")
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	stampAt(t, tn, "sessions/sessions.jsonl", recordAt)
+	if n := jsonOf(t, toolProofs, tn, nil)["record"].(map[string]any)["sittings"]; n != 2.0 {
+		t.Fatalf("sittings %v after a sitting was appended: the kept answer was served over a longer file", n)
+	}
+}
+
+// A rewrite can keep the size. It cannot keep the time, and a moved time is
+// read again.
+func TestAFileRewrittenToTheSameSizeIsReadAgainWhenItsTimeMoves(t *testing.T) {
+	tn := recordWorld(t)
+	tolls := func() any {
+		return jsonOf(t, toolProofs, tn, nil)["record"].(map[string]any)["seat_log_tolls"]
+	}
+	if n := tolls(); n != 2.0 {
+		t.Fatalf("tolls %v, wanted 2", n)
+	}
+	p := filepath.Join(tn.Home, "SEAT_LOG.md")
+	before, _ := os.Stat(p)
+	write(t, tn.Home, "SEAT_LOG.md", "## 1 — sitting 1\n## 2 — Sitting 2\n") // one heading stops matching
+	if after, _ := os.Stat(p); after.Size() != before.Size() {
+		t.Fatalf("the rewrite changed the size (%d -> %d); this stroke must hold it", before.Size(), after.Size())
+	}
+	stampAt(t, tn, "SEAT_LOG.md", recordAt.Add(time.Second))
+	if n := tolls(); n != 1.0 {
+		t.Fatalf("tolls %v: SEAT_LOG was rewritten and its time moved, and the old count was served", n)
+	}
+}
+
+// A file held for a moment -- a scanner, a writer mid-flush -- fails one read.
+// The page says so once; the failure is not kept, and the next call reads.
+func TestAReadThatFailedIsNotKept(t *testing.T) {
+	tn := recordWorld(t)
+	real := readRecord
+	t.Cleanup(func() { readRecord = real })
+	readRecord = func(p string) ([]byte, error) {
+		if filepath.Base(p) == "sessions.jsonl" {
+			return nil, errors.New("held by another process")
+		}
+		return real(p)
+	}
+	rec := jsonOf(t, toolProofs, tn, nil)["record"].(map[string]any)
+	if s, _ := rec["error"].(string); !strings.Contains(s, "held by another process") {
+		t.Fatalf("the failed read was not reported: %v", rec)
+	}
+	readRecord = real
+	rec = jsonOf(t, toolProofs, tn, nil)["record"].(map[string]any)
+	if rec["error"] != nil || rec["sittings"] != 1.0 {
+		t.Fatalf("the failure was kept over an unchanged file: %v", rec)
+	}
 }
 
 // --- seats: the declarations, read as a SHAPE -------------------------------
