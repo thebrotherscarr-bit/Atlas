@@ -12,6 +12,34 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### 0.1.6 — THE DOOR'S OWN QUARTER, and the number is his: "atlas needs its own number too"
+
+**THE NUMBER IS CHOSEN AND THE TAG IS NOT CUT.** `VERSION` says 0.1.6 as of 2026-09-18;
+`v0.1.6` does not exist and will not until it is cut on the main line. This heading stays
+`Unreleased` until then.
+
+**WHAT THE NUMBER HOLDS** -- twenty entries below this one and above `## [0.1.5]`, eight
+saves since `v0.1.5` was cut on 3dacdbc:
+
+    the gate           RULE 6 stops being a convention: a writing call that is not the
+                       operator's parks at the door and waits for his hand
+    the loop           a node may be retried and a verdict may not
+    the marks          a mark stands on the main line and leaves only after its history
+                       has; the Send button and the version-tag flow both ask the door
+                       BEFORE they offer; a mark that never left can be taken back; and
+                       the card names which GitHub each world sends to
+    the traces         the trace ledger, and a quarter of work making it cheap -- the
+                       Dashboard's own reads are not traces, one event stream per tab,
+                       the record read once per change, the health check resting while
+                       nobody looks, and the store no longer rewritten whole to log a call
+    the honesty        the glass stops waiting forever on a door that is gone, the door
+                       stops waiting on a browser that left and sees an engine that died,
+                       and the boot is no longer counted as a run
+
+**PROVED ON HIS GROUND, 2026-09-18**: every Go package green in `line` (12 packages, the
+tools battery included) and `webapp` (db, handlers, server), `go vet` clean, both binaries
+built and running on this source.
+
 ### A mark can be taken back, and the panel says which GitHub it sends to
 
 On his word, 2026-09-18: *"implement any missing features for github repo management that
