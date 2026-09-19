@@ -12,11 +12,16 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+Nothing since the mark below.
+
+## [0.1.6] — 2026-09-18 (tag on 0c65afc)
+
 ### 0.1.6 — THE DOOR'S OWN QUARTER, and the number is his: "atlas needs its own number too"
 
-**THE NUMBER IS CHOSEN AND THE TAG IS NOT CUT.** `VERSION` says 0.1.6 as of 2026-09-18;
-`v0.1.6` does not exist and will not until it is cut on the main line. This heading stays
-`Unreleased` until then.
+**THE MARK IS CUT**, 2026-09-18 17:52, annotated `THE DOORS OWN QUARTER`, on `0c65afc` --
+from the panel's own Cut button, which filled `v0.1.6` itself from what VERSION declares at
+that commit. The heading read `Unreleased` until the mark existed; the words under it are
+unchanged.
 
 **WHAT THE NUMBER HOLDS** -- twenty entries below this one and above `## [0.1.5]`, eight
 saves since `v0.1.5` was cut on 3dacdbc:
