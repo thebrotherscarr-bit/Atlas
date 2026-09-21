@@ -6,6 +6,11 @@
 // history the operator purges by deleting. Off by default: ATLAS_AUTH=1
 // closes the door, and every /api + /ws below goes through it except the
 // login door, health, and the HMAC-guarded platform hooks.
+//
+// ON SINCE 2026-09-21, and not by that switch: nothing ever read ATLAS_AUTH,
+// and ConfigureAuth had no caller, so the door above was never closed. main.go
+// now closes it at every start, and the way in a person uses is THE LOCK
+// (lock.go) -- one user, one PIN. The key login below still stands beside it.
 package handlers
 
 import (
@@ -29,6 +34,7 @@ type Session struct {
 	Tenant  string    `json:"tenant"`
 	Tenants []string  `json:"tenants"`
 	KeyID   string    `json:"key_id"`
+	User    string    `json:"user,omitempty"` // the lock's one user; empty for a key
 	Expiry  time.Time `json:"expiry"`
 }
 
@@ -66,13 +72,22 @@ func (s *sessionStore) persist() {
 }
 
 func (s *sessionStore) create(tenant string, tenants []string, keyID string) Session {
+	return s.mint(Session{Tenant: tenant, Tenants: tenants, KeyID: keyID})
+}
+
+// createUser is the lock's session: THE OPERATOR'S. It names no tenant, which
+// is how every face here already reads "see and name everything" (visible,
+// scopeProject, rpcCallAs) -- the glass as it was with the gate off, behind a
+// PIN. Tenants ["*"] lets SwitchWorkspace pin it to one world when asked.
+func (s *sessionStore) createUser(name string) Session {
+	return s.mint(Session{Tenant: "", Tenants: []string{"*"}, KeyID: "pin", User: name})
+}
+
+func (s *sessionStore) mint(sess Session) Session {
 	tok := make([]byte, 32)
 	_, _ = rand.Read(tok)
-	sess := Session{
-		Token: hex.EncodeToString(tok), Tenant: tenant,
-		Tenants: tenants, KeyID: keyID,
-		Expiry: time.Now().Add(12 * time.Hour),
-	}
+	sess.Token = hex.EncodeToString(tok)
+	sess.Expiry = time.Now().Add(12 * time.Hour)
 	s.mu.Lock()
 	s.sessions[sess.Token] = sess
 	s.mu.Unlock()
@@ -150,10 +165,14 @@ func visible(rowTenant, sessTenant string) bool {
 	return rowTenant == "" || rowTenant == sessTenant
 }
 
+// STRICT, not Lax (2026-09-21, the lock). Lax still sends the cookie when
+// another site sends the browser here by a link, and a GET such as
+// /api/council/stream?objective=... runs a turn. Strict sends it only from the
+// glass's own pages, so a signed-in session cannot be driven from anywhere else.
 func setSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name: "atlas_session", Value: token, Path: "/",
-		MaxAge: 12 * 3600, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		MaxAge: 12 * 3600, HttpOnly: true, SameSite: http.SameSiteStrictMode,
 	})
 }
 
@@ -243,18 +262,23 @@ func (h *Handlers) Me(w http.ResponseWriter, r *http.Request) {
 	jsonResp(w, map[string]any{
 		"auth": true, "tenant": sess.Tenant,
 		"tenants": sess.Tenants, "key_id": sess.KeyID,
+		"user": sess.User,
 	})
 }
 
 // rpcCallAs proxies with the session tenant forced: isolation first, the
-// caller never names another workspace. Auth off: straight through.
+// caller never names another workspace. Auth off: straight through. The
+// operator's PIN session names no tenant, so it passes through as auth-off
+// did -- a key's session always names one (Login refuses an empty tenant).
 func (h *Handlers) rpcCallAs(r *http.Request, tool string, args map[string]any) (string, error) {
 	if h.authOn {
 		sess, ok := h.sessionOf(r)
 		if !ok || sess == nil {
 			return "", fmt.Errorf("login required")
 		}
-		args["project"] = sess.Tenant
+		if sess.Tenant != "" {
+			args["project"] = sess.Tenant
+		}
 	}
 	return h.rpcCall(tool, args)
 }

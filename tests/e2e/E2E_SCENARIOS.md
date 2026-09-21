@@ -104,6 +104,11 @@
 | S9-5 | Search | GET /api/search?q=manjuel | results found |
 | S9-6 | SSE stream | GET /api/events | event stream opens |
 
+With the glass's lock on (2026-09-21: one user, one PIN; `/api/health` says
+`"auth": true`), the prover holds no PIN, so S9-2 to S9-5 expect a **401
+refusal** instead of an answer. What those faces do once signed in is proved by
+the Go tests in `webapp/handlers` and `webapp/server`.
+
 ### S10: Cross-Impl Parity (4 scenarios)
 | # | Scenario | Expected |
 |---|---|---|

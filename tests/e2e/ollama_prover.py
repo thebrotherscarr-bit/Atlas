@@ -788,17 +788,38 @@ def s9_webapp(ollama_ok, mcp_ok, webapp_ok):
     w = WebappClient()
     results = []
 
+    # THE LOCK (2026-09-21). The glass opens with a PIN now, and this prover
+    # holds none -- nor should it. When health says auth is on, the four data
+    # faces are proved LOCKED instead: each must refuse a caller that has no
+    # session. What they do behind the lock is proved by the Go strokes
+    # (webapp/handlers, webapp/server), which sign in with a PIN of their own.
+    try:
+        locked = bool(w.health().get("auth"))
+    except Exception:
+        locked = False
+
+    def refuses(fn):
+        try:
+            got = fn()
+            return (False, f"answered with no session: {json.dumps(got)[:160]}")
+        except ConnectionError as e:
+            return ("401" in str(e), f"refused, as a locked glass must: {str(e)[:160]}")
+
     def s9_1():
         h = w.health()
         ok = h.get("status") == "ok" and VERSION in str(h.get("version", ""))
         return (ok, json.dumps(h)[:200])
 
     def s9_2():
+        if locked:
+            return refuses(w.list_agents)
         agents = w.list_agents()
         count = agents.get("count", 0) if isinstance(agents, dict) else len(agents)
         return (count >= 0, f"{count} agents (fresh webapp)")
 
     def s9_3():
+        if locked:
+            return refuses(lambda: w.add_trace({"tool": "e2e_test"}))
         trace = w.add_trace({
             "tool": "e2e_test",
             "actor": "prover",
@@ -811,6 +832,8 @@ def s9_webapp(ollama_ok, mcp_ok, webapp_ok):
         return (ok, json.dumps(trace)[:200])
 
     def s9_4():
+        if locked:
+            return refuses(lambda: w.add_eval({"name": "e2e_test"}))
         ev = w.add_eval({
             "trace_id": "",
             "name": "e2e_test",
@@ -822,6 +845,8 @@ def s9_webapp(ollama_ok, mcp_ok, webapp_ok):
         return (ok, json.dumps(ev)[:200])
 
     def s9_5():
+        if locked:
+            return refuses(lambda: w.search("atlas"))
         results_search = w.search("atlas")
         ok = len(results_search) > 0 if isinstance(results_search, list) else True
         return (ok, json.dumps(results_search)[:200])

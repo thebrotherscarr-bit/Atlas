@@ -48,6 +48,7 @@ type Handlers struct {
 	authOn    bool
 	service   string
 	sessions  *sessionStore
+	lock      *lockBox // the one user and the wrong-PIN count (lock.go)
 }
 
 type event struct {
@@ -295,7 +296,11 @@ func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		sessTenant = sess.Tenant
-		req.Args["project"] = sess.Tenant
+		// A PINNED session names its project for the caller; the operator's
+		// PIN session names none and keeps whatever the page asked (lock.go).
+		if sess.Tenant != "" {
+			req.Args["project"] = sess.Tenant
+		}
 	}
 
 	rpcPayload, _ := json.Marshal(map[string]any{

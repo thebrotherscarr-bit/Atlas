@@ -97,6 +97,10 @@ func (s *Server) ListenAndServe() error {
 	mux.HandleFunc("POST /api/login", s.handlers.Login)
 	mux.HandleFunc("POST /api/logout", s.handlers.Logout)
 	mux.HandleFunc("GET /api/me", s.handlers.Me)
+	// THE LOCK (2026-09-21): one user, one PIN -- handlers/lock.go.
+	mux.HandleFunc("GET /api/lock", s.handlers.LockState)
+	mux.HandleFunc("POST /api/setup", s.handlers.LockSetup)
+	mux.HandleFunc("POST /api/unlock", s.handlers.Unlock)
 	mux.HandleFunc("POST /api/workspace/switch", s.handlers.SwitchWorkspace)
 	mux.HandleFunc("GET /metrics", s.handlers.Metrics)
 
@@ -147,18 +151,27 @@ func (s *Server) ListenAndServe() error {
 		serve("index.html")
 	})
 
-	return http.ListenAndServe(":"+s.port, s.gated(mux))
+	return http.ListenAndServe(s.addr(), s.gated(mux))
 }
+
+// THIS PC ONLY (2026-09-21, his answer to who may open the glass once it
+// locks: "This PC only"). It listened on every address -- ":" + port -- so
+// any machine on the network could reach every face, the settings included,
+// with no gate switched on. Loopback is this computer and nothing else.
+func (s *Server) addr() string { return "127.0.0.1:" + s.port }
 
 // gated wraps the mux: the session gate (ATLAS_AUTH=1) plus request
 // counting for /metrics. Open paths: login, health, platform hooks, and
-// the static face (the login page itself must load ungated).
+// the static face (the login page itself must load ungated). And since
+// 2026-09-21 the lock's three faces, because the lock screen has to ask and
+// answer before anyone is signed in; each judges its own caller (lock.go).
 func (s *Server) gated(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.handlers.Count(r.Method + " " + r.URL.Path)
 		path := r.URL.Path
 		if s.handlers.AuthOn() {
 			open := path == "/api/login" || path == "/api/health" ||
+				path == "/api/lock" || path == "/api/setup" || path == "/api/unlock" ||
 				strings.HasPrefix(path, "/hooks/") ||
 				(!strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/ws") && path != "/metrics")
 			if !open {

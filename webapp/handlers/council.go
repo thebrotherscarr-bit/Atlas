@@ -101,6 +101,8 @@ func (h *Handlers) CouncilState(w http.ResponseWriter, r *http.Request) {
 
 // scopeProject pins the call to the caller's own world when the gate is on. A
 // logged-in caller may never name another tenant's ground on the query string.
+// The operator's PIN session names no tenant (lock.go) and keeps what the page
+// asked, exactly as the gate-off path does.
 func (h *Handlers) scopeProject(r *http.Request, qq map[string][]string, asked string) error {
 	set := func(v string) {
 		if v != "" {
@@ -114,6 +116,10 @@ func (h *Handlers) scopeProject(r *http.Request, qq map[string][]string, asked s
 	sess, ok := h.sessionOf(r)
 	if !ok || sess == nil {
 		return fmt.Errorf("login required")
+	}
+	if sess.Tenant == "" {
+		set(asked)
+		return nil
 	}
 	set(sess.Tenant)
 	return nil

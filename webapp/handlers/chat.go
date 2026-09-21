@@ -178,7 +178,11 @@ func (h *Handlers) StreamChat(w http.ResponseWriter, r *http.Request) {
 			jsonErr(w, 401, "login required")
 			return
 		}
-		qq.Set("project", sess.Tenant)
+		// the operator's PIN session names no tenant (lock.go): no project
+		// is added, exactly as the gate-off path adds none
+		if sess.Tenant != "" {
+			qq.Set("project", sess.Tenant)
+		}
 	}
 	req.URL.RawQuery = qq.Encode()
 	if h.service != "" {

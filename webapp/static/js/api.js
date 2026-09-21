@@ -2,9 +2,15 @@
 const API = {
   base: '/api',
 
+  // A 401 IS THE LOCK, not an error to toast (2026-09-21): the session ended
+  // or was never started, so the lock screen comes up over the page (lock.js).
+  refused(r) {
+    if (r.status === 401 && typeof Lock !== 'undefined') Lock.show();
+  },
+
   async get(path) {
     const r = await fetch(this.base + path);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!r.ok) { this.refused(r); throw new Error(`HTTP ${r.status}`); }
     return r.json();
   },
 
@@ -14,7 +20,7 @@ const API = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!r.ok) { this.refused(r); throw new Error(`HTTP ${r.status}`); }
     return r.json();
   },
 

@@ -12,7 +12,128 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-Nothing since the mark below.
+### The lock: one user, one PIN, this computer only
+
+His words, 2026-09-21, in order: *"Simple login system for now, user/pin to start"*; asked
+who may open the glass, *"This PC only"*; *"I like this idea of multi-roles, all working
+under a single user"*; and *"Let's make the thing at least semi-secure"*. **RESTART
+REQUIRED** -- the glass's Go and its embedded pages moved, so none of this is live until the
+new binary is placed and the glass restarted. The door was not touched. No sitting was open.
+
+**WHAT IT WAS.** The glass listened on `":" + port` -- every address the machine has -- and
+its gate had never once been closed: `ConfigureAuth` had no caller (the finding in "The glass
+had one test function in 2,800 lines", below). Every page, and every tool call the glass
+passes to the door, answered whoever reached it.
+
+**THE CHANGE.**
+
+    the lock          handlers/lock.go, new. The first time the glass opens it asks the
+                      person at this computer for a name and a PIN of 4 to 8 digits; after
+                      that it is a lock screen. The PIN is never stored: PBKDF2-SHA256 over
+                      a random 16-byte salt, 600,000 rounds, in data/user.json (0600,
+                      written beside and renamed over). Five wrong PINs in a row close it
+                      for a minute, and the right PIN waits the minute out too. Setup is
+                      taken only from this computer -- judged by the connection, never by
+                      a header -- and only while nobody is set up. A user file that cannot
+                      be read is said, and never taken for "nobody is set up": that would
+                      hand the lock to whoever opened the page next
+    three faces       GET /api/lock, POST /api/setup, POST /api/unlock -- open through the
+                      gate, as /api/login is, because the lock screen must ask and answer
+                      before anyone is signed in
+    the operator's    a PIN session names no tenant, which is how every face here already
+    session           reads "see and name everything": the glass as it was with the gate
+                      off, behind a PIN. rpcCallAs, scopeProject, CallTool and StreamChat
+                      pin a project only when a session names one, so the page's project
+                      switch works as before and a key's session is still pinned to its
+                      tenant. /api/me says who is signed in
+    the cookie        SameSite Strict, was Lax; HttpOnly as before. Lax still sends the
+                      cookie when another site links the browser here, and a GET such as
+                      /api/council/stream?objective=... runs a turn
+    this PC only      the glass listens on 127.0.0.1 and nowhere else (server.go, addr)
+    switched on       main.go closes the gate at every start and names the lock. The
+                      service wire to the door stays empty
+    the page          static/js/lock.js, new. The lock screen draws over everything:
+                      "Welcome" with a name, a PIN and the PIN again; "Hi, <name>" with a
+                      PIN; a reset screen for a damaged file; and the minute counted down
+                      with the button held. Opening it reloads the page, so every face
+                      starts over signed in. The sidebar names who is signed in beside a
+                      Lock button, and api.js raises the lock screen on any 401
+    the prover        tests/e2e/ollama_prover.py holds no PIN, nor should it: when health
+                      says auth is on, S9-2 to S9-5 are proved LOCKED -- each must be
+                      refused 401 -- and E2E_SCENARIOS.md says so under S9
+
+**FORGOT THE PIN:** delete `webapp\data\user.json` and reload; the glass asks for a new one.
+Nothing else is lost -- the record lives elsewhere.
+
+**STROKES, 15 -> 23 in `webapp/handlers` and 4 -> 6 in `webapp/server`.** `handlers/lock_test.go`
+is new and hermetic -- temp files, a fake clock, a fake door. A PIN is 4 to 8 ASCII digits and
+nothing else (Arabic-Indic digits are digits to unicode, not to a keypad); a name is cleaned and
+bounded; setup is refused from another machine and a second time, writes nothing when refused,
+and never writes the PIN; the right PIN opens, a wrong one is counted and says how many tries are
+left, the cookie is HttpOnly and Strict, and the session is the operator's; five wrong close the
+lock for sixty seconds on the fake clock, the right PIN waits too, and the count starts over
+after; the lock state tells the page what to draw, a damaged file included; the operator names
+any world through rpcCallAs, scopeProject, CallTool and a chat stream while a key's session stays
+pinned in all four, and no session reaches the door at all; an unconfigured lock says so. In
+`server`: the glass listens on 127.0.0.1, and main.go still closes the gate and names the lock --
+because the gate stood unused for weeks for want of ONE line, with every stroke above it green.
+The open-path stroke holds the three faces.
+
+**PROVEN BY REVERSAL, sixteen undos on a scratch copy**, each turning its own stroke red and no
+other: setup from any machine; setup taken twice; a damaged file read as nobody; no lockout; the
+right PIN skipping the wait; the tries left not counted; any unicode digit taken as a PIN; the
+cookie back to Lax; the operator's empty tenant pinned in rpcCallAs, in scopeProject, in CallTool
+and in StreamChat; a key's session no longer pinned; the glass on every address; the three faces
+left gated; and main.go starting the glass unlocked. Put back, green. `gofmt` and `go vet` clean;
+`db` 13, `handlers` 23, `server` 6.
+
+**AND ON THE REAL BINARY, IN SCRATCH** -- built from these sources and run on its own port, :8097,
+with a data folder of its own. His glass and his door were neither stopped nor changed, and
+every check below reads the glass's own store, not the door. It bound 127.0.0.1 alone. Fourteen of fourteen over HTTP: health says
+the gate is on; a data face and a setting refuse a caller with no session, 401 "login required";
+the lock greets its one user; a second setup is refused; a wrong PIN is counted; the right one
+opens, with the cookie HttpOnly and SameSite=Strict; the session reads the store and `/api/me`
+names the user with no tenant; Lock ends the session on the server; five wrong PINs close the
+lock, the right one waits with Retry-After 60, and the lock state carries the wait. The user file
+it opened was written by a separate Python script with `hashlib`'s own PBKDF2, so the file is the
+standard algorithm and not only this code's reading of it. The browser pane drew the welcome, the
+lock with the user's name, and the countdown -- and opened by the name `localhost`, as his
+Dashboard tab is, it reached the glass: the first connection about 0.3 s later than 127.0.0.1
+would, because the browser tries IPv6 first, and 2 ms a request after that. The prover's S9
+against it: S9-2 to S9-5 refused, as the lock requires. Stopped by pid.
+
+**THE NEW BUILD IS NOT IN PLACE.** It waits in the hand's scratch, sha256 62b7dbb1a5a7b9a0,
+10,676,736 bytes. Placing it over `webapp/atlas-webapp.exe` and restarting the glass is his
+allowance; until then the glass runs the build from before this piece, gate open.
+
+**AND PLACED THE SAME DAY**, on his word: *"place it and restart the glass"*. With no sitting
+open and no engine running, the glass -- pid 24656, the only process listening on :8091, and
+running from `webapp/atlas-webapp.exe`, checked by pid and path before anything was stopped --
+was stopped; the build was copied over that file and hashes as built, the sources it was built
+from unchanged; and the glass was started on its own command line. It listens on
+127.0.0.1:8091 alone (pid 7160). `/api/health` says the gate is on, `/api/lock` says nobody is
+set up, the data faces refuse a caller with no session, and his Dashboard tab reloaded onto the
+Welcome screen. The name and the PIN are his to type. The build it replaced is kept in the
+hand's scratch; the door was not touched.
+
+**Named, not fixed.**
+
+    the door         atlas-mcp still answers any program on this computer with no key
+                     (`--auth` off), so the lock is the glass's alone. The door's own gate
+                     and its holds are the other half of THE REACH
+    the key login    /api/login (N6) still stands beside the PIN and opens a session,
+                     pinned to its tenant, for any key the door verifies -- and while the
+                     door is open, anything that reaches it can mint the first key, because
+                     key creation is open on an empty store
+    the roles        "multi-roles, all working under a single user" is the next piece, not
+                     this one
+    S9-1 and S9-6    the prover declares VERSION = "0.1.3" while the glass reports 0.1.5,
+                     so S9-1 fails on that alone, before this piece and after it; and S9-6
+                     passes on any failure to connect, as it always has, so under the lock
+                     it passes without proving a stream
+    a short PIN      anyone who can READ user.json could guess the PIN offline. The file
+                     sits on his own disk beside the glass's database, and a person holding
+                     that disk holds the machine already
 
 ## [0.1.6] — 2026-09-18 (tag on 0c65afc)
 

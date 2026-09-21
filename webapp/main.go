@@ -51,9 +51,15 @@ func main() {
 	msgBus.SetDB(database)
 
 	h := handlers.New(store, agentReg, evalEngine, searchEngine, msgBus)
+	// THE LOCK IS ON (2026-09-21, his words: "Simple login system for now,
+	// user/pin to start", "make the thing at least semi-secure", "This PC
+	// only"). One user, one PIN; the first person at this computer sets it up.
+	// The service wire to the door stays empty -- the door is unchanged.
+	h.ConfigureAuth(true, "", "data/sessions.json")
+	h.ConfigureLock("data/user.json")
 	srv := server.New(h, port, staticFiles)
 
-	fmt.Printf("atlas-webapp listening on :%s\n", port)
+	fmt.Printf("atlas-webapp listening on 127.0.0.1:%s -- this PC only, opened with a PIN\n", port)
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "server: %v\n", err)
 		os.Exit(1)

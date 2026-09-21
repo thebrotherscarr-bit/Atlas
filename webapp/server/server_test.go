@@ -14,6 +14,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -85,9 +86,11 @@ func TestEveryEmbeddedFileGetsAQuotedValidator(t *testing.T) {
 }
 
 func TestWithAuthOffTheGateIsInert(t *testing.T) {
-	// THIS IS PRODUCTION TODAY. `ConfigureAuth` has no caller anywhere in the
-	// module, so `authOn` is false for the life of every process and this is
-	// the only path a real request takes. Pinned as the fact it is.
+	// THIS WAS PRODUCTION UNTIL 2026-09-21: `ConfigureAuth` had no caller, so
+	// `authOn` was false for the life of every process. main.go now closes the
+	// gate at every start (THE LOCK) -- see the two strokes at the end of this
+	// file. The inert path is kept and still pinned: it is what a Handlers
+	// nobody configured does, and a test harness builds exactly that.
 	s := &Server{handlers: newHandlers(t)}
 	for _, path := range []string{"/api/traces", "/ws", "/metrics", "/", "/records"} {
 		hit := false
@@ -100,16 +103,20 @@ func TestWithAuthOffTheGateIsInert(t *testing.T) {
 }
 
 func TestWithAuthOnTheGateRefusesTheRightThings(t *testing.T) {
-	// THE MECHANISM WORKS; NOTHING TURNS IT ON. Configured by hand here, which
-	// is the only way it can be configured -- see the finding above. If the
-	// wiring lands, this stroke is what says the gate was already right.
+	// THE MECHANISM WORKED BEFORE ANYTHING TURNED IT ON. It was configured by
+	// hand here and nowhere else until 2026-09-21, when main.go began closing
+	// the gate at every start (THE LOCK). This stroke is what said the gate was
+	// already right; it now also holds the lock's own open faces.
 	h := newHandlers(t)
 	h.ConfigureAuth(true, "", t.TempDir()+"/sessions.json")
 	s := &Server{handlers: h}
 
 	// OPEN, because the login page and a health probe must work ungated, and
-	// a platform hook is authenticated by its own signature, not a cookie.
-	for _, path := range []string{"/api/login", "/api/health", "/hooks/slack"} {
+	// a platform hook is authenticated by its own signature, not a cookie. The
+	// lock's three faces are open for the same reason as the login: the lock
+	// screen must ask and answer before anyone is signed in.
+	for _, path := range []string{"/api/login", "/api/health", "/hooks/slack",
+		"/api/lock", "/api/setup", "/api/unlock"} {
 		hit := false
 		w := httptest.NewRecorder()
 		s.gated(ok(&hit)).ServeHTTP(w, httptest.NewRequest("POST", path, nil))
@@ -191,5 +198,28 @@ func TestTheGateCountsEveryRequestIncludingRefusedOnes(t *testing.T) {
 	h.Metrics(m, httptest.NewRequest("GET", "/metrics", nil))
 	if !strings.Contains(m.Body.String(), "GET /api/traces") {
 		t.Fatalf("the refused request was not counted:\n%s", m.Body.String())
+	}
+}
+
+func TestTheGlassListensOnThisComputerOnly(t *testing.T) {
+	// "This PC only" (2026-09-21). It listened on ":" + port -- every address
+	// the machine has -- with no gate switched on. Loopback is this computer.
+	if got := (&Server{port: "8091"}).addr(); got != "127.0.0.1:8091" {
+		t.Fatalf("the glass listens on %q; this PC only is 127.0.0.1", got)
+	}
+}
+
+func TestTheLockIsSwitchedOnWhereTheGlassStarts(t *testing.T) {
+	// The gate stood unused for weeks because the ONE line that turns it on
+	// was never written, and every stroke above still passed. So the wiring is
+	// pinned where it lives: main.go must close the gate and name the lock.
+	src, err := os.ReadFile("../main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`h.ConfigureAuth(true,`, `h.ConfigureLock(`} {
+		if !strings.Contains(string(src), want) {
+			t.Fatalf("main.go no longer does %s -- the glass would start unlocked", want)
+		}
 	}
 }
