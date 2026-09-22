@@ -12,6 +12,56 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### A world a crash used to lock: the door reads the pid on the open line
+
+His word, 2026-09-22: *"1. Survives crashes"* -- the handoff's first piece. The engine's half is in
+the core's CHANGELOG. **RESTART REQUIRED, THE DOOR:** `line/internal/engine/` moved, so none of this
+is live until the door is rebuilt, placed and restarted. No sitting was open.
+
+**WHAT IT WAS.** `Open` refused any world whose ledger's last line had no `ended`, and never read
+the `pid` every line has carried since 2026-09-17. An engine that crashed or was killed left a line
+that refused its world to every Boot, until someone opened a REPL there to reap it -- and the
+headless engine this door spawns never reaped.
+
+**THE CHANGE.**
+
+    SittingOrphaned   new: the open line's pid, and whether that process is PROVABLY gone. No
+                      pid, an unreadable ledger, a live process, or one this door may not ask
+                      about all answer "not orphaned" -- the core's own rule (seatlog._alive)
+    Open              refuses as before unless the open line is orphaned. Then it opens the
+                      world, says so in the door's notes, and the engine it spawns reaps the
+                      line as it starts (the core's serve.main, with the REPL's own reaper).
+                      The door still never writes the ledger
+    processgone_*     the kernel asked, never signalled: OpenProcess and the exit code on
+                      Windows (ERROR_INVALID_PARAMETER is "no such process"; access denied is
+                      not a death), signal 0 and ESRCH elsewhere. The first platform split in
+                      THE LINE; GOOS=linux builds and vets
+    lastSitting       the ledger read, shared by both; SittingOpen answers exactly as before
+
+**STROKES, +2 in `internal/engine`.** `TestAnOrphanedSittingIsOnlyOneWhoseProcessIsProvablyGone`: an
+open line whose process has come and gone is orphaned and names its pid; a live pid, no pid, a
+closed line, an unreadable last line and no ledger are not. `TestOpenOpensAWorldWhoseSittingsProcessIsGone`:
+the door opens such a world on a real (stub) engine, and the same line with a live process behind
+it is still refused by name.
+
+**PROVEN BY REVERSAL, on a scratch copy.** With the liveness answer forced to "alive", both go red,
+the second with the exact old refusal; put back, green. `gofmt` and `go vet` clean, on Windows and
+for GOOS=linux; in `line`, every package green but the six `git_tag` push strokes the scratch path
+always breaks.
+
+**THE NEW DOOR IS NOT IN PLACE.** Built in scratch from sources byte-identical to these: sha256
+025ed38d99fdda4f, 12,151,296 bytes, `--version` 0.1.6. Placing it over `line/atlas-mcp.exe` and
+restarting the door (pid 8116) is his allowance. Until then a crashed engine's world is refused as
+before.
+
+**Named, not fixed.**
+
+    env_list          still says "sat in elsewhere" for an orphaned line, though Boot now opens
+                      it. One line in tools.go, left for a piece that reads that file whole
+    the spec          SPEC_CONTROL_CENTER's "on its own restart it must reap orphans" is met from
+                      the other side: an engine whose door dies closes itself on the hang-up --
+                      now even with a question pending -- and a dead one's line no longer refuses
+
 ### Every version stamp in step: the stale 0.1.6, the lock the bump tool forgot, and a push check that runs the whole battery
 
 His word, 2026-09-22: *"the version control for atlas sounds like a fairly simple fix, let's get
@@ -106,6 +156,23 @@ byte-identical to these:
 Placing them and restarting is his allowance. Until then the running door judges a mark by the
 root VERSION alone, and both answer 0.1.5. None of this reaches GitHub, including the two
 workflows, until atlas is saved and sent.
+
+**SAVED AND SENT, THEN PLACED, 2026-09-22, on his word** (asked, and answered: "Save and send";
+"Door and glass"). Saved through the council in sitting 262 (09:41-09:43, two runs, closed with
+its toll): atlas `3a07dfd` (`d94c1e9..3a07dfd`), these 29 files and nothing else, `main` alone,
+and GitHub's `main` matches. Then, with no sitting open and no engine standing, the glass (pid
+27600) and the door (pid 26876) were each checked by pid and path, stopped by pid, and replaced
+with these builds, which hash as built. The builds they replaced (door 3c0ce9c7, glass 91a6875d)
+are kept in the hand's scratch.
+
+    the door    pid 8116, on the command line it had, from `line\`: 127.0.0.1:8090 alone,
+                82 tools, `/health` says 0.1.6
+    the glass   pid 24548, from `webapp\`: 127.0.0.1:8091 alone, gate on, his lock found,
+                `/api/health` says 0.1.6
+
+The `atlas-mcp.exe` running from `Desktop\Archive` (pid 23164) was left alone. His Dashboard
+opens on the lock screen; the PIN is his. This paragraph is written after the save and rides with
+the next one.
 
 **Named, not fixed.**
 

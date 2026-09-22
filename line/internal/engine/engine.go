@@ -135,13 +135,62 @@ type Engine struct {
 // second engine into a world whose record was already damaged. The refusal
 // exists for that case. Unknown refuses.
 func SittingOpen(ground string) (n float64, started string, open bool) {
+	row, unknown, found := lastSitting(ground)
+	if !found {
+		return 0, "", false // a world with no ledger, or an empty one, has no sitting
+	}
+	if unknown != "" {
+		return 0, unknown, true
+	}
+	if ended, _ := row["ended"].(string); strings.TrimSpace(ended) != "" {
+		return 0, "", false
+	}
+	num, _ := row["n"].(float64)
+	st, _ := row["started"].(string)
+	return num, st, true
+}
+
+// SittingOrphaned reports whether the world's open sitting was left open by a
+// process that is provably gone, and names that process.
+//
+// A LOCK HELD BY NOBODY IS NOT A LOCK (2026-09-22). Every sitting line carries
+// the pid of the process sitting in it (seatlog.py, since 2026-09-17), and
+// this door never read it -- so an engine that crashed, or was killed, left a
+// line that refused its world to every Boot until someone opened a REPL there
+// to reap it. Now the door reads the pid, and a world whose sitting belongs to
+// nobody is opened: the engine it spawns reaps that line as it starts
+// (serve.main, the same reaper the REPL runs), and the door itself never
+// writes the ledger.
+//
+// ONLY A PROVABLE DEATH COUNTS, the core's own rule (seatlog._alive): no pid,
+// an unknown ledger, a process that may still be running, or one this door
+// cannot ask about all read as "not orphaned", and the refusal stands. A second
+// engine under a live sitting is the one thing this refusal exists to stop.
+func SittingOrphaned(ground string) (pid int, orphaned bool) {
+	row, unknown, found := lastSitting(ground)
+	if !found || unknown != "" {
+		return 0, false
+	}
+	if ended, _ := row["ended"].(string); strings.TrimSpace(ended) != "" {
+		return 0, false
+	}
+	f, _ := row["pid"].(float64)
+	if pid = int(f); pid <= 0 {
+		return 0, false
+	}
+	return pid, processGone(pid)
+}
+
+// lastSitting is the ledger's last line, parsed -- or, when it cannot be read,
+// why not. found is false only for a world with no ledger or an empty one.
+func lastSitting(ground string) (row map[string]any, unknown string, found bool) {
 	p := filepath.Join(ground, "sessions", "sessions.jsonl")
 	b, err := os.ReadFile(p)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return 0, "", false // a world with no ledger has no sitting
+			return nil, "", false
 		}
-		return 0, "unreadable ledger: " + err.Error(), true
+		return nil, "unreadable ledger: " + err.Error(), true
 	}
 	lines := strings.Split(strings.TrimRight(string(b), "\r\n"), "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
@@ -149,18 +198,12 @@ func SittingOpen(ground string) (n float64, started string, open bool) {
 		if line == "" {
 			continue
 		}
-		var row map[string]any
 		if json.Unmarshal([]byte(line), &row) != nil {
-			return 0, "the last ledger line is not readable JSON", true
+			return nil, "the last ledger line is not readable JSON", true
 		}
-		if ended, _ := row["ended"].(string); strings.TrimSpace(ended) != "" {
-			return 0, "", false
-		}
-		num, _ := row["n"].(float64)
-		st, _ := row["started"].(string)
-		return num, st, true
+		return row, "", true
 	}
-	return 0, "", false
+	return nil, "", false
 }
 
 // ---------------------------------------------------------------------
@@ -274,9 +317,16 @@ func Open(name, ground, coreCmd string) (*Engine, error) {
 			return nil, fmt.Errorf("refused: %s -- %s. THE LINE will not open a "+
 				"second engine on a world whose record it cannot read", name, started)
 		}
-		return nil, fmt.Errorf("refused: %s has an open sitting (%d, opened %s). "+
-			"One engine per world -- a second would fork the ledger. Close it "+
-			"where it is being sat in, or open a different world", name, int(n), started)
+		pid, gone := SittingOrphaned(ground)
+		if !gone {
+			return nil, fmt.Errorf("refused: %s has an open sitting (%d, opened %s). "+
+				"One engine per world -- a second would fork the ledger. Close it "+
+				"where it is being sat in, or open a different world", name, int(n), started)
+		}
+		// Its process is gone (SittingOrphaned). The engine spawned below reaps
+		// the line as it starts; said here too, where the door's notes are kept.
+		fmt.Fprintf(os.Stderr, "env_open %s: sitting %d was left open by a process "+
+			"that is gone (pid %d); the engine closes it as it opens\n", name, int(n), pid)
 	}
 
 	fields := splitCommand(coreCmd)

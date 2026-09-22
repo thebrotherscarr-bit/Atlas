@@ -3,7 +3,9 @@ package engine
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -112,6 +114,78 @@ func TestOpenRefusesAWorldBeingSatIn(t *testing.T) {
 		if !contains(err.Error(), want) {
 			t.Fatalf("refusal %q does not name %q", err, want)
 		}
+	}
+}
+
+// ---- a sitting whose process is gone (2026-09-22) ---------------------------
+
+// deadPid is the pid of a process that has come and gone: this test binary run
+// again with nothing to run, waited for.
+func deadPid(t *testing.T) int {
+	t.Helper()
+	c := exec.Command(os.Args[0], "-test.run=^$")
+	if err := c.Run(); err != nil {
+		t.Fatalf("the short-lived child did not run: %v", err)
+	}
+	return c.ProcessState.Pid()
+}
+
+func openLine(n, pid int) string {
+	return fmt.Sprintf(`{"n":%d,"started":"2026-09-22T10:00:00","ended":"","pid":%d}`+"\n", n, pid)
+}
+
+// ONLY A PROVABLE DEATH COUNTS. A crashed engine's line names a pid that is
+// gone, and that line alone reads as orphaned; a live pid, no pid at all, a
+// closed line and an unreadable ledger all leave the refusal standing.
+func TestAnOrphanedSittingIsOnlyOneWhoseProcessIsProvablyGone(t *testing.T) {
+	gone := deadPid(t)
+	cases := []struct {
+		name     string
+		body     string
+		orphaned bool
+	}{
+		{"an open line whose process is gone is orphaned", openLine(7, gone), true},
+		{"an open line whose process is alive is not", openLine(7, os.Getpid()), false},
+		{"an open line with no pid cannot be judged, so it is not",
+			`{"n":7,"started":"x","ended":""}` + "\n", false},
+		{"a closed line is not, whatever its pid",
+			`{"n":7,"started":"x","ended":"y","pid":` + fmt.Sprint(gone) + `}` + "\n", false},
+		{"an unreadable last line is not -- the C5 refusal keeps it",
+			openLine(6, gone) + `{"n":7,"star`, false},
+		{"no ledger is not", "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pid, orphaned := SittingOrphaned(ledger(t, c.body))
+			if orphaned != c.orphaned {
+				t.Fatalf("orphaned = %v (pid %d), want %v", orphaned, pid, c.orphaned)
+			}
+			if orphaned && pid != gone {
+				t.Fatalf("named pid %d, want %d -- the note must name the process", pid, gone)
+			}
+		})
+	}
+}
+
+// THE WORLD A CRASH USED TO LOCK. Its last line is open and its process is
+// gone, so the door opens it -- and the same line with a live process behind
+// it is refused, naming the sitting, exactly as before.
+func TestOpenOpensAWorldWhoseSittingsProcessIsGone(t *testing.T) {
+	g := ledger(t, openLine(41, deadPid(t)))
+	r := NewRegistry()
+	e, err := r.Open("w", g, stubEngine(t))
+	if err != nil {
+		t.Fatalf("a world held by a dead process was refused: %v", err)
+	}
+	t.Cleanup(func() { _, _ = r.CloseOne(g) })
+	if !e.Alive() {
+		t.Fatal("the engine opened on it is not standing")
+	}
+
+	live := ledger(t, openLine(42, os.Getpid()))
+	_, err = Open("w", live, stubEngine(t))
+	if err == nil || !contains(err.Error(), "42") {
+		t.Fatalf("a world whose sitting's process is alive must still be refused by name; got %v", err)
 	}
 }
 
