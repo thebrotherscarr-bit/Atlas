@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -540,6 +541,272 @@ The tools that actually ran this turn were write_file, run_python.`
 		if scoreNode(Node{Kind: "eval", Expected: "  ", Match: m}, "  ", answer) {
 			t.Fatalf("match %q passed on a blank expected; that is a green light nobody set", m)
 		}
+	}
+}
+
+// --- the outcome is written down, and read back (2026-09-22) ----------------
+//
+// The handoff's second piece, his word: "2. Flows report truthfully". A node
+// line carried `status`, which is "ok" for an eval that ANSWERED -- pass or
+// fail alike -- so nothing on disk said which way a check went, and Resume
+// rebuilt every ok line as a pass. A check that FAILED came back from a gate
+// as one that passed: the fail-branch went quiet and the pass-branch fired.
+
+// evalGateSpec: a check fires, a gate pauses, and two nodes downstream wait on
+// the CHECK's own outcome -- the shape a resume used to lie about.
+func evalGateSpec() Spec {
+	return Spec{Name: "judged", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "a", Kind: "ask", Question: "Q"},
+			{Name: "e", Kind: "eval", Ref: "a", Expected: "yes"},
+			{Name: "g", Kind: "gate", Title: "look at it"},
+			{Name: "x", Kind: "ask", Question: "X"},
+			{Name: "y", Kind: "ask", Question: "Y"},
+		},
+		Edges: []Edge{
+			{From: "a", To: "e", When: "always"},
+			{From: "a", To: "g", When: "always"},
+			{From: "e", To: "x", When: "pass"},
+			{From: "e", To: "y", When: "fail"},
+		}}
+}
+
+func TestAResumeKeepsTheCheckThatFailed(t *testing.T) {
+	home := t.TempDir()
+	eng := &stubEngine{answers: map[string]string{"Q": "no"}}
+	res, err := Run(home, eng, evalGateSpec(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused {
+		t.Fatalf("verdict = %s, want PAUSED", res.Verdict)
+	}
+
+	// The check's own verdict is ON the line, not left to be guessed later.
+	lines, err := runLog(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, l := range lines {
+		if l["kind"] != "node" || l["node"] != "e" {
+			continue
+		}
+		seen = true
+		p, ok := l["pass"].(bool)
+		if !ok {
+			t.Fatalf("the check's line does not say which way it went: %v", l)
+		}
+		if p {
+			t.Fatalf("a check that failed was written down as a pass: %v", l)
+		}
+	}
+	if !seen {
+		t.Fatal("no line at all for the check")
+	}
+
+	res2, err := Resume(home, eng, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res2.Fired, ",") != "a,e,g,y" {
+		t.Fatalf("fired after the resume = %v; the fail branch must fire and the "+
+			"pass branch must stay silent", res2.Fired)
+	}
+}
+
+// AND THE OTHER WAY, or the stroke above would pass on a runner that called
+// every check a failure.
+func TestAResumeKeepsTheCheckThatPassed(t *testing.T) {
+	home := t.TempDir()
+	eng := &stubEngine{answers: map[string]string{"Q": "yes"}}
+	res, err := Run(home, eng, evalGateSpec(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res2, err := Resume(home, eng, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res2.Fired, ",") != "a,e,g,x" {
+		t.Fatalf("fired after the resume = %v; the pass branch must fire", res2.Fired)
+	}
+}
+
+// A RUN LOGGED BEFORE THE OUTCOME WAS WRITTEN DOWN still resumes correctly: an
+// eval's own answer says which way it went, and every other kind passed by
+// answering at all. Nothing in the record is rewritten to make this true.
+func TestAnOlderRunsCheckIsReadFromItsOwnAnswer(t *testing.T) {
+	home := t.TempDir()
+	eng := &stubEngine{answers: map[string]string{"Q": "no"}}
+	res, err := Run(home, eng, evalGateSpec(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Strip the field a run written today carries, leaving yesterday's shape.
+	raw, err := os.ReadFile(runsPath(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []string
+	for _, ln := range strings.Split(strings.TrimRight(string(raw), "\n"), "\n") {
+		var doc map[string]any
+		if json.Unmarshal([]byte(ln), &doc) == nil {
+			delete(doc, "pass")
+			b, _ := json.Marshal(doc)
+			ln = string(b)
+		}
+		kept = append(kept, ln)
+	}
+	if err := os.WriteFile(runsPath(home), []byte(strings.Join(kept, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res2, err := Resume(home, eng, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res2.Fired, ",") != "a,e,g,y" {
+		t.Fatalf("fired = %v; an older run's failed check was read as a pass", res2.Fired)
+	}
+}
+
+// --- every gate, not just the first (2026-09-22) -----------------------------
+//
+// Any `resumed` line used to close the door on the whole run, so a flow with
+// two gates could never pass the second -- while Status and flow_runs went on
+// showing PAUSED and the tool went on telling the operator to resume it.
+func twoGateSpec() Spec {
+	return Spec{Name: "twogates", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "a", Kind: "ask", Question: "Q"},
+			{Name: "g1", Kind: "gate", Title: "first look"},
+			{Name: "b", Kind: "ask", Question: "B"},
+			{Name: "g2", Kind: "gate", Title: "second look"},
+			{Name: "c", Kind: "ask", Question: "C"},
+		},
+		Edges: []Edge{
+			{From: "a", To: "g1", When: "always"},
+			{From: "g1", To: "b", When: "pass"},
+			{From: "b", To: "g2", When: "always"},
+			{From: "g2", To: "c", When: "pass"},
+		}}
+}
+
+func TestEveryGateCanBeResumed(t *testing.T) {
+	home := t.TempDir()
+	eng := &stubEngine{}
+	res, err := Run(home, eng, twoGateSpec(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused || res.PausedNode != "g1" {
+		t.Fatalf("first pause = %s at %q", res.Verdict, res.PausedNode)
+	}
+	res2, err := Resume(home, eng, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictPaused || res2.PausedNode != "g2" {
+		t.Fatalf("second pause = %s at %q", res2.Verdict, res2.PausedNode)
+	}
+	res3, err := Resume(home, eng, res.Run, "continue")
+	if err != nil {
+		t.Fatalf("the second gate refused to resume: %v", err)
+	}
+	if res3.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s after both gates were answered", res3.Verdict)
+	}
+	if _, err := Resume(home, eng, res.Run, "continue"); err == nil {
+		t.Fatal("a run that has finished resumed again")
+	}
+}
+
+// --- a cancel is not a clock (2026-09-22) ------------------------------------
+
+// cancellingEngine ends the run from inside its own first node, the way
+// flow_cancel ends it from outside.
+type cancellingEngine struct{ stubEngine }
+
+func (c *cancellingEngine) Ask(ctx context.Context, question, voice string) (string, error) {
+	flightsMu.Lock()
+	for _, stop := range flights {
+		stop()
+	}
+	flightsMu.Unlock()
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+func TestACancelledRunIsStoppedAndNotOutOfTime(t *testing.T) {
+	if verdictFor(context.Canceled) != VerdictStopped {
+		t.Fatal("a cancelled context must read as STOPPED")
+	}
+	if verdictFor(context.DeadlineExceeded) != VerdictOverTime {
+		t.Fatal("a spent budget must still read as OUT_OF_TIME")
+	}
+	home := t.TempDir()
+	res, err := Run(home, &cancellingEngine{}, Spec{Name: "cancelme", BudgetS: 600,
+		Nodes: []Node{{Name: "a", Kind: "ask", Question: "Q"}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictStopped {
+		t.Fatalf("verdict = %s; a run the hand cancelled did not run out of time", res.Verdict)
+	}
+}
+
+// --- a resume with no engine burns nothing (2026-09-22) ----------------------
+
+// notReadyEngine answers everything, and says no engine is standing -- the
+// shape of one that idled out while a gate waited for the operator.
+type notReadyEngine struct{ stubEngine }
+
+func (n *notReadyEngine) Ready() error {
+	return fmt.Errorf("no engine is open on this world (env_open first)")
+}
+
+func TestAResumeWithNoEngineRefusesAndLeavesTheRunAtItsGate(t *testing.T) {
+	home := t.TempDir()
+	s := Spec{Name: "guarded", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "g", Kind: "gate", Title: "look before it runs"},
+			{Name: "w", Kind: "run", Question: "do the thing"},
+		},
+		Edges: []Edge{{From: "g", To: "w", When: "pass"}}}
+	res, err := Run(home, &stubEngine{}, s, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused {
+		t.Fatalf("verdict = %s, want PAUSED", res.Verdict)
+	}
+	before, err := runLog(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Resume(home, &notReadyEngine{}, res.Run, "continue")
+	if err == nil {
+		t.Fatal("a resume with no engine was allowed to burn the run")
+	}
+	for _, want := range []string{"no engine is open", "stands at its gate"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the refusal must say %q: %v", want, err)
+		}
+	}
+	after, err := runLog(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("the refused resume wrote %d line(s) into the run", len(after)-len(before))
+	}
+	// And with an engine standing, the same gate resumes and the run lands.
+	res2, err := Resume(home, &stubEngine{}, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s once an engine was open", res2.Verdict)
 	}
 }
 

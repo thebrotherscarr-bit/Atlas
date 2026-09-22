@@ -12,6 +12,102 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Flows report truthfully: a turn that did not deliver, a check that stays failed, every gate resumable, and a lock per world
+
+His word, 2026-09-22: *"2. Flows report truthfully"* -- the handoff's second piece, from the review
+the same day. **RESTART REQUIRED, THE DOOR:** `line/internal/flow/` and `line/internal/tools/`
+moved. No sitting was open.
+
+**WHAT IT WAS.** Six findings, each read in the code before it was touched:
+
+    a turn that did      councilEngine.Turn returned the final event's text whatever kind it
+    not deliver          was. `refused` (the law gate), `aborted`, `cancelled`, `unreachable`
+                         and `command` -- the last being a turn that ran no pipeline at all,
+                         which is also what a runtime error leaves, carrying the objective's
+                         own words back -- were all handed to the flow as the node's OUTPUT.
+                         The run log wrote them "ok", so a flow could walk its whole happy
+                         path having done nothing, and the node's recorded answer could be
+                         its own question
+    a check that         a node line carried `status`, which is "ok" for an eval that
+    came back a pass     ANSWERED, pass or fail alike. Resume rebuilt `pass` as true for
+                         every ok line, so a check that FAILED came back from a gate as one
+                         that passed: the fail branch went silent and the pass branch fired
+    the second gate      any `resumed` line made the whole run "not paused", so a flow with
+                         two gates could never pass the second -- while flow_status and
+                         flow_runs went on showing PAUSED and the tool went on telling the
+                         operator to resume it
+    an answered gate     a resumed gate fires in memory and writes no node line, so the NEXT
+    forgotten            resume walked back to it and paused on it again. Found by the
+                         two-gate stroke below, not by reading
+    a cancel called      flow_cancel ends the run's context, and both a cancel and a spent
+    out of time          budget arrived as the same dead context: the verdict said
+                         OUT_OF_TIME over a run the operator had stopped himself. The cancel
+                         could not reach a turn in flight at all -- `Turn` ignored the
+                         context, so a cancelled flow drove the council to the end of the
+                         turn and only the NEXT node saw it
+    a resume with no     `continue` walked into the next `run` node, which cannot open an
+    engine burned the    engine; the node errored, the run took a terminal line, and a run
+    run                  with one never resumes again. So a gate answered after the engine's
+                         thirty-minute idle close -- which is exactly the walk-away a gate is
+                         FOR -- destroyed the work it guarded
+    one flow froze       flow_run, flow_resume and flow_replay held `askLock` -- one mutex
+    every world          across every tenant -- for a WHOLE run. The glass's chat, every
+                         prompt run, every key mint and every other world's flow waited on
+                         it. SPEC_CONTROL_CENTER 4.6 asks for exactly this, in its own words
+
+**THE CHANGE.**
+
+    deliveryOf        only `delivery` is a turn's answer; every other terminal event is a
+                      refusal that names the kind and quotes what it said. The kind IS the
+                      verdict, so the flow's run node fails instead of recording nothing
+                      as something
+    the node line     carries `pass`, the node's own outcome, beside `status`
+    Resume            reads that outcome back (a run logged before today is read from the
+                      eval's own answer, and nothing in the record is rewritten); reads a
+                      `resumed` line as the gate it answered standing fired; and judges
+                      only the pause that is STILL OPEN, so every gate resumes once
+    Ready             flow.Resume asks the engine, through an optional interface, whether
+                      one is standing for the `run` nodes still to fire -- BEFORE it
+                      appends anything, so a refusal leaves the run at its gate
+    verdictFor        a cancelled context is STOPPED, a spent budget is OUT_OF_TIME
+    Turn              watches the run's context and sends the engine a cancel when it
+                      dies: Ctrl-C is what the engine understands
+    flowLock          one mutex per world for flows. The rack stays one queue -- the
+                      council engine's Ask, RunPrompt and SeatAsk take askLock per CALL --
+                      so a flow's model calls still queue behind rack_ask and let go
+                      between nodes. Turn is not among them: run_start does not take
+                      askLock either, and one engine per world is already the invariant
+
+**STROKES, +6 in `internal/flow` and +2 in `internal/tools`.** A check that failed comes back
+failed and its fail branch fires; one that passed comes back passed; a run logged before the
+outcome was written down is read from the eval's own answer; a flow with two gates pauses,
+resumes, pauses and completes, and refuses a third resume; a cancelled run is STOPPED and a spent
+budget is still OUT_OF_TIME; a resume with no engine is refused, writes NOTHING into the run, and
+the same gate resumes once an engine stands. In `tools`: only a delivery is an answer (every other
+terminal kind refuses, naming itself, and returns no text), and the flow lock is per world, is not
+askLock, and is the one the three flow tools actually take -- read out of the source, the way
+`internal/flow`'s own no-finish stroke reads it.
+
+**PROVEN BY REVERSAL, seven undos on a scratch copy**, each turning its own stroke red and put
+back green: the delivery check off; the outcome not written down; any prior resume closing the
+run; an answered gate leaving no record; a cancel called out of time; the engine check skipped;
+and flow_run back on the global lock. `gofmt`, `go vet` (Windows and GOOS=linux) clean; in `line`,
+every package green but the six `git_tag` push strokes the scratch path always breaks.
+
+**THE NEW DOOR IS NOT IN PLACE.** Built in scratch from sources byte-identical to these: sha256
+4430227a4544eb3e, 12,166,144 bytes. Placing it over `line/atlas-mcp.exe` and restarting the door
+(pid 5712) is his allowance. Until then flows run as they did.
+
+**Named, not fixed.**
+
+    the other tools   askLock is still one mutex for `remember`, `rack_ask`, the chat and the
+                      key store. SPEC_CONTROL_CENTER 4.6 wants it keyed by tenant home for
+                      all of them; this piece took the flows, which were the ones holding it
+                      for minutes at a time
+    a cancelled node  is logged `fail` with its error, and the run is STOPPED. The node did
+                      not fail at its work, and the line says what it was doing when the hand
+                      stopped it
+
 ### A world a crash used to lock: the door reads the pid on the open line
 
 His word, 2026-09-22: *"1. Survives crashes"* -- the handoff's first piece. The engine's half is in
@@ -53,6 +149,15 @@ always breaks.
 025ed38d99fdda4f, 12,151,296 bytes, `--version` 0.1.6. Placing it over `line/atlas-mcp.exe` and
 restarting the door (pid 8116) is his allowance. Until then a crashed engine's world is refused as
 before.
+
+**AND PLACED, THEN SAVED AND SENT, 2026-09-22, on his word** ("Place the door"; "Both
+repositories"). The door (pid 8116) was checked by pid and path, stopped by pid and replaced with
+this build, which hashes as built; the build it ran is kept in the hand's scratch. It runs as **pid
+5712** on 127.0.0.1:8090 alone, on the command line it had: `/health` 0.1.6, 82 tools. The
+`atlas-mcp.exe` from `Desktop\Archive` (pid 23164) was left alone, and the glass was not touched,
+so his session held. Saved through the council in sitting 263 (12:28-12:31, four runs, closed with
+its toll): atlas `12c8574` (`3a07dfd..12c8574`), these five files, `main` alone, GitHub level.
+Written after the save; it rides with the next.
 
 **Named, not fixed.**
 

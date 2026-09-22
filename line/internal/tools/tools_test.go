@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"atlas/line/internal/engine"
 	"atlas/line/internal/tenant"
 )
 
@@ -660,4 +661,93 @@ func argsFor(tool Tool, home string) map[string]any {
 		}
 	}
 	return args
+}
+
+// --- the council seam: what a flow's `run` node is handed (2026-09-22) -------
+
+// A TURN THAT DID NOT DELIVER IS NOT AN ANSWER. Every terminal event but
+// `delivery` used to be handed to the flow as the node's OUTPUT, so the run
+// log wrote it "ok" and a flow could walk its whole happy path having done
+// nothing. `command` bites hardest: a runtime error inside the engine leaves
+// that event carrying the objective's own words, so the node's recorded answer
+// was its own question.
+func TestOnlyADeliveryIsATurnsAnswer(t *testing.T) {
+	out, err := deliveryOf(engine.Event{"event": "delivery", "text": "the work, done"})
+	if err != nil || out != "the work, done" {
+		t.Fatalf("a delivery must be the answer: %q, %v", out, err)
+	}
+	for _, kind := range []string{"refused", "aborted", "cancelled", "unreachable", "command"} {
+		out, err := deliveryOf(engine.Event{"event": kind, "text": "do the thing"})
+		if err == nil {
+			t.Fatalf("%q was handed up as an answer: %q", kind, out)
+		}
+		if out != "" {
+			t.Fatalf("%q refused and still returned text: %q", kind, out)
+		}
+		for _, want := range []string{"did not deliver", kind} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("the refusal over %q must name %q: %v", kind, want, err)
+			}
+		}
+	}
+	// A turn that ended with nothing to say still refuses, and says that.
+	if _, err := deliveryOf(engine.Event{"event": "refused"}); err == nil ||
+		!strings.Contains(err.Error(), "nothing further") {
+		t.Fatalf("an empty refusal must still refuse in words: %v", err)
+	}
+}
+
+// ONE FLOW MUST NOT FREEZE EVERY WORLD. flow_run, flow_resume and flow_replay
+// held askLock -- one mutex across every tenant -- for a whole run, so a flow
+// froze the glass's chat, every prompt run and every other world's flow.
+func TestAFlowLocksItsOwnWorldAndNoOther(t *testing.T) {
+	a, b := t.TempDir(), t.TempDir()
+	if flowLock(a) != flowLock(a) {
+		t.Fatal("one world was given two locks; two flows on it would run at once")
+	}
+	if flowLock(a) == flowLock(b) {
+		t.Fatal("two worlds share one lock; a flow on one freezes the other")
+	}
+	flowLock(a).Lock()
+	defer flowLock(a).Unlock()
+
+	free := make(chan struct{})
+	go func() {
+		flowLock(b).Lock()
+		flowLock(b).Unlock()
+		askLock.Lock()
+		askLock.Unlock()
+		close(free)
+	}()
+	select {
+	case <-free:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a flow in flight holds another world's lock, or askLock itself -- " +
+			"the glass's chat and every other world wait on it")
+	}
+
+	// AND THE THREE TOOLS TAKE IT. The lock above is only a lock; what was
+	// wrong was which one flow_run, flow_resume and flow_replay reached for,
+	// and no hermetic stroke can hold a real run open to watch. The source
+	// says it, the way internal/flow's own no-finish stroke reads source.
+	src, err := os.ReadFile("tools.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fn := range []string{"func toolFlowRun(", "func toolFlowResume(", "func toolFlowReplay("} {
+		i := strings.Index(string(src), fn)
+		if i < 0 {
+			t.Fatalf("%s is gone from tools.go", fn)
+		}
+		body := string(src)[i:]
+		if j := strings.Index(body[1:], "\nfunc "); j >= 0 {
+			body = body[:j+1]
+		}
+		if !strings.Contains(body, "flowLock(t.Home)") {
+			t.Fatalf("%s does not take its world's own flow lock", fn)
+		}
+		if strings.Contains(body, "askLock.Lock()") {
+			t.Fatalf("%s holds askLock for a whole run -- every world waits on it", fn)
+		}
+	}
 }

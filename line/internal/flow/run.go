@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -185,8 +186,12 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			return finishRun(run, VerdictOverTime, total, outputs, outText),
-				appendStopped(home, run, VerdictOverTime, total)
+			// A CANCEL IS NOT A CLOCK (2026-09-22). Both arrive here as a dead
+			// context, and calling a cancelled run OUT_OF_TIME told the operator
+			// his budget had run out when he had ended the run himself. STOPPED
+			// is the verdict Resume's `stop` already uses for the same act.
+			return finishRun(run, verdictFor(err), total, outputs, outText),
+				appendStopped(home, run, verdictFor(err), total)
 		}
 		if OverBudget(elapsed, budget) {
 			return finishRun(run, VerdictOverTime, total, outputs, outText),
@@ -279,16 +284,28 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 				"nkind": nd.Kind, "status": "fail", "error": rerr.Error(),
 				"latency_ms": ms,
 			})
-			return finishRun(run, VerdictFail, total, outputs, outText),
-				appendStopped(home, run, VerdictFail, total)
+			// A node that died BECAUSE the run was cancelled did not fail at its
+			// work; the line above says what it was doing when the hand stopped it.
+			verdict := VerdictFail
+			if cerr := ctx.Err(); cerr != nil {
+				verdict = verdictFor(cerr)
+			}
+			return finishRun(run, verdict, total, outputs, outText),
+				appendStopped(home, run, verdict, total)
 		}
 		receipt := ""
 		if outcome != "" {
 			receipt = Receipt(run, name, outcome, ts)
 		}
+		// THE OUTCOME IS WRITTEN DOWN, NOT INFERRED LATER (2026-09-22). A node
+		// line carried `status`, which is "ok" for an eval that ANSWERED -- pass
+		// or fail alike -- so nothing on disk said which way a check went. Resume
+		// then rebuilt `pass` as true for every ok line, and a failed check came
+		// back from a gate as a passed one: the fail-branch went quiet and the
+		// pass-branch fired. The verdict is the eval's own and is recorded here.
 		entry := map[string]any{
 			"run": run, "ts": ts, "kind": "node", "node": name,
-			"nkind": nd.Kind, "status": status, "latency_ms": ms,
+			"nkind": nd.Kind, "status": status, "pass": pok, "latency_ms": ms,
 		}
 		if outcome != "" {
 			entry["output"] = outcome
@@ -353,6 +370,16 @@ func fires(name, start string, edges []Edge, fired map[string]bool, pass map[str
 		}
 	}
 	return false
+}
+
+// verdictFor names how a dead context ended a run: the budget's own deadline
+// is OUT_OF_TIME; a hand's flow_cancel is STOPPED, the same verdict a gate
+// answered with `stop` carries.
+func verdictFor(err error) string {
+	if errors.Is(err, context.Canceled) {
+		return VerdictStopped
+	}
+	return VerdictOverTime
 }
 
 func hasFailEdge(edges []Edge, from string) bool {
@@ -663,9 +690,15 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	// THE PAUSE THAT IS STILL OPEN, NOT "HAS THIS RUN EVER BEEN RESUMED"
+	// (2026-09-22). Any `resumed` line used to close the door on the whole run,
+	// so a flow with two gates could never pass the second: its own first
+	// resume made it "not paused", while Status and flow_runs went on showing
+	// PAUSED and the tool went on telling the operator to resume it. A run can
+	// only be stopped or carried on from the pause it is standing at, so that
+	// is what is read: the last pause, and whether it has been answered.
 	var start map[string]any
 	paused := ""
-	resumedAlready := false
 	stopped := false
 	for _, l := range lines {
 		switch l["kind"] {
@@ -678,7 +711,9 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 				}
 			}
 		case "resumed":
-			resumedAlready = true
+			if name, _ := l["node"].(string); name == paused || name == "" {
+				paused = "" // that pause has had its answer
+			}
 		case "stopped":
 			stopped = true
 		}
@@ -686,7 +721,7 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	if start == nil {
 		return Result{}, fmt.Errorf("run %s carries no start — nothing to resume", run)
 	}
-	if stopped || (paused != "" && resumedAlready) || paused == "" {
+	if stopped || paused == "" {
 		return Result{}, fmt.Errorf("run %s is not paused — only paused runs resume", run)
 	}
 	if decision == "stop" {
@@ -722,6 +757,19 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	pass := map[string]bool{}
 	var elapsed []int64
 	for _, l := range lines {
+		// A GATE ANSWERED EARLIER STANDS FIRED (2026-09-22). runFrom writes no
+		// node line for a resumed gate -- it fires in memory and moves on -- so
+		// a later resume rebuilding from node lines alone walks back to that
+		// gate and pauses on it a second time. Its `resumed` line is its record,
+		// and reading it is what lets a flow with two gates reach the end.
+		if k, _ := l["kind"].(string); k == "resumed" {
+			if name, _ := l["node"].(string); name != "" && l["decision"] == "continue" {
+				outputs[name] = true
+				pass[name] = true
+				outText[name] = "continue"
+			}
+			continue
+		}
 		if l["kind"] != "node" {
 			continue
 		}
@@ -732,10 +780,42 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 			if o, _ := l["output"].(string); o != "" {
 				outText[name] = o
 			}
-			pass[name] = true
+			// The node's own outcome, as it was written down. Runs logged before
+			// 2026-09-22 carry no `pass` field: an eval's answer says which way
+			// it went ("pass", or "fail: ..."), and every other kind passed by
+			// answering at all.
+			switch p, ok := l["pass"].(bool); {
+			case ok:
+				pass[name] = p
+			default:
+				nk, _ := l["nkind"].(string)
+				o, _ := l["output"].(string)
+				pass[name] = nk != "eval" || o == "pass"
+			}
 			if ms, ok := l["latency_ms"].(float64); ok {
 				elapsed = append(elapsed, int64(ms))
 			}
+		}
+	}
+	// A RESUME WITH NO ENGINE BURNED THE RUN (2026-09-22). `continue` walked
+	// straight into the next `run` node, which cannot open an engine itself
+	// ("A `run` node will not start one behind your back"); the node errored,
+	// the run ended FAIL, and a run with a terminal line never resumes again.
+	// So a gate answered after the engine's own thirty-minute idle close --
+	// which is exactly the shape of walking away and coming back, what a gate
+	// is FOR -- destroyed the work it was guarding. Asked before anything is
+	// appended, so a refusal leaves the run standing at its gate.
+	if ready, ok := eng.(interface{ Ready() error }); ok {
+		for _, n := range s.Nodes {
+			if n.Kind != "run" || outputs[n.Name] {
+				continue
+			}
+			if err := ready.Ready(); err != nil {
+				return Result{}, fmt.Errorf("refused: %s still has a `run` node to "+
+					"fire (%s) and %w. Nothing was resumed -- the run stands at its "+
+					"gate; open the engine and resume it again", run, n.Name, err)
+			}
+			break
 		}
 	}
 	// The gate below fires once, then stands fired; runFrom skips it next.

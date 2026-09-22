@@ -52,6 +52,29 @@ var ErrUnknownTool = errors.New("unknown tool")
 // file). One writer at a time, one chain.
 var askLock sync.Mutex
 
+// flowLocks serialise FLOWS PER WORLD, which askLock cannot do (2026-09-22).
+// askLock is one mutex across every tenant, and flow_run, flow_resume and
+// flow_replay held it for a WHOLE RUN -- minutes of council turns, or the
+// budget's ten -- so one flow froze the glass's chat, every prompt run, every
+// key mint and every other world's flow. That is the same reason `engines` is
+// deliberately not under it (SPEC_CONTROL_CENTER 4.6). Two flows on ONE world
+// still queue: they would drive one engine and one ledger.
+var (
+	flowLocksMu sync.Mutex
+	flowLocks   = map[string]*sync.Mutex{}
+)
+
+func flowLock(home string) *sync.Mutex {
+	flowLocksMu.Lock()
+	defer flowLocksMu.Unlock()
+	m, ok := flowLocks[home]
+	if !ok {
+		m = &sync.Mutex{}
+		flowLocks[home] = m
+	}
+	return m
+}
+
 type Fn func(t tenant.Tenant, args map[string]any) (string, error)
 
 // Tier is what a tool needs BEYOND a tenant's directory. ADR-006 accepted
@@ -1840,6 +1863,20 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 		return "", fmt.Errorf("no engine is open on this world -- env_open first, " +
 			"then fire the flow. A `run` node will not start one behind your back")
 	}
+	// THE CANCEL REACHES THE TURN (2026-09-22). flow_cancel ends the run's
+	// context, and this call ignored it: e.Run blocks on the engine's pipe
+	// until the turn is over, so a cancelled flow went on driving the council
+	// for however long the turn took, and only the NEXT node ever saw the
+	// cancel. Ctrl-C is what the engine understands, and Cancel sends it.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = e.Cancel()
+		case <-done:
+		}
+	}()
 	res, err := e.Run(objective, feed, method, nil)
 	if err != nil {
 		return "", err
@@ -1850,7 +1887,11 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 			"resume the flow", res.Final.Str("prompt"))
 	}
 	f := res.Final
-	out := f.Str("text")
+	// A TURN THAT DID NOT DELIVER IS NOT AN ANSWER (2026-09-22; deliveryOf).
+	out, derr := deliveryOf(f)
+	if derr != nil {
+		return "", derr
+	}
 	// The core recomposes its own failure list into the delivery. Append only
 	// when it did not -- the news must reach the gate exactly once (LAW 5:
 	// what ran is reported from events, and reported once).
@@ -1872,6 +1913,64 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 	return out, nil
 }
 
+// deliveryOf is a turn's answer, or the refusal that says why there is none.
+//
+// Only `delivery` is an answer. `refused` is the law gate; `aborted` and
+// `cancelled` are a turn that stopped; `unreachable` is the rack down; and
+// `command` is a turn that ran no pipeline at all -- which is also what a
+// runtime error leaves behind, carrying the objective's own words back. Until
+// 2026-09-22 all five were handed to the flow as the node's OUTPUT, so the run
+// log wrote them "ok", resume read them as passes, and a flow could walk its
+// whole happy path having done nothing. The kind IS the verdict.
+func deliveryOf(f engine.Event) (string, error) {
+	if k := f.Kind(); k != "delivery" {
+		why := strings.TrimSpace(f.Str("text"))
+		if why == "" {
+			why = "the engine said nothing further"
+		}
+		return "", fmt.Errorf("the turn did not deliver: the engine ended it with %q -- %s",
+			k, truncateRunes(firstLines(why, 3), 400))
+	}
+	return f.Str("text"), nil
+}
+
+// Ready answers the question flow.Resume asks BEFORE it appends anything: is
+// there an engine standing for the `run` nodes still to fire? Continuing a
+// gate with none used to burn the run -- the next run node errored, the run
+// took a terminal line, and a run with one never resumes again -- which made
+// walking away and coming back, the whole purpose of a gate, destroy the work
+// it was guarding once the engine's thirty-minute idle close had fired.
+func (c councilEngine) Ready() error {
+	if _, ok := engines.Get(c.home); !ok {
+		return fmt.Errorf("no engine is open on this world (env_open first)")
+	}
+	return nil
+}
+
+// THE RACK STAYS ONE QUEUE, THE DOOR DOES NOT (2026-09-22). A flow no longer
+// holds askLock for its whole run; these four take it per CALL instead, so a
+// flow's model calls still queue behind rack_ask, prompt_run and seat_ask the
+// way they always did, and let go between nodes. Turn is deliberately not
+// here: run_start does not take askLock either, and one engine per world is
+// already the invariant that serialises a council turn.
+func (c councilEngine) Ask(ctx context.Context, question, voice string) (string, error) {
+	askLock.Lock()
+	defer askLock.Unlock()
+	return c.Engine.Ask(ctx, question, voice)
+}
+
+func (c councilEngine) RunPrompt(name string, version int, vars map[string]string, voice string) (play.Run, error) {
+	askLock.Lock()
+	defer askLock.Unlock()
+	return c.Engine.RunPrompt(name, version, vars, voice)
+}
+
+func (c councilEngine) SeatAsk(seat, question, voice, method string) (play.Run, error) {
+	askLock.Lock()
+	defer askLock.Unlock()
+	return c.Engine.SeatAsk(seat, question, voice, method)
+}
+
 func council(home string) flow.Engine { return councilEngine{flow.Production(home), home} }
 
 func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
@@ -1884,8 +1983,9 @@ func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	askLock.Lock()
-	defer askLock.Unlock()
+	lock := flowLock(t.Home)
+	lock.Lock()
+	defer lock.Unlock()
 	res, err := flow.Run(t.Home, council(t.Home), s, inputs)
 	if err != nil {
 		return "", err
@@ -1904,8 +2004,9 @@ func toolFlowResume(t tenant.Tenant, args map[string]any) (string, error) {
 	if strings.TrimSpace(run) == "" {
 		return "", fmt.Errorf("flow_resume needs a run — see flow_runs")
 	}
-	askLock.Lock()
-	defer askLock.Unlock()
+	lock := flowLock(t.Home)
+	lock.Lock()
+	defer lock.Unlock()
 	res, err := flow.Resume(t.Home, council(t.Home), strings.TrimSpace(run), strings.TrimSpace(decision))
 	if err != nil {
 		return "", err
@@ -1943,8 +2044,9 @@ func toolFlowReplay(t tenant.Tenant, args map[string]any) (string, error) {
 	if strings.TrimSpace(run) == "" {
 		return "", fmt.Errorf("flow_replay needs a run — see flow_runs")
 	}
-	askLock.Lock()
-	defer askLock.Unlock()
+	lock := flowLock(t.Home)
+	lock.Lock()
+	defer lock.Unlock()
 	res, err := flow.Replay(t.Home, council(t.Home), strings.TrimSpace(run))
 	if err != nil {
 		return "", err
