@@ -1043,3 +1043,62 @@ func TestNotARepositoryIsDeniedByEveryVerb(t *testing.T) {
 		t.Fatal("a verb created a repository to answer with")
 	}
 }
+
+// --- what git_diff will not hand out ---------------------------------------
+
+// A REVIEW SERVES WHAT CHANGED, NOT WHATEVER IS ON THE DISK (2026-09-22).
+// `git diff` says nothing about a file git has never seen, so git_diff falls
+// back to serving an untracked file whole -- right for a new file on its way
+// to a save, and wrong for every file a world deliberately keeps out of its
+// history. Measured on this door: `git_diff file=.env` came back as the
+// estate's keys, in full, to any program on this computer that can reach
+// :8090. The path jail was never the hole; the jail was working, and `.env`
+// is INSIDE the world.
+//
+// The two answers, in order: the name `.env` is refused whether or not the
+// world remembered to ignore it (RULE 7), and git's own ignore rules -- the
+// world's own statement of what is not part of the work -- answer for
+// everything else.
+func TestGitDiffWillNotServeWhatTheWorldKeepsOutOfItsHistory(t *testing.T) {
+	tn := tempWorld(t)
+	write(t, tn.Home, ".gitignore", "worlds/\nvault/\n*.key\n")
+	write(t, tn.Home, ".env", "MANJUEL_API_KEY=sk-the-estates-own-secret\n")
+	write(t, tn.Home, ".env.local", "TOKEN=another-secret-entirely\n")
+	write(t, tn.Home, "worlds/other/notes.md", "another world's private notes\n")
+	write(t, tn.Home, "vault/ledger.md", "the ledger nobody asked for\n")
+	write(t, tn.Home, "signing.key", "-----BEGIN PRIVATE KEY-----\n")
+
+	for rel, secret := range map[string]string{
+		".env":                  "sk-the-estates-own-secret",
+		".env.local":            "another-secret-entirely",
+		"worlds/other/notes.md": "private notes",
+		"vault/ledger.md":       "the ledger nobody asked for",
+		"signing.key":           "BEGIN PRIVATE KEY",
+	} {
+		out := call(t, toolGitDiff, tn, map[string]any{"file": rel})
+		mustContain(t, out, "Refused", rel+" was served instead of refused")
+		mustNotContain(t, out, secret, rel+" handed out its contents")
+	}
+
+	// `.env` is refused BY NAME, so a world that never wrote a .gitignore is
+	// covered too -- which is the case the hole was actually found in.
+	bare := tempWorld(t)
+	write(t, bare.Home, ".env", "MANJUEL_API_KEY=sk-not-ignored-anywhere\n")
+	out := call(t, toolGitDiff, bare, map[string]any{"file": ".env"})
+	mustContain(t, out, "RULE 7", "an unignored .env must still refuse by name")
+	mustNotContain(t, out, "sk-not-ignored-anywhere", "an unignored .env handed out its key")
+
+	// AND THE WAYS THAT MUST NOT FIRE. A refusal that swallows the ordinary
+	// case is not a fix: the panel exists to show him a new file before he
+	// saves it, and to show him a real change.
+	write(t, tn.Home, "docs/NEW.md", "a new document on its way to a save\n")
+	out = call(t, toolGitDiff, tn, map[string]any{"file": "docs/NEW.md"})
+	mustContain(t, out, "a new document on its way to a save",
+		"an ordinary untracked file must still be served whole")
+	mustNotContain(t, out, "Refused", "an ordinary untracked file was refused")
+
+	write(t, tn.Home, "first.txt", "the ground moved\n")
+	out = call(t, toolGitDiff, tn, map[string]any{"file": "first.txt"})
+	mustContain(t, out, "the ground moved", "a tracked file's real change must still diff")
+	mustNotContain(t, out, "Refused", "a tracked change was refused")
+}

@@ -150,11 +150,27 @@ func (t Tenant) PlanPath(which string) string {
 	if f, ok := builtin[which]; ok {
 		return t.resolve(f)
 	}
-	for _, cand := range []string{filepath.Join("plans", which), which} {
-		p := t.resolve(cand)
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
+	// A NAME IS A NAME, NOT A PATH (2026-09-22). This used to try `which`
+	// itself as a path inside Home, and `resolve` hands back an absolute path
+	// UNCHANGED -- so `read_plan which=.env` came back as the estate's keys
+	// (RULE 7), an absolute path came back as any file on this machine, and
+	// `../x` walked out of the world. Any program on this computer can call
+	// that door. The manifest's own map and the built-in names above are
+	// configuration and stay trusted; a name off a call now resolves ONLY
+	// under `plans/`, which is what the tool has always said it serves.
+	if which == "." || which == ".." || filepath.IsAbs(which) || strings.ContainsAny(which, `:`) {
+		return ""
+	}
+	home, err := filepath.Abs(t.Home)
+	if err != nil {
+		return ""
+	}
+	p, err := filepath.Abs(t.resolve(filepath.Join("plans", which)))
+	if err != nil || !strings.HasPrefix(p, filepath.Join(home, "plans")+string(os.PathSeparator)) {
+		return ""
+	}
+	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		return p
 	}
 	return ""
 }

@@ -283,6 +283,25 @@ func toolGitDiff(t tenant.Tenant, args map[string]any) (string, error) {
 	if v, ok := run("diff", "--cached", "--", rel); ok && strings.TrimSpace(v) != "" {
 		return clip(v, "the staged change"), nil
 	}
+	// WHAT A WORLD KEEPS OUT OF ITS HISTORY IS NOT A CHANGE (2026-09-22).
+	// Serving an untracked file whole is right for a new file on its way to a
+	// save, and wrong for everything a world has deliberately ignored: `.env`
+	// and its keys, `worlds/`, `vault/`, `data/`, the logs. Any program on this
+	// computer can call this door, and `git_diff file=.env` came back as the
+	// estate's keys. git's own ignore rules are the world's own answer to
+	// "is this part of the work", so they are what is asked -- and the name
+	// `.env` is refused outright whether or not a world remembered to ignore it
+	// (RULE 7: keys are never printed).
+	if base := strings.ToLower(filepath.Base(rel)); base == ".env" || strings.HasPrefix(base, ".env.") {
+		return "Refused: that file holds this estate's keys, and they are never " +
+			"printed (RULE 7). Nothing was read.", nil
+	}
+	if _, ignored := run("check-ignore", "-q", "--", rel); ignored {
+		return "Refused: this world's git ignores " + rel + ", so it is not part of " +
+			"what changed -- and what a world keeps out of its history (keys, other " +
+			"worlds, data, logs) is not served here. Nothing was read.", nil
+	}
+
 	// Never seen by git: show the file, and say plainly that is what this is.
 	b, err := os.ReadFile(full)
 	if err != nil {

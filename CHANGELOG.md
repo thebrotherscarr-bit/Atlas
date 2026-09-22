@@ -12,6 +12,54 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The door hands out what changed, not whatever is on the disk: `git_diff` and `read_plan` both served `.env`
+
+His word, 2026-09-22: *"4. Code safety"* -- the handoff's fourth piece, from the review the same
+day. **RESTART REQUIRED, THE DOOR:** `line/internal/tools/gitstate.go` and
+`line/internal/tenant/tenant.go` moved. No sitting was open.
+
+**WHAT IT WAS.** Two read tools, one fault, and in both cases the path jail was working: the file
+asked for is INSIDE the world, so a jail about where a path LANDS could never have caught it.
+Any program on this computer can reach :8090.
+
+    git_diff             `git diff` says nothing about a file git has never seen, so the tool
+                         fell through to serving an untracked file WHOLE. That is right for a
+                         new file on its way to a save and wrong for everything a world keeps
+                         out of its history on purpose. `git_diff file=.env` came back as the
+                         estate's keys, in full.
+
+    read_plan            `Tenant.PlanPath` ended by trying the caller's own `which` as a path
+                         inside Home -- and `resolve` hands an ABSOLUTE path straight back
+                         unchanged. So `read_plan which=.env` was the estate's keys again, an
+                         absolute path was any file on this machine, and `../` walked out of
+                         the world entirely.
+
+**WHAT IT IS NOW.**
+
+- **`line/internal/tools/gitstate.go`:** before the untracked fallback, `.env` and `.env.*` are
+  refused BY NAME whether or not a world remembered to ignore them (RULE 7: keys are never
+  printed), and anything `git check-ignore` reports as ignored is refused with it. git's own
+  ignore rules are the world's own statement of what is not part of the work, which is exactly
+  the question `git_diff` asks -- so `worlds/`, `vault/`, data and logs come with it for free,
+  and no second list has to be kept in step.
+- **`line/internal/tenant/tenant.go`:** a name that arrives on a CALL now resolves only under
+  `plans/`, which is what the tool has always said it serves. The manifest's own `plans` map and
+  the five built-in names stay trusted -- they are configuration the operator wrote, not input.
+  An absolute path, a drive letter, `.`, `..`, an escape from Home and a directory all answer
+  `""`, which is the honest denial the function already had for an unknown plan. Measured first:
+  no caller in this repository depended on the bare in-Home fallback.
+
+Strokes: `TestGitDiffWillNotServeWhatTheWorldKeepsOutOfItsHistory` (five files refused, none
+handing out its contents, an unignored `.env` still refused by name) and
+`TestAPlanNameCannotBecomeAPath` (ten names refused, four ways that must not fire). Both ways
+proven: the whole Go battery green, and each fix switched off in turn on a mirror turns its own
+stroke red -- the tenant one printing the hole verbatim, `read_plan ".env"` resolving to the
+ground's key file.
+
+The ways that must not fire are stroked too: an ordinary untracked file is still served whole, a
+tracked file's real change still diffs, and a plan under `plans/`, the built-in `road` and a
+manifest-mapped name all still resolve.
+
 ### Flows report truthfully: a turn that did not deliver, a check that stays failed, every gate resumable, and a lock per world
 
 His word, 2026-09-22: *"2. Flows report truthfully"* -- the handoff's second piece, from the review

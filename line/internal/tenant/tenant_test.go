@@ -19,6 +19,7 @@
 package tenant
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -305,5 +306,71 @@ func TestTheArchiveIsNeverCarried(t *testing.T) {
 	}
 	if got := r.Names(); len(got) != 2 {
 		t.Fatalf("expected the two real worlds, got %v", got)
+	}
+}
+
+// ---- a plan name is a name ------------------------------------------------
+
+// A NAME IS A NAME, NOT A PATH (2026-09-22). PlanPath used to end by trying
+// `which` itself as a path inside Home, and resolve() hands an ABSOLUTE path
+// straight back unchanged -- so the door's read_plan, which any program on
+// this computer can call, answered `which=.env` with the estate's keys
+// (RULE 7), answered an absolute path with any file on this machine, and
+// walked out of the world on `../`. The manifest's map and the built-in names
+// are configuration the operator wrote and stay trusted; a name that arrives
+// on a CALL now resolves only under plans/, which is what the tool has always
+// said it serves.
+func TestAPlanNameCannotBecomeAPath(t *testing.T) {
+	home := t.TempDir()
+	tn := Tenant{Name: "probe", Home: home, Manifest: DefaultManifest()}
+
+	mustWrite(t, filepath.Join(home, ".env"), "MANJUEL_API_KEY=sk-the-estates-own-secret\n")
+	mustWrite(t, filepath.Join(home, "plans", "harvest.md"), "the plan\n")
+	mustWrite(t, filepath.Join(home, "SECRETS.md"), "not a plan\n")
+	outside := filepath.Join(t.TempDir(), "elsewhere.md")
+	mustWrite(t, outside, "another folder entirely\n")
+
+	for _, which := range []string{
+		".env",                           // the hole, by name
+		".ENV",                           // and however it was typed
+		"secrets.md",                     // a real file in Home that is not a plan
+		outside,                          // an absolute path, handed back unchanged
+		filepath.Join("..", "elsewhere"), // walking out of the world
+		"../.env",                        // walking out with the slash git speaks
+		"plans/../.env",                  // and back out through the gate itself
+		`C:\Users\novad\Desktop\.env`,    // the absolute form Linux does not call absolute
+		"plans",                          // a directory is not a plan
+		".",                              // nor is the world itself
+	} {
+		if got := tn.PlanPath(which); got != "" {
+			t.Errorf("read_plan %q resolved to %q; a name off a call lives under plans/ or nowhere",
+				which, got)
+		}
+	}
+
+	// AND THE THREE WAYS THAT MUST NOT FIRE. A refusal that takes the tool
+	// with it is not a fix.
+	if got := tn.PlanPath("harvest.md"); got != filepath.Join(home, "plans", "harvest.md") {
+		t.Errorf("a plan under plans/ stopped resolving: %q", got)
+	}
+	if got := tn.PlanPath(" Harvest.MD "); got == "" {
+		t.Error("a plan name must still survive case and surrounding space")
+	}
+	if got := tn.PlanPath("road"); got != filepath.Join(home, "THE_ROAD.md") {
+		t.Errorf("the built-in road stopped resolving: %q", got)
+	}
+	tn.Manifest.Plans = map[string]string{"charter": "doctrine/CHARTER.md"}
+	if got := tn.PlanPath("charter"); got != filepath.Join(home, "doctrine", "CHARTER.md") {
+		t.Errorf("the manifest's own map stopped resolving: %q", got)
+	}
+}
+
+func mustWrite(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
