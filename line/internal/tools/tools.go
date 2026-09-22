@@ -462,6 +462,16 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolProofs,
 	})
 
+	// THE MAKER'S PROJECTS (projects.go), read for the glass: the list from
+	// each project's own history, and one page as it stands or as a version
+	// was. Nothing here writes; the maker is the one writer of a project.
+	r.add(Tool{
+		Name: "projects", Writes: false,
+		Description: "what the maker made: every project under projects/ with its versions read from its own history, or one project's page as it stands (or as a version was)",
+		Args:        []string{"action?", "name?", "version?", "project?"},
+		Fn:          toolProjects,
+	})
+
 	r.add(Tool{
 		Name: "state_matrix", Writes: false,
 		Description: "state = fold(record) index of the named project",

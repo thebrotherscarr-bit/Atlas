@@ -81,6 +81,11 @@ const Home = {
         <div id="ev-run" class="chat-log council-log"></div>
       </div>
 
+      <!-- THE PROJECTS, BESIDE THE RUN (2026-09-21, the maker's piece 2): what
+           the maker made, a page shown sandboxed, and the words that pick one
+           up or put it down. projects.js draws it. -->
+      <div class="card" id="home-projects"></div>
+
       <!-- THE ENGINE CARD IS GONE, folded into the deck's hero above. It
            gated every other thing on this page -- nothing typed into the box
            runs without one -- and it sat BELOW that box, three scrolls down.
@@ -127,6 +132,7 @@ const Home = {
     await this.read();
     await this.showKeptBoot();
     await this.showKeptThread();
+    Projects.render();
     this.watch(true);
   },
 

@@ -102,6 +102,9 @@ func (s *Server) ListenAndServe() error {
 	mux.HandleFunc("POST /api/setup", s.handlers.LockSetup)
 	mux.HandleFunc("POST /api/unlock", s.handlers.Unlock)
 	mux.HandleFunc("POST /api/workspace/switch", s.handlers.SwitchWorkspace)
+	// THE PAGE ON THE GLASS (2026-09-21): a project the maker made, served
+	// sandboxed into the Dashboard's frame -- handlers/projects.go.
+	mux.HandleFunc("GET /api/projects/{name}/page", s.handlers.ProjectPage)
 	mux.HandleFunc("GET /metrics", s.handlers.Metrics)
 
 	staticFS, _ := fs.Sub(s.static, "static")

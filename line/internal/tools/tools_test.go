@@ -514,7 +514,7 @@ func TestTheRegistryAgreesWithWhatEachToolDoes(t *testing.T) {
 	for _, name := range r.Names() {
 		writes[name] = r.byName[name].Writes
 	}
-	for _, name := range []string{"git", "git_diff", "git_remote", "records", "proofs", "seats"} {
+	for _, name := range []string{"git", "git_diff", "git_remote", "records", "proofs", "seats", "projects"} {
 		if v, ok := writes[name]; !ok {
 			t.Fatalf("%s is not registered", name)
 		} else if v {

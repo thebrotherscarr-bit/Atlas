@@ -186,6 +186,22 @@ there is `runstream.go` (needs a live engine) and the bulk of `tools.go`'s own
 handlers — though the registry contract itself is now pinned: a tool that
 writes must declare it, which is the flag the read-only table refuses by.
 
+A fourth reader came with its own prover on 2026-09-21: `projects`, the
+maker's projects, in `projects_test.go` (7). It covers:
+
+- each project read off its own history, newest first, and a world with none
+  listing none;
+- a page served as it stands or as a version was, and never escaped on the
+  way;
+- a name that is a path refused;
+- a project that is a link refused by name. On Windows the stroke makes a
+  directory junction when a symlink needs privilege, because Go's
+  `EvalSymlinks` does not follow a junction, and that hole was measured.
+
+The glass's half is in `handlers/projects_test.go` (4): the page is served
+under the sandbox header, a bad name or version never reaches the door, a door
+refusal is said and serves no page, and the list is a background read.
+
 ---
 
 ## The workflows (leg 7)

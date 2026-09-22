@@ -12,6 +12,158 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The maker's projects on the glass: the list, the page, and the words to pick one up
+
+His word, 2026-09-21: *"go on piece 2"* -- the maker's piece 2 in the core's BUILDPATH, "THE
+PAGE ON THE GLASS -- a preview pane beside the run, and a project list to pick one from, which
+is also where a project is put DOWN". The engine's half is in the core's CHANGELOG. **RESTART
+REQUIRED, BOTH: the door and the glass.** `line/internal/tools/` and `webapp/` moved, and the
+glass embeds its pages, so none of this is live until both binaries are rebuilt, placed and
+restarted. No sitting was open.
+
+**WHAT IT WAS.** The maker saves each thing it makes as its own git repository under the core's
+`projects/`. Nothing on the glass could see one: no list, no page, and no way to put a project
+down short of closing the sitting.
+
+**THE CHANGE.**
+
+    projects          the door's 82nd tool, internal/tools/projects.go, new, Writes: false.
+                      `list`: every folder under projects/ that holds a .git of its own,
+                      each with its versions read off its own log (the maker's "Version N:"
+                      taken off the note), newest first. `page`: one project's index.html
+                      as it stands, or as version N was, whole; refused past a megabyte.
+                      Every git call names the project's own .git and work tree outright,
+                      with a ten-second deadline (ESTATE LAW 7)
+    a name, not       `^[a-z0-9][a-z0-9-]{0,63}$`, the maker's own shape, checked before any
+    a path            path is built. And every step is asked, with Lstat, whether it is a
+                      PLAIN folder, so a project that is a link is refused by name. Measured
+                      first: Go 1.26's EvalSymlinks does not follow a Windows junction, so
+                      the first cut's inside-check let a junction's .git through. A
+                      junction needs no privilege to make
+    the page route    GET /api/projects/{name}/page?v=N, handlers/projects.go, new. The name
+                      and version are checked before the door is asked. A door refusal is
+                      said, 404, and no page is served. The page goes out as text/html
+                      under Content-Security-Policy: sandbox allow-scripts allow-modals --
+                      NEVER allow-same-origin -- with default-src 'none', connect-src
+                      'none', frame-ancestors 'self', nosniff, no-store and no referrer
+    the header is     the frame carries no sandbox ATTRIBUTE: the app's own browser pane
+    the wall          refuses any frame that does (net::ERR_BLOCKED_BY_CLIENT, measured). The
+                      header alone, measured in that pane on a scratch server serving the
+                      glass's exact policy: the page's script ran and its canvas drew; its
+                      origin was "null"; reading the parent, the parent's DOM, the cookie
+                      and localStorage threw SecurityError; fetch threw
+    the card          static/js/projects.js, new: Projects, on the Dashboard under the run.
+                      It shows every project with its versions and when it last moved, the
+                      page in a frame, a version picker and "Open in its own tab". "Work on
+                      this" and "Put it down" put the engine's own words in the box and run
+                      them ("work on the <name> project", "put the project down"), so the
+                      turn is in the record like any other. The delivery's `project` is how
+                      the card learns what is in hand. It is kept per world in the settings
+                      store and keyed to the session, so a closed engine's project is never
+                      shown as held
+    not traces        `projects` joins backgroundReads. The card reads the list when the
+                      Dashboard opens and after every turn, and those reads are answered and
+                      not kept. That is this hand's call, made in the shape of his D1 ruling,
+                      and it is one line to undo. A page view goes straight to the door and
+                      is not kept either
+
+**STROKES, 66 -> 73 in `internal/tools` and 23 -> 27 in `webapp/handlers`.** `projects_test.go`
+(7) is hermetic. Each stroke runs on a temp home that is itself a git repository, so a project
+with no .git of its own would read as the HOME's history if anything let git walk up. It proves:
+
+- the list is read off each project's own history and sorted newest first, dated so that
+  alphabetical order is NOT the answer; a world with none lists none;
+- a page is served as it stands and as version 1 was; a version past the last is refused,
+  naming the range;
+- the page is never HTML-escaped on the way;
+- a name that is a path is refused; a project that is a link is refused, as a symlink where the
+  machine allows one and otherwise a junction by `mklink /J`;
+- an unknown action is refused by name.
+
+`projects` is in the registry's non-writing list, and `TestEveryCoreToolStandsAlone` calls it.
+`handlers/projects_test.go` (4): the page is served under the sandbox header; a bad name or
+version never reaches the door; a door refusal is said and serves no page; and the list is a
+background read.
+
+**PROVEN BY REVERSAL on scratch copies: twelve undos, each turning red.**
+
+- The door, seven: a link walked into (the first cut's missing plain-folder test); a folder with
+  no history of its own read as a project; a name not held to the maker's shape; the list
+  unsorted; "Version N:" left on the note; the page escaped on its way out; a version past the
+  last served as the last.
+- The glass, five: the page given the glass's origin; the header dropped; a bad name, and a bad
+  version, still asking the door; the list kept as a trace.
+
+One undo was wrong at first and is corrected. The bad-version undo replaced the check with
+`if false`, which left `err` unused, so the package did not compile, and the script read "no
+failing stroke" as green. Rewritten to compile, it goes red. With every undo put back:
+
+- `gofmt`, `go vet` and `node --check` clean;
+- every package in `line` green except six `git_tag` push strokes. They cannot push under the
+  scratch folder's long path: git fails writing an object with "Filename too long", past
+  Windows' path limit. The same six fail the same way at HEAD, so they measure the scratch,
+  not this piece;
+- `webapp`: db 13, handlers 27, server 6.
+
+**AND ON REAL BINARIES, IN SCRATCH: 20 of 20.** Built from these sources: a scratch door on :8098
+carrying `proof`, a mirror of the core with two projects in the maker's own format, and a scratch
+glass on :8097 with a data folder of its own, aimed at that door and nowhere else.
+
+- The list is the two projects with the maker's notes, and left no trace.
+- The page as it stands and as version 1 was: each 200, under the sandbox header, as HTML, not
+  cached. Version 9 is refused by the door in its own words, a name that is a path is refused,
+  and with no session there is no page (401).
+- An engine opened on `proof`. "work on the snake-game project" was answered by the engine with
+  no seat, and the delivery named `snake-game`. "put the project down" was answered, and the
+  delivery named none.
+- The sitting was closed and tolled, and both projects were on disk exactly as they were.
+
+His door and glass kept running throughout and were not touched. The scratch pair was stopped by
+pid. The sittings opened were the mirror's, and his ledger gained nothing.
+
+**THE NEW BUILDS ARE NOT IN PLACE.** Both wait in the hand's scratch. They were built after the
+last source line moved, from sources byte-identical to these:
+
+- the door: sha256 3c0ce9c774622738, 12,138,496 bytes;
+- the glass: sha256 91a6875d9acb8ed0, 11,034,112 bytes.
+
+Placing them over `line/atlas-mcp.exe` and `webapp/atlas-webapp.exe` and restarting both is his
+allowance. Until then the door serves 81 tools and the Dashboard has no Projects card. And the
+card's buttons speak to an engine: an engine started before the core's half of this piece does
+not know the words.
+
+**AND PLACED, 2026-09-22, on his word: "place them and restart the door and the glass".** No
+sitting was open and no engine stood (`/run/state` open false, nothing running under the door).
+The glass (pid 7160) and the door (pid 22844) were each checked by pid and path, then stopped by
+pid alone. A second `atlas-mcp.exe` was running from `Desktop\Archive`, outside the ground and
+not this hand's; it was left alone. Both builds were copied into place and hash as built. The
+builds they replaced are kept in the hand's scratch (door ea98a7a7, glass 62b7dbb1).
+
+    the door    pid 26876, started on the command line it had, from `line\`: 127.0.0.1:8090
+                alone, carrying research and atlas, 82 tools with `projects` among them.
+                Asked on the ground, `projects` lists snake-game with its three versions and
+                serves version 1's page
+    the glass   pid 27600, from `webapp\`: 127.0.0.1:8091 alone, gate on, and his lock found
+                (a name set, no fresh setup offered). `projects.js` is served byte-identical
+                to disk, and a page asked with no session is refused, 401
+    the page    his Dashboard opened in the app's pane on the lock screen, with the Projects
+                card behind it. The PIN was his to type, and he typed it. Signed in, the card
+                listed snake-game with its three versions and their notes, none in hand, and
+                the frame drew the game's board (the page answered 200). Nothing was clicked
+
+The door's own notes went to `line/mcp.err.log` this start: stdout and stderr are kept apart,
+the arrangement this repository's `.gitignore` names, and `mcp.log` is the empty stdout.
+
+**Named, not fixed.**
+
+    the storage      a page in the frame has an origin of its own, so its localStorage
+                     throws, and a game there forgets its high score. Opened from
+                     projects\<name>\ in a browser, it keeps it. Giving the frame the
+                     glass's origin would give the page the glass's cookie
+    README's line    the opening sentence still says ATLAS treats every tool call as a
+                     record; the exception paragraph under it now names the Projects card's
+                     two reads
+
 ### The lock: one user, one PIN, this computer only
 
 His words, 2026-09-21, in order: *"Simple login system for now, user/pin to start"*; asked

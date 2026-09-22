@@ -261,8 +261,10 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 // the page marks `background` is answered and not kept -- and only for a tool
 // named here, each of which the door declares Writes: false. Anything else
 // marked background is kept as before, so no call that writes can leave the
-// record by asking to.
-var backgroundReads = map[string]bool{"muster": true, "rack_list": true, "proofs": true}
+// record by asking to. `projects` joined on 2026-09-21: the Dashboard's project
+// list (the maker's piece 2) reads it on arrival and after every turn.
+var backgroundReads = map[string]bool{"muster": true, "rack_list": true, "proofs": true,
+	"projects": true}
 
 func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	var req struct {
