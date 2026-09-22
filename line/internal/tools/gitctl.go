@@ -355,6 +355,80 @@ func declaredVersionAt(t tenant.Tenant, rev string) (string, string) {
 	return "", ""
 }
 
+// staleStamps names every version stamp at rev that does not say want: each
+// file called VERSION anywhere in the tree, and the version the root
+// Cargo.toml declares. Read out of git at that commit, never off the disk, for
+// the reason declaredVersionAt gives. A world with neither -- the core, whose
+// number lives in pyproject.toml alone -- has nothing here to disagree.
+//
+// A GUARD THAT CANNOT CHECK FAILS SHUT: a tree git cannot list, or a stamp it
+// cannot read, is named as a disagreement rather than passed.
+func staleStamps(t tenant.Tenant, rev, want string) []string {
+	listed, err := gitRun(t, 15*time.Second, "ls-tree", "-r", "-z", "--name-only", rev)
+	if err != nil {
+		return []string{"the tree at that commit could not be listed (" + firstLine(listed) + ")"}
+	}
+	var stale []string
+	cargo := false
+	for _, p := range strings.Split(listed, "\x00") {
+		if p == "Cargo.toml" {
+			cargo = true
+		}
+		if p != "VERSION" && !strings.HasSuffix(p, "/VERSION") {
+			continue
+		}
+		got, err := gitRun(t, 15*time.Second, "show", rev+":"+p)
+		switch {
+		case err != nil:
+			stale = append(stale, p+" could not be read")
+		case strings.TrimSpace(got) != want:
+			stale = append(stale, fmt.Sprintf("%s says %s", p, strings.TrimSpace(got)))
+		}
+	}
+	if cargo {
+		manifest, err := gitRun(t, 15*time.Second, "show", rev+":Cargo.toml")
+		if err != nil {
+			stale = append(stale, "Cargo.toml could not be read")
+		} else if got := cargoVersion(manifest); got != "" && got != want {
+			stale = append(stale, "Cargo.toml says "+got)
+		}
+	}
+	return stale
+}
+
+// cargoVersion is the number a Cargo.toml declares for its crate or its
+// workspace -- `version = "x"` under [package] or [workspace.package] -- or ""
+// when it declares none. A member that inherits it (`version.workspace =
+// true`) says nothing of its own, and a dependency's `version` belongs to
+// someone else.
+func cargoVersion(manifest string) string {
+	section := ""
+	for _, ln := range strings.Split(manifest, "\n") {
+		ln = strings.TrimSpace(ln)
+		if strings.HasPrefix(ln, "[") {
+			if i := strings.Index(ln, "]"); i > 0 {
+				section = ln[:i+1]
+			}
+			continue
+		}
+		if section != "[package]" && section != "[workspace.package]" {
+			continue
+		}
+		rest := strings.TrimSpace(strings.TrimPrefix(ln, "version"))
+		if rest == ln || !strings.HasPrefix(rest, "=") {
+			continue
+		}
+		val := strings.TrimSpace(strings.TrimPrefix(rest, "="))
+		if val != "" && (val[0] == '"' || val[0] == '\'') {
+			if end := strings.IndexByte(val[1:], val[0]); end >= 0 {
+				return val[1 : end+1]
+			}
+		}
+		return strings.Trim(val, "\"'")
+	}
+	return ""
+}
+
 // tagCut cuts ONE annotated mark, at a commit whose declared version it must
 // equal. WRITES, and local: sending is a separate button behind the wall.
 func tagCut(t tenant.Tenant, name, message, at string) (string, error) {
@@ -432,6 +506,22 @@ func tagCut(t tenant.Tenant, name, message, at string) (string, error) {
 			"believes it is %s because the name says so, and this refusal is "+
 			"what keeps that true.",
 			name, source, declared, declared, name, strings.TrimPrefix(name, "v")), nil
+	}
+
+	// EVERY STAMP SAYS IT, NOT ONLY THE ONE THAT DECLARES (2026-09-22). atlas
+	// carries its version in eight VERSION files and Cargo.toml, and its v0.1.6
+	// was cut with the root file at 0.1.6 and every other stamp still at 0.1.5
+	// -- lawful by the arithmetic above, which reads one file. Every binary
+	// built from that mark answered 0.1.5, the spine's own version strokes went
+	// red, and release.yml refused it at its pin check before one artifact
+	// existed. A mark the release would refuse is refused here instead, while
+	// it does not exist yet.
+	if stale := staleStamps(t, sha, declared); len(stale) > 0 {
+		return fmt.Sprintf("Refused: %s says %s, but not every version stamp at "+
+			"that commit agrees -- %s. A mark here would ship files that answer "+
+			"another number, and the release refuses it on arrival. Move every "+
+			"stamp to %s together, save that, and cut again.",
+			source, declared, strings.Join(stale, "; "), declared), nil
 	}
 
 	out, err := gitRun(t, 30*time.Second, "tag", "-a", name, "-m", message, sha)

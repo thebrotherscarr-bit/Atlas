@@ -202,6 +202,13 @@ The glass's half is in `handlers/projects_test.go` (4): the page is served
 under the sandbox header, a bad name or version never reaches the door, a door
 refusal is said and serves no page, and the list is a background read.
 
+The mark's own stamps came with two strokes on 2026-09-22, in
+`gitctl_test.go`: a mark is refused while any `VERSION` file or `Cargo.toml`
+at that commit still says another number, and the same name lands once every
+stamp has moved; and `cargoVersion` reads only the crate's or the workspace's
+own number, never a dependency's. The first was run both ways: with the check
+switched off in a scratch copy it went red.
+
 ---
 
 ## The workflows (leg 7)
@@ -335,4 +342,10 @@ retired or repointed at the Rust bench.
    does not test that case. One more refusal vector closes it.
 9. **Wire THE BALL into the gate.** `prove.py --check` belongs in whatever
    runs before a commit lands, so a red leg is caught by the machine rather
-   than by a seat happening to look.
+   than by a seat happening to look. *Half done, and the half that was done
+   was too fast:* `prove.yml` has run it on every push since 2026-09-11, but
+   as `--check`, which skips cargo -- so when v0.1.6 was bumped in its root
+   `VERSION` alone, the spine's own version strokes went red and the push
+   stayed green for four days. Since 2026-09-22 the push runs the whole
+   ball, after `version.ps1 sync`. Nothing yet runs it before a commit
+   lands on this machine.

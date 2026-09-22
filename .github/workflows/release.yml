@@ -11,7 +11,7 @@
 # whatever commit the tag happens to point at. A red battery publishes nothing.
 #
 # THE VERSION IN THE TAG MUST BE THE VERSION IN THE FILES. `version.ps1 sync`
-# proves all ten pins agree, and a separate step proves the tag's own name
+# proves every pin agrees, and a separate step proves the tag's own name
 # matches `VERSION`. On 2026-09-12 `release.ps1` would have produced
 # `v0.1.5+f1` from a plain `0.1.5` -- a tag disagreeing with every file it
 # shipped -- so this is the gate that catches that class by arithmetic instead
@@ -98,11 +98,15 @@ jobs:
           fi
           echo "the tag and the files agree"
 
-      - name: All ten pins agree
+      - name: Every version pin agrees
         # version.ps1 sync walks the eight VERSION files plus Cargo.toml and
         # core/src/version.rs's own assertion. It held SIX until 2026-09-12,
         # and the four it missed were the ones that had printed hardcoded
-        # literals.
+        # literals. Cargo.lock's three crates joined on 2026-09-22, when
+        # v0.1.6 was found tagged with the root VERSION alone bumped: this
+        # step refuses that tree (measured on a scratch copy of it), and
+        # prove.yml now runs it on every push so a drift is red before any
+        # tag is cut. Named without a count, because the count moved twice.
         shell: pwsh
         run: .\version.ps1 sync
 

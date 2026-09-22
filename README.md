@@ -2,7 +2,7 @@
 
 A polyglot agent provenance system with cryptographic chain integrity, structural governance, and a modern observability webapp.
 
-**Version:** 0.1.5  
+**Version:** 0.1.6  
 **Covenant:** 1512741580b7239b  
 **License:** MIT
 

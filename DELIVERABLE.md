@@ -215,8 +215,8 @@ of becoming absent.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `.github/workflows/prove.yml` | push/PR to main | the battery on Windows, plus the Go half off Windows; gofmt gated across BOTH modules |
-| `.github/workflows/release.yml` | push `v*` tag | proves BEFORE it publishes: the tag must equal `VERSION`, all ten pins must agree, the battery and both Go modules must be green, then every binary is ASKED its version. Publishes a DRAFT -- the gate is the operator's (RULE 6) |
+| `.github/workflows/prove.yml` | push/PR to main | the battery on Windows, plus the Go half off Windows; gofmt gated across BOTH modules. Since 2026-09-22 every version pin is checked first and the battery is the whole ball -- it was the fast legs, which skip cargo |
+| `.github/workflows/release.yml` | push `v*` tag | proves BEFORE it publishes: the tag must equal `VERSION`, every version pin must agree (ten, and eleven since Cargo.lock joined on 2026-09-22), the battery and both Go modules must be green, then every binary is ASKED its version. Publishes a DRAFT -- the gate is the operator's (RULE 6) |
 | `prove.ps1` | local | the full prove suite |
 | `version.ps1` | local | version bump/sync/show |
 | `release.ps1` | local | prove → bump → commit → tag → push |
@@ -318,7 +318,8 @@ e20da09 ci/cd: consolidated workflows, version management, local + remote pipeli
 
 # Release (prove → bump → commit → tag → push)
 # PLAIN SEMVER ONLY -- a build tag is REFUSED (struck 2026-09-10).
-.\release.ps1 0.1.6
+# `patch` takes the next number; 0.1.6 is already cut (2026-09-18).
+.\release.ps1 patch
 
 # Run webapp
 cd webapp; go run .

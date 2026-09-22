@@ -141,6 +141,11 @@ Write-Host "=== RELEASE $target COMPLETE ===" -ForegroundColor Cyan
 # DELIVERABLE.md named one for weeks. A script that tells the operator work is
 # happening somewhere else, when it is not, is worse than one that says
 # nothing: he stops looking.
-Write-Host "The tag is pushed. NOTHING BUILDS IT FOR YOU -- there is no release" -ForegroundColor Yellow
-Write-Host "workflow; prove.yml runs on push/PR, not on tags. Binaries and a" -ForegroundColor Yellow
-Write-Host "GitHub release are still a hand's work from here." -ForegroundColor Yellow
+#
+# AND THEN IT WAS WRONG THE OTHER WAY (2026-09-22). release.yml landed on
+# 2026-09-12, the day this was written, and these lines went on saying that
+# nothing builds a tag. A tag that reaches GitHub now runs the whole proof,
+# builds every binary and leaves a DRAFT release; publishing it is his click.
+Write-Host "When the tag reaches GitHub, release.yml proves it, builds every" -ForegroundColor Yellow
+Write-Host "binary and leaves a DRAFT release there. Nothing is published until" -ForegroundColor Yellow
+Write-Host "you publish it, and a red run has built nothing." -ForegroundColor Yellow

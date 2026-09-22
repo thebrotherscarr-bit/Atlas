@@ -488,6 +488,63 @@ func TestAMarkNeedsAMessageAndAVersionToAgreeWith(t *testing.T) {
 	mustContain(t, out, "mean nothing", "the refusal must say why that matters")
 }
 
+// EVERY STAMP, NOT ONLY THE ONE THAT DECLARES (2026-09-22). atlas's v0.1.6 was
+// cut with its root VERSION at 0.1.6 and eight more stamps still at 0.1.5, and
+// this door let it through because it read the root alone; release.yml refused
+// it on arrival, so no release was ever built from it. The stroke is that mark
+// in miniature -- and the other half: once every stamp moves, the same name
+// lands. The name is short on purpose: t.TempDir() carries it, and on Windows
+// a long one pushes the repository's object paths past MAX_PATH.
+func TestAMarkWaitsForEveryVersionStamp(t *testing.T) {
+	tn := versionWorld(t, "0.1.5")
+	manifest := func(v string) string {
+		return "[workspace]\r\nmembers = [\"core\"]\r\n\r\n" +
+			"[workspace.package]\r\nversion = \"" + v + "\"\r\nedition = \"2021\"\r\n"
+	}
+	write(t, tn.Home, "line/cmd/atlas-mcp/VERSION", "0.1.5")
+	write(t, tn.Home, "Cargo.toml", manifest("0.1.5"))
+	mustGit(t, tn, "add", "-A")
+	mustGit(t, tn, "commit", "-m", "every stamp at 0.1.5")
+	saveVersion(t, tn, "0.1.6") // the root moves and nothing else does: the fault
+
+	out := call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.6", "message": "only the root was bumped"})
+	mustContain(t, out, "not every version stamp", "a mark over stale stamps must be refused")
+	mustContain(t, out, "line/cmd/atlas-mcp/VERSION says 0.1.5",
+		"the refusal must name each stale stamp and what it says")
+	mustContain(t, out, "Cargo.toml says 0.1.5", "the manifest is a stamp too")
+	mustNotContain(t, out, "Cut v0.1.6", "nothing may be cut over a stale stamp")
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/tags/v0.1.6"); err == nil {
+		t.Fatal("the refused mark exists anyway")
+	}
+
+	// AND ONCE EVERY STAMP MOVES, THE SAME NAME LANDS.
+	write(t, tn.Home, "line/cmd/atlas-mcp/VERSION", "0.1.6")
+	write(t, tn.Home, "Cargo.toml", manifest("0.1.6"))
+	mustGit(t, tn, "add", "-A")
+	mustGit(t, tn, "commit", "-m", "every stamp at 0.1.6")
+	out = call(t, toolGitTag, tn, map[string]any{
+		"action": "cut", "name": "v0.1.6", "message": "every stamp agrees"})
+	mustContain(t, out, "Cut v0.1.6", "a mark over agreeing stamps must land")
+}
+
+// The manifest's own number and nobody else's: a member that inherits the
+// workspace's says nothing of its own, and a dependency's version is not ours.
+func TestCargoVersionReadsOnlyTheCratesOwnNumber(t *testing.T) {
+	for _, c := range []struct{ manifest, want string }{
+		{"[workspace.package]\r\nversion = \"0.1.6\"\r\n", "0.1.6"},
+		{"[package]\nname = \"x\"\nversion = \"2.0.1\" # the crate\n", "2.0.1"},
+		{"[package]\nversion = '1.2.3'\n", "1.2.3"},
+		{"[package]\nversion.workspace = true\n", ""},
+		{"[dependencies.serde]\nversion = \"1.0\"\n", ""},
+		{"[workspace]\nmembers = [\"a\"]\n", ""},
+	} {
+		if got := cargoVersion(c.manifest); got != c.want {
+			t.Fatalf("cargoVersion(%q) = %q, want %q", c.manifest, got, c.want)
+		}
+	}
+}
+
 func TestSendingAMarkIsWalledAndNamesAMarkItCannotFind(t *testing.T) {
 	tn := versionWorld(t, "0.1.5")
 	t.Setenv("MANJUEL_GIT_REMOTE", "")

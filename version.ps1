@@ -56,9 +56,20 @@ $VERSION_FILES = @(
 # step" -- there is no such leg in tests/prove.py). A bump that leaves them
 # behind ships a Cargo.toml disagreeing with every binary, and `release.ps1`
 # would commit and tag it. So they are moved, not mentioned.
+#
+# AND CARGO.LOCK (2026-09-22). The lock records the workspace's own three
+# crates at the workspace version, and this list did not name it -- so `set`
+# moved Cargo.toml and left the lock a number behind, and every
+# `cargo build --locked` after that refuses ("cannot update the lock file ...
+# because --locked was passed"). That is the first step of both prove.yml and
+# release.yml. Measured on a scratch copy the same day, both ways. 0.1.5's
+# bump got through only because cargo was run by hand and the lock it
+# rewrote rode in the same commit. A crate added to the workspace goes into
+# this pattern on the day it is created.
 $PIN_PATTERNS = @(
     @{ Path = "Cargo.toml";          Pattern = '(?m)^version = "[^"]*"';      Format = 'version = "{0}"' },
-    @{ Path = "core/src/version.rs"; Pattern = 'assert_eq!\(v, "[^"]*"\)';    Format = 'assert_eq!(v, "{0}")' }
+    @{ Path = "core/src/version.rs"; Pattern = 'assert_eq!\(v, "[^"]*"\)';    Format = 'assert_eq!(v, "{0}")' },
+    @{ Path = "Cargo.lock";          Pattern = '(?m)(?<=^name = "atlas(-core|-store)?"\r?\nversion = )"[^"]*"'; Format = '"{0}"' }
 )
 
 function Get-CurrentVersion {
@@ -138,12 +149,26 @@ function Sync-Check {
     }
     # THE PINS ARE CHECKED TOO, or `sync` says "in sync" over a Cargo.toml
     # that disagrees with every binary -- which is exactly what it did.
+    #
+    # EVERY MATCH, NOT "THE RIGHT TEXT IS IN THERE SOMEWHERE" (2026-09-22).
+    # This asked whether the wanted string appeared anywhere in the file,
+    # which is true of a file with one pin and a lie about the lock, which has
+    # three: one crate at the new number would have passed the other two.
+    # Each pin is found by its own pattern, and every one found must agree.
     foreach ($pin in $PIN_PATTERNS) {
-        $body = Get-Content -Path $pin.Path -Raw
+        $full = (Resolve-Path $pin.Path).Path
+        $body = [IO.File]::ReadAllText($full, [Text.Encoding]::UTF8)
         $want = [string]::Format($pin.Format, $root)
-        if ($body -notmatch [regex]::Escape($want)) {
-            Write-Host "MISMATCH: $($pin.Path) does not carry '$want'" -ForegroundColor Red
+        $found = [regex]::Matches($body, $pin.Pattern)
+        if ($found.Count -eq 0) {
+            Write-Host "MISMATCH: no pin matching $($pin.Pattern) in $($pin.Path)" -ForegroundColor Red
             $allMatch = $false
+        }
+        foreach ($m in $found) {
+            if ($m.Value -ne $want) {
+                Write-Host "MISMATCH: $($pin.Path) carries $($m.Value), expected $want" -ForegroundColor Red
+                $allMatch = $false
+            }
         }
     }
     if ($root -match '\+') {

@@ -1,6 +1,6 @@
 # ATLAS 6 CI/CD Pipelines
 
-**Version:** 0.1.5
+**Version:** 0.1.6
 **Ollama Backend:** 127.0.0.1:11434
 
 ---
@@ -17,7 +17,7 @@
 |---|---|---|
 | build | `cargo build --workspace` | exit 0 |
 | unit | `cargo test --workspace` | 85+ pass |
-| version | `cargo run -q -p atlas -- --version` | prints 0.1.5 |
+| version | `cargo run -q -p atlas -- --version` | prints 0.1.6 |
 | chain-verify | `cargo run -q -p atlas -- chain verify tests/fixtures/chains/agents_seatlog.jsonl` | INTACT |
 | chain-recognize | `cargo run -q -p atlas -- chain recognize tests/fixtures/chains/agents_seatlog.jsonl` | form recognized |
 | db-init | `cargo run -q -p atlas -- db init /tmp/spine_test.db` | exit 0 |
@@ -55,11 +55,11 @@
 | build-webapp | `cd webapp && go build ./...` | exit 0 |
 | vet-webapp | `cd webapp && go vet ./...` | clean |
 | mcp-tools | `cd line && go run ./cmd/atlas-mcp --prove` | surface carries 78 tools (79 at the `v0.1.5` tag -- corrected 2026-09-14) |
-| mcp-version | `cd line && go run ./cmd/atlas-mcp --version` | 0.1.5 |
+| mcp-version | `cd line && go run ./cmd/atlas-mcp --version` | 0.1.6 |
 | mcp-prove | `cd line && go run ./cmd/atlas-mcp --prove` | 125 strokes PASS |
 | town-prove | `cd line && go run ./cmd/atlas-town --prove` | 11 strokes PASS |
 | door-prove | `cd line && go run ./cmd/atlas-door --prove` | 13 strokes PASS |
-| tui-version | `cd line && go run ./cmd/atlas-tui --version` | atlas-tui 0.1.5 |
+| tui-version | `cd line && go run ./cmd/atlas-tui --version` | atlas-tui 0.1.6 |
 
 ### Artifacts
 - `atlas-mcp`, `atlas-tui`, `atlas-town`, `atlas-door` binaries
@@ -209,7 +209,7 @@
 | vet | `cd webapp && go vet ./...` | clean |
 | start | `./atlas-webapp &` (port 8091) | process running |
 | health | `curl http://localhost:8091/api/health` | status ok |
-| version | Response contains 0.1.5 | version matches |
+| version | Response contains 0.1.6 | version matches |
 | list-agents | `curl http://localhost:8091/api/agents` | count >= 40 |
 | get-agent | `curl http://localhost:8091/api/agents/manjuel` | agent found |
 | add-trace | `POST /api/traces` with test data | trace with hash |
@@ -262,12 +262,14 @@ file. The six names are still the right division of the battery and
 
 ```
 push/PR → prove.yml
-  ├── the battery (windows)      tests/prove.py, the whole thing
+  ├── the battery (windows)      every version pin in sync; then
+  │                              tests/prove.py, the whole thing (the fast
+  │                              legs only, no cargo, until 2026-09-22)
   └── the go half, off Windows   go build + go test, line AND webapp
                                  gofmt -l gated across both modules
 
 tag v*  → release.yml
-  └── cut (windows)              the tag must equal VERSION; ten pins in sync;
+  └── cut (windows)              the tag must equal VERSION; every pin in sync;
                                  the battery; both Go modules; every binary
                                  ASKED its version; then a DRAFT release
 ```

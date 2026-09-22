@@ -41,8 +41,8 @@ The snapshot above is 2026-09-08's and stays as written. What moved after it:
 | | |
 |---|---|
 | B1 THE LINE | the door serves **82** tools: 81 counted off `/tools` on 2026-09-17, and `projects` (2026-09-21, the maker's piece 2). 31 have no page in the glass; `projects` has one, the Dashboard's Projects card |
-| Versions | 0.1.1+f1 (2026-09-08) → 0.1.2 (2026-09-10, the stone moniker struck) → 0.1.3 and 0.1.4 (built, never tagged) → **v0.1.5 THE FLOW CONFIRMATION**, tagged on `3dacdbc`, 2026-09-12 — the one mark this repository holds |
-| Unreleased | the release.yml fix, `version-tag`, node retries, the hold queue (RULE 6 as a gate), and atlas's half of the core's 2026-09-14 and 2026-09-15/16 passes — CHANGELOG.md, [Unreleased]. The next number is the operator's. |
+| Versions | 0.1.1+f1 (2026-09-08) → 0.1.2 (2026-09-10, the stone moniker struck) → 0.1.3 and 0.1.4 (built, never tagged) → **v0.1.5 THE FLOW CONFIRMATION**, tagged on `3dacdbc`, 2026-09-12 → **v0.1.6**, tagged on `0c65afc`, 2026-09-18, with only the root `VERSION` bumped: every other stamp still said 0.1.5, so its binaries answered 0.1.5 and its release never built. Found 2026-09-22; every stamp now says 0.1.6 on main, and the next mark is the next number (a mark is never moved) |
+| Unreleased | what landed after 0.1.6 — CHANGELOG.md, [Unreleased]. The next number is the operator's. |
 | Witnesses | step 5 below names SEAT_LOG.md and STATE_OF_BUILD.md; both were last written 2026-09-09. The work since is witnessed in CHANGELOG.md and in the core's DAYBOOK and HANDOFF, not here. |
 
 ## PARKED (named, not forgotten)

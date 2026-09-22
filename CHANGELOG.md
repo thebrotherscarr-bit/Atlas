@@ -12,6 +12,110 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Every version stamp in step: the stale 0.1.6, the lock the bump tool forgot, and a push check that runs the whole battery
+
+His word, 2026-09-22: *"the version control for atlas sounds like a fairly simple fix, let's get
+that knocked out"* -- after the review found `v0.1.6` cut with only its root `VERSION` bumped.
+**RESTART REQUIRED, THE DOOR:** `line/internal/tools/gitctl.go` moved, so the new mark check is
+not live until the door is rebuilt, placed and restarted. The glass's Go did not move, but its
+`VERSION` stamp did, so its `/api/health` says 0.1.5 until it is rebuilt too. No sitting was open.
+
+**WHAT IT WAS.** Measured on scratch copies of this tree, never on the tree itself:
+
+    the drift         v0.1.6 (0c65afc, 2026-09-18) was cut from the panel's Cut button with the
+                      root VERSION at 0.1.6 and the other nine pins -- seven VERSION files,
+                      Cargo.toml, core/src/version.rs -- still at 0.1.5. Every binary built
+                      from that mark answers 0.1.5
+    red, unseen       at that commit, and on main until today, `cargo test --workspace` is red
+                      twice: the spine's own `version-cross` stroke (`atlas --prove`) and
+                      core's `no_stone_tag_and_no_whitespace`. prove.yml ran THE BALL as
+                      `--check`, "the fast legs only (no cargo)", so every push stayed green
+    no release        release.yml's pin step (`version.ps1 sync`) exits 1 on that tree with
+                      nine MISMATCH lines, before anything is built. v0.1.5's run had died at
+                      its Go tests (the workflow's own note), and the fix landed six minutes
+                      after that tag. So no release has been built from either mark. GitHub's
+                      run page was not opened: that needs his word
+    the door let it   tagCut judged a mark against the root VERSION alone
+    the tool forgot   `version.ps1 set` moved Cargo.toml and not Cargo.lock, and every
+    the lock          `cargo build --locked` after it refuses ("cannot update the lock file ...
+                      because --locked was passed") -- the first step of prove.yml and of
+                      release.yml. Measured both ways on a scratch copy. And `sync` asked only
+                      whether the wanted text appeared ANYWHERE in a pin's file, which a lock
+                      holding three crates satisfies with one
+    two harnesses     tests/e2e/ollama_prover.py and tests/workflows/wf_operator.py said
+                      VERSION = "0.1.3", so the live prover's S1 version checks and S9-1 failed
+                      on the number alone
+
+**THE CHANGE.**
+
+    every stamp at    `version.ps1 set 0.1.6`, run on the ground with the fixed tool: seven
+    0.1.6             VERSION files, Cargo.toml, core/src/version.rs, and Cargo.lock's three
+                      crates. `version.ps1 sync`: "All 11 pins in sync: 0.1.6"
+    version.ps1       Cargo.lock is a pin (its three crates, one pattern), and `sync` finds
+                      every match of every pin and holds each one to the version
+    the door          tagCut refuses a mark while any file called VERSION anywhere in the tree
+                      at that commit, or the root Cargo.toml's [package] or
+                      [workspace.package] version, says another number, and names each stamp
+                      and what it says. Read out of git at that commit, never off the disk; a
+                      stamp git cannot read is named, not passed. The core has no VERSION file
+                      and no Cargo.toml, so nothing changes for its marks
+    prove.yml         `version.ps1 sync` first, on every push; then THE BALL whole -- cargo test
+                      and the door's own battery with it -- where it was `--check`. The comment
+                      above that line had promised cargo all along
+    release.yml       its pin step is "Every version pin agrees", named without a count
+    release.ps1       its last lines said nothing builds a tag. release.yml has since
+                      2026-09-12, and it stops at a DRAFT; that is what it says now
+    the harnesses     both read atlas's root VERSION instead of carrying a number
+    the docs          the version each binary prints, 0.1.5 -> 0.1.6, in the places 0.1.5's own
+                      bump moved (AGENTS, ACCEPTANCE, E2E_SCENARIOS, OLLAMA_PROVER, PIPELINES,
+                      WORKFLOWS) and in README; dated measurements left as they were.
+                      THE_ROAD's version line names v0.1.6 and what happened to it; PIPELINES,
+                      DELIVERABLE and PROVING say what the two workflows run now; DELIVERABLE's
+                      release line says `patch`, because 0.1.6 is taken
+
+**STROKES, +2 in `internal/tools` (`gitctl_test.go`).** `TestAMarkWaitsForEveryVersionStamp`: a
+world whose root VERSION says 0.1.6 while `line/cmd/atlas-mcp/VERSION` and Cargo.toml say 0.1.5
+is refused v0.1.6, naming both stamps, and no mark exists after; once both move, the same name
+lands. `TestCargoVersionReadsOnlyTheCratesOwnNumber`: a workspace's or a crate's own number,
+double- or single-quoted, and nothing for a member that inherits it or for a dependency.
+
+**PROVEN BY REVERSAL, on a scratch copy.** With the new check switched off, the first stroke goes
+red; put back, green. Its name is short on purpose: under its first, longer name the scratch
+folder's path pushed git past MAX_PATH, and a stamp came back "could not be read" -- the guard
+failing shut, as written, over a fault of the machine.
+
+**ON SCRATCH COPIES, BEFORE AND AFTER** (no .git, no target/; Go's cache and temp in scratch):
+
+    version.ps1 sync       before: nine MISMATCH, exit 1    after: "All 11 pins in sync: 0.1.6",
+                                                                   under Windows PowerShell and pwsh
+    cargo build --locked   Cargo.toml at 0.1.6 with the lock at 0.1.5: refused. Both moved: builds
+    cargo test             before: red, the two version     after: ABSENT, 55 strokes held --
+                           strokes                                 stopped only by the oracle legs
+    go test, line          the same six git_tag push strokes red before and after ("Filename too
+                           long", the scratch path); every other package ok
+    THE BALL, whole,       21 held, 15 absent, 1 broke -- the one broke being those six strokes
+    spine built first
+    gofmt -l, go vet       clean
+
+**THE NEW BUILDS ARE NOT IN PLACE.** Both wait in the hand's scratch, built from sources
+byte-identical to these:
+
+- the door: sha256 993170cb8efd0d4e, 12,147,712 bytes; `--version` answers 0.1.6;
+- the glass: sha256 7616272baea14ee2, 11,034,624 bytes; nothing moved in it but its VERSION.
+
+Placing them and restarting is his allowance. Until then the running door judges a mark by the
+root VERSION alone, and both answer 0.1.5. None of this reaches GitHub, including the two
+workflows, until atlas is saved and sent.
+
+**Named, not fixed.**
+
+    the dead mark     v0.1.6 stays where it is: a mark is never moved, and GitHub may hold it.
+                      The next release is the next number, cut and sent by him
+    the bump          moving the stamps is still `version.ps1` on a terminal; the glass has no
+                      button for it
+    the core          its marks are unchanged by this. Its own pins are pyproject.toml and
+                      manjuel/__init__.py, and the door does not read the second
+
 ### The maker's projects on the glass: the list, the page, and the words to pick one up
 
 His word, 2026-09-21: *"go on piece 2"* -- the maker's piece 2 in the core's BUILDPATH, "THE
@@ -295,6 +399,12 @@ hand's scratch; the door was not touched.
 from the panel's own Cut button, which filled `v0.1.6` itself from what VERSION declares at
 that commit. The heading read `Unreleased` until the mark existed; the words under it are
 unchanged.
+
+**CORRECTED 2026-09-22: the mark holds 0.1.6 in its root `VERSION` only.** At `0c65afc` the other
+nine pins say 0.1.5, so every binary built from this mark answers 0.1.5, `cargo test` is red there
+(the spine's version strokes), and release.yml refuses it at its pin step -- no release was built
+from it. The mark stays, because a mark is never moved. See [Unreleased], "Every version stamp in
+step".
 
 **WHAT THE NUMBER HOLDS** -- twenty entries below this one and above `## [0.1.5]`, eight
 saves since `v0.1.5` was cut on 3dacdbc:

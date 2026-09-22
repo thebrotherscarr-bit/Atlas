@@ -80,6 +80,17 @@ jobs:
           rustc --version
           python --version
 
+      - name: Every version pin agrees
+        # THE DRIFT THAT SHIPPED v0.1.6 (2026-09-22). The root VERSION was
+        # bumped to 0.1.6 and every other stamp -- eight files, Cargo.toml,
+        # the lock -- stayed at 0.1.5, and no push asked: this check ran only
+        # in release.yml, which a tag reaches after it is cut, and refused it
+        # there. The same command on every push makes a drifted pin red
+        # before anybody cuts a mark. First, because it takes a second and
+        # names every file that is out of step.
+        shell: pwsh
+        run: .\version.ps1 sync
+
       - name: Build the spine
         # BEFORE the battery, deliberately. tests/prove.py reports the atlas
         # binary ABSENT when it is unbuilt -- honest, but it means the door leg
@@ -120,7 +131,16 @@ jobs:
         # and the golden cutters itself -- this workflow does not re-run them
         # separately, because two batteries that can disagree are worse than
         # one that cannot.
-        run: python tests/prove.py --check
+        #
+        # THE WHOLE BALL, NOT --check (2026-09-22). This line said `--check`,
+        # "the fast legs only (no cargo)": it skipped cargo test AND the
+        # door's own shipped battery (atlas-mcp --prove) while the comment
+        # above promised both. So the spine's version strokes went red at
+        # 0c65afc and this gate stayed green over them for four days.
+        # release.yml always ran the whole ball; now every push does. Without
+        # the private oracle ground the spine reports ABSENT (its oracle
+        # legs), after its version strokes have run -- ABSENT is not red.
+        run: python tests/prove.py
 
   # ---------------------------------------------------------------------
   # THE PORTABILITY PROBE. Its own job on purpose, so a red here can never

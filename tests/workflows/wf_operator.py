@@ -8,7 +8,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 from _mcp_client import call, is_online
 
 PROJECT = "atlas"
-VERSION = "0.1.3"
+# Read from atlas's root VERSION, the one authority (2026-09-22) -- this said
+# "0.1.3" three versions after it stopped being true.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "VERSION"),
+          encoding="utf-8") as _v:
+    VERSION = _v.read().strip()
 
 def main():
     print("=== OPERATOR WORKFLOW ===\n")

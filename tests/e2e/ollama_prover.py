@@ -24,7 +24,12 @@ import urllib.request
 import uuid
 from datetime import datetime, timezone
 
-VERSION = "0.1.3"
+# THE VERSION IS READ, NOT WRITTEN HERE (2026-09-22). This said "0.1.3" through
+# 0.1.4, 0.1.5 and 0.1.6, so S1's three --version checks and S9-1 failed on the
+# number alone. atlas's root VERSION is the one authority every binary reads.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "VERSION"),
+          encoding="utf-8") as _v:
+    VERSION = _v.read().strip()
 OLLAMA_URL = "http://127.0.0.1:11434"
 MCP_URL = "http://127.0.0.1:8090"
 WEBAPP_URL = "http://127.0.0.1:8091"
