@@ -12,6 +12,32 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### 0.1.7: every pin and every claim moved together
+
+His word, 2026-09-23: *"bump the versions by 1 on both core and atlas"*. No code moved; the pins
+and the docs only, so nothing needs rebuilding or restarting.
+
+- **All eleven pins to 0.1.7** by `.\version.ps1 set 0.1.7` -- the eight `VERSION` files, plus
+  `Cargo.toml`, `core/src/version.rs` and `Cargo.lock`. `.\version.ps1 sync` answers "All 11 pins
+  in sync: 0.1.7". `Cargo.lock` moves with them because of the fix landed 2026-09-22 in
+  `3a07dfd`; before that a lock left at the old number made `cargo build --locked` fail with
+  exit 101, which is how `v0.1.6` came to be cut over binaries that answered 0.1.5.
+- **24 version CLAIMS moved** in `AGENTS.md`, `README.md`, `docs/ACCEPTANCE.md`,
+  `docs/OLLAMA_PROVER.md`, `docs/PIPELINES.md`, `docs/WORKFLOWS.md` and
+  `tests/e2e/E2E_SCENARIOS.md` -- the lines that assert what a binary PRINTS, which `version.ps1`
+  deliberately leaves to a hand. **Not swept, and each for a reason:** this CHANGELOG (history --
+  moving it would rewrite the record), `LAUNCH_PLAN.md` (a world's, closed until he points at
+  it), `docs/SPEC_CONTROL_CENTER.md` (a roadmap OF numbers, not a claim about now) and
+  `DELIVERABLE.md`'s "0.1.6 is already cut", which is true until the new mark exists.
+- **`docs/ACCEPTANCE.md` said the pins were 8; they are 11.** `Cargo.toml` and
+  `core/src/version.rs` were pins the count never learned, and `Cargo.lock` became one on
+  2026-09-22. The line now names all eleven and says `.\version.ps1 sync` is what proves them,
+  which is what CI asks.
+
+**The mark is NOT cut here.** Its gate is `python tests/prove.py --check`, both Go modules green,
+gofmt clean and the door's battery -- and the core's own gate waits on a live standup. This
+CHANGELOG stays under `[Unreleased]` until the mark exists.
+
 ### The door hands out what changed, not whatever is on the disk: `git_diff` and `read_plan` both served `.env`
 
 His word, 2026-09-22: *"4. Code safety"* -- the handoff's fourth piece, from the review the same

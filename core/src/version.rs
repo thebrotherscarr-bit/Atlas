@@ -46,6 +46,6 @@ mod tests {
             !v.chars().any(char::is_whitespace),
             "VERSION carries embedded whitespace: {v:?}"
         );
-        assert_eq!(v, "0.1.6");
+        assert_eq!(v, "0.1.7");
     }
 }
