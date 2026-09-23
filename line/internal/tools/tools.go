@@ -743,7 +743,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	r.add(Tool{
 		Name: "flow_run", Writes: true,
 		Description: "fire a flow; gates pause, evals steer, budget binds (N2)",
-		Args:        []string{"name", "inputs?", "version?", "project?"},
+		Args:        []string{"name", "inputs?", "version?", "voice?", "project?"},
 		Fn:          toolFlowRun,
 	})
 	r.add(Tool{
@@ -982,7 +982,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 			if !ok {
 				return "", fmt.Errorf("no engine is open on %q -- env_open first", t.Name)
 			}
-			res, err := e.Run(objective, str(args, "feed"), str(args, "method"), nil)
+			res, err := e.Run(objective, str(args, "feed"), str(args, "method"), "", nil)
 			if err != nil {
 				return "", err
 			}
@@ -1855,6 +1855,12 @@ func stripVerdictHead(out string) string {
 type councilEngine struct {
 	flow.Engine
 	home string
+	// THE HEAD IS A PROPERTY OF THE RUN, NOT THE SPEC (2026-09-23). A flow
+	// fired with a voice runs every `run` node's turn on that head; the spec
+	// stays model-agnostic, so two runs of the SAME questions are a comparison
+	// by construction rather than two specs that drift into two experiments.
+	// Empty is the ordinary case: the ground's declared targets.
+	voice string
 }
 
 func (c councilEngine) Turn(ctx context.Context, objective, feed, method string) (string, error) {
@@ -1877,7 +1883,7 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 		case <-done:
 		}
 	}()
-	res, err := e.Run(objective, feed, method, nil)
+	res, err := e.Run(objective, feed, method, c.voice, nil)
 	if err != nil {
 		return "", err
 	}
@@ -1971,7 +1977,19 @@ func (c councilEngine) SeatAsk(seat, question, voice, method string) (play.Run, 
 	return c.Engine.SeatAsk(seat, question, voice, method)
 }
 
-func council(home string) flow.Engine { return councilEngine{flow.Production(home), home} }
+// WithVoice is how flow hands a run's head down to the council. flow calls it
+// on the way into Run, Resume and Replay alike, reading the tag off the run's
+// own start line for the latter two — so the council never has to be told the
+// head twice, and a resumed or replayed run cannot finish on a different one.
+//
+// The receiver is a value, so this returns a COPY bound to that head: the
+// registered engine is untouched and two flows in flight cannot cross heads.
+func (c councilEngine) WithVoice(voice string) flow.Engine {
+	c.voice = voice
+	return c
+}
+
+func council(home string) flow.Engine { return councilEngine{flow.Production(home), home, ""} }
 
 func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 	name, _ := args["name"].(string)
@@ -1983,10 +2001,14 @@ func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// THE HEAD IS NAMED AT THE FIRE, NOT IN THE SPEC (2026-09-23). One spec,
+	// two runs, two models — and the record says which was which. Empty is the
+	// ordinary case: the ground's declared targets, as before.
+	voice, _ := args["voice"].(string)
 	lock := flowLock(t.Home)
 	lock.Lock()
 	defer lock.Unlock()
-	res, err := flow.Run(t.Home, council(t.Home), s, inputs)
+	res, err := flow.RunOn(t.Home, council(t.Home), s, inputs, strings.TrimSpace(voice))
 	if err != nil {
 		return "", err
 	}

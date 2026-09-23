@@ -751,3 +751,98 @@ func TestAFlowLocksItsOwnWorldAndNoOther(t *testing.T) {
 		}
 	}
 }
+
+// --- the head is named at the fire (2026-09-23) ------------------------------
+
+// THE COUNCIL TAKES A HEAD WITHOUT KEEPING IT. flow hands the run's voice down
+// with WithVoice on the way into Run, Resume and Replay alike; if that bound
+// the engine itself rather than a copy, the head would outlive its run and the
+// next flow on that world -- or a second flow in flight beside it -- would
+// answer on a model nobody named for it. Which is the parity failing silently:
+// both columns on one model, both labelled honestly, and the number meaning
+// nothing.
+func TestTheCouncilTakesAHeadByCopyAndNotByKeeping(t *testing.T) {
+	home := t.TempDir()
+	base := council(home)
+	bound := base.(councilEngine).WithVoice("head-a:latest")
+	if bound.(councilEngine).voice != "head-a:latest" {
+		t.Fatal("WithVoice did not bind the head it was handed")
+	}
+	if base.(councilEngine).voice != "" {
+		t.Fatal("WithVoice bound the engine itself -- the head outlives its run")
+	}
+	other := base.(councilEngine).WithVoice("head-b:latest")
+	if bound.(councilEngine).voice != "head-a:latest" {
+		t.Fatal("two flows in flight crossed heads")
+	}
+	if other.(councilEngine).voice != "head-b:latest" {
+		t.Fatal("the second binding did not take")
+	}
+	// And a fresh council is unheaded: the ground's declared targets.
+	if council(home).(councilEngine).voice != "" {
+		t.Fatal("a council was born holding a head")
+	}
+}
+
+// flow_run says the head over the wire, and the two that CARRY one do not:
+// resume and replay read it off the run's own start line, so a run cannot be
+// finished or repeated on a head other than the one it began on.
+func TestFlowRunTakesTheHeadAndResumeReplayDoNot(t *testing.T) {
+	r := Build(tenant.NewRegistry(), Options{})
+	run, ok := r.Get("flow_run")
+	if !ok {
+		t.Fatal("flow_run is gone from the registry")
+	}
+	if !hasArg(run.Args, "voice?") {
+		t.Fatalf("flow_run does not offer the head over the wire: %v", run.Args)
+	}
+	for _, name := range []string{"flow_resume", "flow_replay"} {
+		tl, ok := r.Get(name)
+		if !ok {
+			t.Fatalf("%s is gone from the registry", name)
+		}
+		if hasArg(tl.Args, "voice?") || hasArg(tl.Args, "voice") {
+			t.Fatalf("%s takes a head from the caller; it must read the run's own: %v",
+				name, tl.Args)
+		}
+	}
+	// AND IT IS ACTUALLY PASSED. No hermetic stroke can fire a real flow here
+	// -- a `run` node needs a standing engine -- so the source says it, the way
+	// the flow-lock stroke above does.
+	src, err := os.ReadFile("tools.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := funcBody(string(src), "func toolFlowRun(")
+	if body == "" {
+		t.Fatal("func toolFlowRun( is gone from tools.go")
+	}
+	if !strings.Contains(body, "flow.RunOn(") {
+		t.Fatal("toolFlowRun fires through flow.Run -- the head it was given goes nowhere")
+	}
+	if !strings.Contains(body, `args["voice"]`) {
+		t.Fatal("toolFlowRun never reads the head off the call")
+	}
+}
+
+func hasArg(args []string, want string) bool {
+	for _, a := range args {
+		if a == want {
+			return true
+		}
+	}
+	return false
+}
+
+// funcBody is one function's source, from its signature to the next one.
+func funcBody(src, sig string) string {
+	i := strings.Index(src, sig)
+	if i < 0 {
+		return ""
+	}
+	body := src[i:]
+	if j := strings.Index(body[1:], "\nfunc "); j >= 0 {
+		body = body[:j+1]
+	}
+	return body
+}

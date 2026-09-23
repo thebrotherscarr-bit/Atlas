@@ -12,7 +12,48 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-Nothing since v0.1.7.
+### Added — the head belongs to the run, not the spec (operator, 2026-09-23: "let's do C first, then B underneath it")
+
+`flow_run` takes an optional `voice`: the model THIS RUN answers on.
+
+**WHY IT CANNOT LIVE IN THE SPEC.** A model could only be named per NODE, so measuring one flow on two
+models meant folding two specs -- and two specs stop being one experiment the moment either is edited,
+which is precisely the parity the pair was folded to measure. The spec stays model-agnostic and the
+head is named when the run is FIRED, so **the same questions on two heads is a comparison by
+construction** rather than by a hand's promise that it kept the two in step.
+
+**IT REACHES EVERY NODE THAT PINS NONE, AND ONLY THOSE.** A node carrying its own `voice` keeps it --
+the spec said that one aloud. Everything else answers on the run's head, the council included. Without
+that last part a "parity run" would have varied only its `run` nodes while its `ask`, `prompt`, `seat`
+and `memory` nodes went on reaching the declared targets, and reported itself as a whole-flow
+comparison anyway.
+
+**AND IT GOES IN THE START LINE, which is what makes the number mean anything.** `flow_status` names
+the head that answered. `flow_resume` and `flow_replay` read it back off the run's own record instead
+of taking one from the caller -- a gate is FOR walking away, and coming back to finish a parity run's
+second half on the declared targets would leave one run measuring two models with nothing saying so.
+`flow_compare` names both heads when they differ, and stays quiet when they do not, because two runs
+on one head is the model's own variance and is a different reading.
+
+Per-seat heads, so a parity can vary ONE seat, is the narrower ruling and is his (B).
+
+- **`internal/flow/run.go`:** `RunOn(home, eng, s, inputs, voice)`; `Run` is now the declared-targets
+  door and delegates with `""`, so the thirty-odd existing call sites are unchanged and the two
+  cannot drift. `onVoice` binds the head onto the engine through an optional `WithVoice` interface --
+  the same shape `Resume` already used for `Ready()` -- and `startVoice` reads it back off a start
+  line. `runFrom` carries it and defaults each node's empty `Voice` to it; `Status` and `Compare`
+  render it.
+- **`internal/tools/tools.go`:** `councilEngine` carries `voice` and hands it to the engine's
+  objective row; `WithVoice` binds a COPY, so the registered engine is untouched and two flows in
+  flight cannot cross heads. `flow_run` declares `voice?` on the wire; `flow_resume` and `flow_replay`
+  deliberately do not.
+- **`internal/engine/engine.go`:** `Run(objective, feed, method, model, sink)` -- the tag rides on the
+  objective row that Manjuel's headless door now reads. `runstream.go` and `run_start` pass `""`.
+- **`docs/SPEC_CONTROL_CENTER.md`:** the `flow_run` row carries `voice?` and what it does.
+
+Measured on a mirror: every package green except the seven git strokes that are red at HEAD on the
+same mirror for the same reason (`Filename too long` under a long scratch path) -- byte-identical red
+sets, baseline and working. Reversed seven ways; each switch-off reds its own stroke and no other.
 
 ---
 

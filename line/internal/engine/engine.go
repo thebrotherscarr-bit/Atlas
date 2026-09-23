@@ -548,7 +548,7 @@ func (e *Engine) pump(sink func(Event)) (Result, error) {
 
 // Run sends one objective and reads until the turn ends or the engine asks a
 // question. One run at a time per world.
-func (e *Engine) Run(objective, feed, method string, sink func(Event)) (Result, error) {
+func (e *Engine) Run(objective, feed, method, model string, sink func(Event)) (Result, error) {
 	e.runMu.Lock()
 	defer e.runMu.Unlock()
 	if e.closed.Load() {
@@ -565,6 +565,14 @@ func (e *Engine) Run(objective, feed, method string, sink func(Event)) (Result, 
 	}
 	if method != "" {
 		row["method"] = method
+	}
+	// THE HEAD IS A PROPERTY OF THE TURN (2026-09-23). A caller may name the
+	// model this one turn runs on; the engine puts its declared targets back
+	// when the turn ends, and refuses by name a tag the rack does not have.
+	// Empty is the ordinary case and sends nothing, so every caller that does
+	// not care is on exactly the wire it was on before.
+	if model != "" {
+		row["model"] = model
 	}
 	if err := e.send(row); err != nil {
 		return Result{}, err

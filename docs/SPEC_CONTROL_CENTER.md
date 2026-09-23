@@ -525,7 +525,7 @@ engine closing, and the machine being left alone for as long as he likes.
 | he does | the system does |
 |---|---|
 | `env_open {project}` | one Manjuel process for that world; refuses a world already being sat in |
-| `flow_run {name: vibe-loop, inputs: {task}}` | the `run` node puts his task through the council; the `gate` node pauses; verdict `PAUSED` |
+| `flow_run {name: vibe-loop, inputs: {task}, voice?}` | the `run` node puts his task through the council; the `gate` node pauses; verdict `PAUSED`. `voice` names the head THIS RUN answers on -- every node that pins no voice of its own, the council included -- and goes in the run's start line, so `flow_status` says which model answered and `flow_resume`/`flow_replay` recover it rather than quietly finishing on the declared targets |
 | *walks away* | nothing moves. No default is taken, nothing is landed, nothing is committed (RULE 6) |
 | `flow_status {run}` | the waterfall: what ran, how long, the receipt per node, and the gate question in full |
 | `flow_resume {run, continue\|stop}` | `continue` fires the pass-edges past the gate; `stop` ends it `STOPPED`, reached nodes standing |

@@ -832,3 +832,271 @@ func TestValidateGuardsTheMatchMode(t *testing.T) {
 		}
 	}
 }
+
+// --- the head belongs to the run, not the spec (2026-09-23) ------------------
+//
+// A model could only be named per NODE before this, so measuring one flow on
+// two models meant folding two specs -- and two specs stop being one experiment
+// the moment either is edited. These strike the other reading: one spec, the
+// head named at the fire, and the record saying which head answered.
+
+// headLog is shared by every copy of a headEngine, so a stroke can read what
+// each node was actually measured on after WithVoice has handed back a copy.
+type headLog struct {
+	asks  []string // "<what>@<voice>" -- a node's own voice, or the run's
+	turns []string // "<objective>@<head>" -- the council's, off the engine
+}
+
+// headEngine takes a run-level head exactly as THE LINE's council does: by
+// value, so WithVoice binds a COPY and the engine handed in stays unbound.
+type headEngine struct {
+	log  *headLog
+	head string
+}
+
+func (h headEngine) WithVoice(v string) Engine { h.head = v; return h }
+
+func (h headEngine) Ask(_ context.Context, q, voice string) (string, error) {
+	h.log.asks = append(h.log.asks, q+"@"+voice)
+	return "answered", nil
+}
+
+func (h headEngine) RunPrompt(name string, _ int, _ map[string]string, voice string) (play.Run, error) {
+	h.log.asks = append(h.log.asks, "prompt:"+name+"@"+voice)
+	return play.Run{Output: "prompted"}, nil
+}
+
+func (h headEngine) SeatAsk(seat, _, voice, _ string) (play.Run, error) {
+	h.log.asks = append(h.log.asks, "seat:"+seat+"@"+voice)
+	return play.Run{Output: "seated"}, nil
+}
+
+func (h headEngine) Recall(voice, q string) (string, error) {
+	h.log.asks = append(h.log.asks, "memory:"+q+"@"+voice)
+	return "recalled", nil
+}
+
+func (h headEngine) Turn(_ context.Context, objective, _, _ string) (string, error) {
+	h.log.turns = append(h.log.turns, objective+"@"+h.head)
+	return "ran " + objective, nil
+}
+
+// One node that names no voice, one that pins its own, a seat, and a `run`
+// node whose head can only come off the engine.
+func headSpec() Spec {
+	return Spec{Name: "heads", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "free", Kind: "ask", Question: "Q1"},
+			{Name: "pinned", Kind: "ask", Question: "Q2", Voice: "pinned:latest"},
+			{Name: "seated", Kind: "seat", Seat: "steward", Question: "Q3"},
+			{Name: "council", Kind: "run", Question: "do the thing"},
+		},
+		Edges: []Edge{
+			{From: "free", To: "pinned", When: "always"},
+			{From: "pinned", To: "seated", When: "always"},
+			{From: "seated", To: "council", When: "always"},
+		}}
+}
+
+func startLineOf(t *testing.T, home, run string) map[string]any {
+	t.Helper()
+	lines, err := runLog(home, run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range lines {
+		if l["kind"] == "start" {
+			return l
+		}
+	}
+	t.Fatalf("run %s carries no start line", run)
+	return nil
+}
+
+func hasCall(calls []string, want string) bool {
+	for _, c := range calls {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
+// The head reaches every node that names none, leaves alone the one that does,
+// reaches the council through the engine, and is written down.
+func TestTheHeadBelongsToTheRun(t *testing.T) {
+	home := t.TempDir()
+	log := &headLog{}
+	res, err := RunOn(home, headEngine{log: log}, headSpec(), nil, "head-a:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s", res.Verdict)
+	}
+	if !hasCall(log.asks, "Q1@head-a:latest") {
+		t.Fatalf("a node naming no voice must answer on the run's head: %v", log.asks)
+	}
+	if !hasCall(log.asks, "seat:steward@head-a:latest") {
+		t.Fatalf("a seat node naming no voice must answer on the run's head: %v", log.asks)
+	}
+	// A PINNED NODE IS PINNED. The spec said this one aloud; a run-level head
+	// overriding it would make the spec on disk a lie about what fires.
+	if !hasCall(log.asks, "Q2@pinned:latest") {
+		t.Fatalf("a node that names its own voice must keep it: %v", log.asks)
+	}
+	// The council's head cannot ride on a node -- a `run` node is the whole
+	// estate, not one voice -- so it comes off the engine or nowhere.
+	if !hasCall(log.turns, "do the thing@head-a:latest") {
+		t.Fatalf("the council must be fired on the run's head: %v", log.turns)
+	}
+	if got := startVoice(startLineOf(t, home, res.Run)); got != "head-a:latest" {
+		t.Fatalf("the start line must carry the head, got %q", got)
+	}
+	st, err := Status(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(st, "head: head-a:latest") {
+		t.Fatalf("the waterfall must name the head:\n%s", st)
+	}
+}
+
+// And with no head named, nothing moves: no field on the line, no word on the
+// waterfall, every node on the ground's declared targets as before.
+func TestARunWithNoHeadNamesNoneAtAll(t *testing.T) {
+	home := t.TempDir()
+	log := &headLog{}
+	res, err := Run(home, headEngine{log: log}, headSpec(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCall(log.asks, "Q1@") {
+		t.Fatalf("an unheaded run must leave the voice empty: %v", log.asks)
+	}
+	if !hasCall(log.turns, "do the thing@") {
+		t.Fatalf("an unheaded run must leave the council's head empty: %v", log.turns)
+	}
+	if _, ok := startLineOf(t, home, res.Run)["voice"]; ok {
+		t.Fatal("an unheaded run wrote a voice field into its record")
+	}
+	st, err := Status(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(st, "head:") {
+		t.Fatalf("the waterfall named a head nobody set:\n%s", st)
+	}
+}
+
+func headGateSpec() Spec {
+	return Spec{Name: "headgate", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "before", Kind: "ask", Question: "Q1"},
+			{Name: "g", Kind: "gate", Title: "look at it"},
+			{Name: "after", Kind: "ask", Question: "Q2"},
+		},
+		Edges: []Edge{
+			{From: "before", To: "g", When: "always"},
+			{From: "g", To: "after", When: "pass"},
+		}}
+}
+
+// A gate is FOR walking away. Coming back must not finish the run somewhere
+// else: the head is read off the run's own start line, not off the engine the
+// hand happens to be holding when it answers.
+func TestAResumedRunFinishesOnTheHeadItBeganOn(t *testing.T) {
+	home := t.TempDir()
+	res, err := RunOn(home, headEngine{log: &headLog{}}, headGateSpec(), nil, "head-a:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused || res.PausedNode != "g" {
+		t.Fatalf("the gate did not pause: %s at %q", res.Verdict, res.PausedNode)
+	}
+	// A FRESH, UNBOUND engine -- the shape of coming back hours later.
+	after := &headLog{}
+	res2, err := Resume(home, headEngine{log: after}, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s", res2.Verdict)
+	}
+	if !hasCall(after.asks, "Q2@head-a:latest") {
+		t.Fatalf("the second half ran on a different head: %v", after.asks)
+	}
+}
+
+// Same spec, same inputs, same model. A replay that dropped the head would
+// answer a different question and still report COMPLETE.
+func TestAReplayRefiresTheHeadAndStampsIt(t *testing.T) {
+	home := t.TempDir()
+	res, err := RunOn(home, headEngine{log: &headLog{}}, headSpec(), nil, "head-a:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	again := &headLog{}
+	rep, err := Replay(home, headEngine{log: again}, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Run == res.Run {
+		t.Fatal("a replay must take a fresh id")
+	}
+	if !hasCall(again.asks, "Q1@head-a:latest") || !hasCall(again.turns, "do the thing@head-a:latest") {
+		t.Fatalf("the replay ran on a different head: %v / %v", again.asks, again.turns)
+	}
+	if got := startVoice(startLineOf(t, home, rep.Run)); got != "head-a:latest" {
+		t.Fatalf("the replay's own start line must carry the head, got %q", got)
+	}
+}
+
+// The parity reader: two columns, and which model produced each.
+func TestCompareNamesTheTwoHeadsWhenTheyDiffer(t *testing.T) {
+	home := t.TempDir()
+	s := Spec{Name: "one", BudgetS: 600,
+		Nodes: []Node{{Name: "a", Kind: "ask", Question: "Q"}}, Edges: []Edge{}}
+	a, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, "head-a:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, "head-b:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Compare(home, a.Run, b.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "head-a:latest") || !strings.Contains(out, "head-b:latest") {
+		t.Fatalf("a compare across two heads must name both:\n%s", out)
+	}
+	// Two runs on ONE head is the model's own variance, not a comparison, and
+	// is not dressed as one.
+	c, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, "head-a:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	same, err := Compare(home, a.Run, c.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(same, "A: head-a:latest") {
+		t.Fatalf("two runs on one head must not render a head row:\n%s", same)
+	}
+}
+
+// An engine with no WithVoice is left exactly as it was: the bare prodEngine
+// has none, and a stub in another stroke must not start answering differently
+// because a head was named.
+func TestAnEngineThatTakesNoHeadIsLeftAlone(t *testing.T) {
+	eng := &stubEngine{}
+	if got := onVoice(eng, "head-a:latest"); got != Engine(eng) {
+		t.Fatal("onVoice replaced an engine that cannot take a head")
+	}
+	bound := headEngine{log: &headLog{}}
+	if got := onVoice(bound, ""); got.(headEngine).head != "" {
+		t.Fatal("an empty head must bind nothing")
+	}
+}

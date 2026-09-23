@@ -93,8 +93,29 @@ func Cancel(run string) string {
 	return fmt.Sprintf("run %s cancelled — reached nodes stand, the rest never fire", run)
 }
 
-// Run validates, fires every reachable node, and writes the log.
+// Run validates, fires every reachable node, and writes the log. The heads
+// are the ground's declared targets — RunOn names one instead.
 func Run(home string, eng Engine, s Spec, inputs map[string]string) (Result, error) {
+	return RunOn(home, eng, s, inputs, "")
+}
+
+// RunOn fires a flow on ONE named head.
+//
+// THE HEAD BELONGS TO THE RUN, NOT THE SPEC (2026-09-23). Until now a model
+// could only be named per NODE, so measuring the same flow on two models meant
+// folding two specs — and two specs are two experiments the moment either one
+// is edited, which is precisely the parity the pair was folded to measure. The
+// spec stays model-agnostic and the head is named when the run is FIRED, so
+// the same questions on two heads is a comparison by construction rather than
+// by a hand's promise that it kept the two in step.
+//
+// AND IT GOES IN THE START LINE, which is what makes the number mean anything:
+// `flow_status` says which head answered, `flow_resume` and `flow_replay`
+// recover it instead of quietly finishing a run on the declared targets, and
+// two runs are only comparable at all because the record says what each was.
+//
+// Empty is the ordinary case and changes nothing.
+func RunOn(home string, eng Engine, s Spec, inputs map[string]string, voice string) (Result, error) {
 	order, err := Validate(s)
 	if err != nil {
 		return Result{}, err
@@ -106,12 +127,46 @@ func Run(home string, eng Engine, s Spec, inputs map[string]string) (Result, err
 	if inputs == nil {
 		inputs = map[string]string{}
 	}
-	appendLog(home, map[string]any{
+	voice = strings.TrimSpace(voice)
+	start := map[string]any{
 		"run": run, "flow": s.Name, "version": s.Version,
 		"ts": nowUTC(), "kind": "start", "inputs": inputs,
 		"budget_s": s.BudgetS, "spec": s,
-	})
-	return runFrom(home, eng, s, order, inputs, run, nil, nil, nil, nil, "")
+	}
+	if voice != "" {
+		start["voice"] = voice
+	}
+	appendLog(home, start)
+	return runFrom(home, onVoice(eng, voice), s, order, inputs, run, nil, nil, nil, nil, "", voice)
+}
+
+// onVoice binds a run's head onto the engine that will fire its `run` nodes.
+//
+// A `run` node is the whole council, not one voice, so its head cannot be
+// carried in the node the way `ask` and `seat` carry theirs — it belongs to
+// the Manjuel process the turn goes through. THE LINE's engine implements
+// WithVoice and puts the tag on the objective row; the bare prodEngine does
+// not implement it and refuses `run` nodes anyway.
+//
+// Resume and Replay call this with the voice read back off the run's own start
+// line, which is the whole reason it is written there: a paused parity run
+// carried on hours later must finish on the head it began on, or the two runs
+// being compared are not two runs of the same thing.
+func onVoice(eng Engine, voice string) Engine {
+	if strings.TrimSpace(voice) == "" {
+		return eng
+	}
+	if hv, ok := eng.(interface{ WithVoice(string) Engine }); ok {
+		return hv.WithVoice(voice)
+	}
+	return eng
+}
+
+// startVoice is the head a run was fired on, off its start line ("" = the
+// ground's declared targets, which is every run folded before 2026-09-23).
+func startVoice(start map[string]any) string {
+	v, _ := start["voice"].(string)
+	return strings.TrimSpace(v)
 }
 
 // specFromStart recovers the fired spec from the run's own start line —
@@ -135,9 +190,10 @@ func specFromStart(home string, start map[string]any) (Spec, error) {
 
 // runFrom continues a run with carried state (empty for a fresh run).
 // resumeGate names the gate being resumed with a continue choice.
+// `voice` is the head the run was fired on ("" for the declared targets).
 func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]string,
 	run string, outputs, pass map[string]bool, outText map[string]string,
-	elapsed []int64, resumeGate string) (Result, error) {
+	elapsed []int64, resumeGate, voice string) (Result, error) {
 	if outputs == nil {
 		outputs = map[string]bool{}
 	}
@@ -201,6 +257,19 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 			continue
 		}
 		nd := byName[name]
+		// THE RUN'S HEAD IS THE NODE'S DEFAULT, and a node that names its own
+		// voice keeps it — the spec pinned that one deliberately, and a run-level
+		// head silently overriding it would make the spec unreadable. Everything
+		// else answers on the head the run was fired on.
+		//
+		// Without this line a flow fired on one model varies only its `run`
+		// nodes: its `ask`, `prompt`, `seat` and `memory` nodes go on reaching
+		// the declared targets, and the run reports itself as a whole-flow
+		// comparison while half of it never moved. `nd` is a copy, so the spec
+		// on disk and in the start line is untouched.
+		if voice != "" && nd.Voice == "" {
+			nd.Voice = voice
+		}
 		vars := buildVars(inputs, outText)
 		if nd.Kind == "gate" {
 			if resumeGate == name {
@@ -818,8 +887,15 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 			break
 		}
 	}
+	// THE RUN IS CARRIED ON ON THE HEAD IT BEGAN ON (2026-09-23), read off its
+	// own start line rather than supplied again by whoever answered the gate.
+	// A gate is for walking away and coming back; coming back to a parity run
+	// and finishing its second half on the declared targets would leave one
+	// run measuring two models, and nothing in the record would say so.
+	voice := startVoice(start)
 	// The gate below fires once, then stands fired; runFrom skips it next.
-	return runFrom(home, eng, s, order, inputs, run, outputs, pass, outText, elapsed, paused)
+	return runFrom(home, onVoice(eng, voice), s, order, inputs, run, outputs, pass,
+		outText, elapsed, paused, voice)
 }
 
 // Status renders the waterfall: nodes in fire order with elapsed, the
@@ -831,9 +907,11 @@ func Status(home, run string) (string, error) {
 	}
 	budget := 600
 	flowName := ""
+	voice := ""
 	for _, l := range lines {
 		if l["kind"] == "start" {
 			flowName, _ = l["flow"].(string)
+			voice = startVoice(l)
 			if b, ok := l["budget_s"].(float64); ok && b > 0 {
 				budget = int(b)
 			}
@@ -841,6 +919,14 @@ func Status(home, run string) (string, error) {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "RUN %s · flow %s · budget %ds\n", run, flowName, budget)
+	// WHICH HEAD ANSWERED (2026-09-23). A run fired on a named model and a run
+	// fired on the declared targets rendered identically, so a waterfall could
+	// not tell the operator what he was looking at — and a pair of them is what
+	// a parity IS. Silent when there is no override: the declared targets are
+	// the ordinary case and naming them here would say more than the record does.
+	if voice != "" {
+		fmt.Fprintf(&b, "  head: %s (every node that names no voice of its own)\n", voice)
+	}
 	var total int64
 	verdict := ""
 	for _, l := range lines {
@@ -934,6 +1020,17 @@ func Compare(home, runA, runB string) (string, error) {
 	sort.Strings(sorted)
 	var b strings.Builder
 	fmt.Fprintf(&b, "COMPARE %s vs %s\n", runA, runB)
+	// THE TWO HEADS, NAMED, WHEN THEY DIFFER (2026-09-23). This is the parity
+	// reader: two runs of one spec on two models, node by node. Rendering the
+	// DIFFERs without saying which model produced which column leaves the
+	// operator to remember it, and a remembered pairing is the one thing a
+	// record exists to replace. Quiet when both ran on the same head — then the
+	// difference is the model's own variance, which is a different reading and
+	// deserves not to be dressed as a comparison.
+	hA, hB := runHead(home, runA), runHead(home, runB)
+	if hA != hB {
+		fmt.Fprintf(&b, "  A: %s   B: %s\n", headName(hA), headName(hB))
+	}
 	for _, n := range sorted {
 		a, oka := outA[n]
 		bb, okb := outB[n]
@@ -950,6 +1047,31 @@ func Compare(home, runA, runB string) (string, error) {
 		}
 	}
 	return b.String(), nil
+}
+
+// runHead is the head a run was fired on, read from its log. An unreadable
+// run is "" — the same as one with no override, because Compare has already
+// refused an unreadable run by the time it asks.
+func runHead(home, run string) string {
+	lines, err := runLog(home, run)
+	if err != nil {
+		return ""
+	}
+	for _, l := range lines {
+		if l["kind"] == "start" {
+			return startVoice(l)
+		}
+	}
+	return ""
+}
+
+// headName says what a blank head means out loud, so a compare line never
+// leaves one side unexplained.
+func headName(voice string) string {
+	if voice == "" {
+		return "the declared targets"
+	}
+	return voice
 }
 
 func nodeOutputs(home, run string) (map[string]string, error) {
@@ -1004,12 +1126,22 @@ func Replay(home string, eng Engine, run string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	appendLog(home, map[string]any{
+	// A REPLAY RE-FIRES THE HEAD TOO (2026-09-23). Same spec, same inputs, same
+	// model — a replay that dropped the voice would answer a different question
+	// than the run it claims to repeat, and would say COMPLETE either way. It
+	// is stamped on the fresh start line as well, so the copy stands on its own
+	// as a comparable run and not only as a pointer back at its origin.
+	voice := startVoice(start)
+	fstart := map[string]any{
 		"run": fresh, "flow": s.Name, "version": s.Version,
 		"ts": nowUTC(), "kind": "start", "inputs": inputs,
 		"budget_s": s.BudgetS, "replay_of": run,
-	})
-	return runFrom(home, eng, s, order, inputs, fresh, nil, nil, nil, nil, "")
+	}
+	if voice != "" {
+		fstart["voice"] = voice
+	}
+	appendLog(home, fstart)
+	return runFrom(home, onVoice(eng, voice), s, order, inputs, fresh, nil, nil, nil, nil, "", voice)
 }
 
 // ListRuns names runs for a flow (empty flow = all), newest last.
