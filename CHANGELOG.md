@@ -12,6 +12,32 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+Nothing since v0.1.7.
+
+---
+
+## [v0.1.7] — 2026-09-23 07:30 (tag on 063a152)
+
+**THE MARK IS CUT**, 2026-09-23 07:30, annotated `EVERY PIN IN STEP`, on `063a152`, through the
+door's `git_tag`. The heading read `[Unreleased]` until the mark existed; the words under it are
+as they were written.
+
+**AND IT IS THE FIRST ATLAS MARK CUT OVER BINARIES THAT AGREE WITH IT.** `v0.1.6` was cut on
+2026-09-18 from the Cut button with only its root `VERSION` bumped: its binaries answered 0.1.5,
+the spine's version strokes had been red unseen since `0c65afc` because the push check skipped
+cargo, and its release workflow never built. All of that was fixed on 2026-09-22 in `3a07dfd`,
+and this mark is what that fix was for -- the door read `VERSION` AT `063a152`, found 0.1.7, and
+`staleStamps` found no stamp disagreeing.
+
+**WHAT THE GATE SAID** (2026-09-23, on a mirror of this tree after the bump): `.\version.ps1
+sync` — All 11 pins in sync at 0.1.7 · gofmt clean in both modules · `go build ./...` and `go
+test ./...` green in `line` and in `webapp` · `python tests/prove.py --check` PROVEN. The
+operator's terminal remains the proof; a mirror is the hand's own check.
+
+**WHAT IS IN IT.** The version control fix itself, the door that opens a world whose sitting's
+process is gone, flows that report truthfully, and the two reads at the door that handed out this
+estate's keys.
+
 ### 0.1.7: every pin and every claim moved together
 
 His word, 2026-09-23: *"bump the versions by 1 on both core and atlas"*. No code moved; the pins
