@@ -362,7 +362,7 @@ func TestAnEngineThatDiesIsNotHandedBack(t *testing.T) {
 	if _, ok := r.Get(ground); !ok {
 		t.Fatal("the registry does not hand back a standing engine")
 	}
-	if _, err := e.Run("die", "", "", "", nil); err == nil {
+	if _, err := e.Run("die", "", "", Head{}, nil); err == nil {
 		t.Fatal("a turn whose engine died reported success")
 	}
 	deadline := time.Now().Add(10 * time.Second)

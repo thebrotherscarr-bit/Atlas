@@ -743,7 +743,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	r.add(Tool{
 		Name: "flow_run", Writes: true,
 		Description: "fire a flow; gates pause, evals steer, budget binds (N2)",
-		Args:        []string{"name", "inputs?", "version?", "voice?", "project?"},
+		Args:        []string{"name", "inputs?", "version?", "voice?", "voices?", "project?"},
 		Fn:          toolFlowRun,
 	})
 	r.add(Tool{
@@ -982,7 +982,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 			if !ok {
 				return "", fmt.Errorf("no engine is open on %q -- env_open first", t.Name)
 			}
-			res, err := e.Run(objective, str(args, "feed"), str(args, "method"), "", nil)
+			res, err := e.Run(objective, str(args, "feed"), str(args, "method"), engine.Head{}, nil)
 			if err != nil {
 				return "", err
 			}
@@ -1754,6 +1754,52 @@ func toolFlowList(t tenant.Tenant, _ map[string]any) (string, error) {
 // object (a client building arguments as a map) or a JSON string (a shell).
 // Anything else is REFUSED BY NAME rather than quietly becoming {} -- a flow
 // that drops its inputs fails on a missing var and blames the spec.
+// flowVoices reads a per-seat head off a call: seat -> model, as an object or
+// as an object in a string, exactly as `inputs` is read. A shape that is
+// neither is REFUSED rather than dropped -- a caller that meant to vary one
+// seat and silently varied none would get a parity of a model against itself,
+// and both columns would look honest.
+func flowVoices(args map[string]any) (map[string]string, error) {
+	v, present := args["voices"]
+	if !present || v == nil {
+		return nil, nil
+	}
+	var doc map[string]any
+	switch t := v.(type) {
+	case map[string]any:
+		doc = t
+	case string:
+		if strings.TrimSpace(t) == "" {
+			return nil, nil
+		}
+		if err := json.Unmarshal([]byte(t), &doc); err != nil {
+			return nil, fmt.Errorf("flow voices must be a JSON object of "+
+				"seat -> model: %s", err)
+		}
+	default:
+		return nil, fmt.Errorf("flow voices must be a JSON object of seat -> "+
+			"model, or one as a string; got %T -- refused rather than run with "+
+			"a head nobody named", v)
+	}
+	out := map[string]string{}
+	for seat, val := range doc {
+		sv, ok := val.(string)
+		if !ok {
+			return nil, fmt.Errorf("flow voices: seat %q names %T, not a model "+
+				"tag -- refused rather than guessed at", seat, val)
+		}
+		if strings.TrimSpace(sv) == "" {
+			return nil, fmt.Errorf("flow voices: seat %q names no model -- "+
+				"refused rather than run on nothing", seat)
+		}
+		out[seat] = strings.TrimSpace(sv)
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
+}
+
 func flowInputs(args map[string]any) (map[string]string, error) {
 	v, present := args["inputs"]
 	if !present || v == nil {
@@ -1856,11 +1902,11 @@ type councilEngine struct {
 	flow.Engine
 	home string
 	// THE HEAD IS A PROPERTY OF THE RUN, NOT THE SPEC (2026-09-23). A flow
-	// fired with a voice runs every `run` node's turn on that head; the spec
-	// stays model-agnostic, so two runs of the SAME questions are a comparison
-	// by construction rather than two specs that drift into two experiments.
-	// Empty is the ordinary case: the ground's declared targets.
-	voice string
+	// fired with a head runs every `run` node's turn on it; the spec stays
+	// model-agnostic, so two runs of the SAME questions are a comparison by
+	// construction rather than two specs that drift into two experiments.
+	// The zero head is the ordinary case: the ground's declared targets.
+	head flow.Head
 }
 
 func (c councilEngine) Turn(ctx context.Context, objective, feed, method string) (string, error) {
@@ -1883,7 +1929,13 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 		case <-done:
 		}
 	}()
-	res, err := e.Run(objective, feed, method, c.voice, nil)
+	// flow's head and the engine's are deliberately separate types: `Voice`
+	// means "one model" to a flow, where it also defaults nodes that pin none,
+	// and "every seat" to the council, which is the only side with a roster.
+	// This is the one place that knows both, which is what councilEngine is
+	// for -- neither package has to learn the other's vocabulary.
+	res, err := e.Run(objective, feed, method,
+		engine.Head{Model: c.head.Voice, Voices: c.head.Voices}, nil)
 	if err != nil {
 		return "", err
 	}
@@ -1977,19 +2029,21 @@ func (c councilEngine) SeatAsk(seat, question, voice, method string) (play.Run, 
 	return c.Engine.SeatAsk(seat, question, voice, method)
 }
 
-// WithVoice is how flow hands a run's head down to the council. flow calls it
-// on the way into Run, Resume and Replay alike, reading the tag off the run's
-// own start line for the latter two — so the council never has to be told the
-// head twice, and a resumed or replayed run cannot finish on a different one.
+// WithHead is how flow hands a run's head down to the council. flow calls it
+// on the way into Run, Resume and Replay alike, reading it off the run's own
+// start line for the latter two -- so the council never has to be told the head
+// twice, and a resumed or replayed run cannot finish on a different one.
 //
 // The receiver is a value, so this returns a COPY bound to that head: the
 // registered engine is untouched and two flows in flight cannot cross heads.
-func (c councilEngine) WithVoice(voice string) flow.Engine {
-	c.voice = voice
+func (c councilEngine) WithHead(head flow.Head) flow.Engine {
+	c.head = head
 	return c
 }
 
-func council(home string) flow.Engine { return councilEngine{flow.Production(home), home, ""} }
+func council(home string) flow.Engine {
+	return councilEngine{flow.Production(home), home, flow.Head{}}
+}
 
 func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 	name, _ := args["name"].(string)
@@ -2002,13 +2056,20 @@ func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 		return "", err
 	}
 	// THE HEAD IS NAMED AT THE FIRE, NOT IN THE SPEC (2026-09-23). One spec,
-	// two runs, two models — and the record says which was which. Empty is the
-	// ordinary case: the ground's declared targets, as before.
+	// two runs, two models -- and the record says which was which. `voices`
+	// is the narrower one: seat -> model, over `voice`, so a parity can vary a
+	// single seat instead of the roster. The zero head is the ordinary case:
+	// the ground's declared targets, as before.
 	voice, _ := args["voice"].(string)
+	voices, err := flowVoices(args)
+	if err != nil {
+		return "", err
+	}
 	lock := flowLock(t.Home)
 	lock.Lock()
 	defer lock.Unlock()
-	res, err := flow.RunOn(t.Home, council(t.Home), s, inputs, strings.TrimSpace(voice))
+	res, err := flow.RunOn(t.Home, council(t.Home), s, inputs,
+		flow.Head{Voice: strings.TrimSpace(voice), Voices: voices})
 	if err != nil {
 		return "", err
 	}

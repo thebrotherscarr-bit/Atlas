@@ -548,7 +548,28 @@ func (e *Engine) pump(sink func(Event)) (Result, error) {
 
 // Run sends one objective and reads until the turn ends or the engine asks a
 // question. One run at a time per world.
-func (e *Engine) Run(objective, feed, method, model string, sink func(Event)) (Result, error) {
+// Head is which model, or models, one turn runs on. The zero value is the
+// ground's own declared targets, which is the ordinary case and sends nothing
+// over the wire.
+//
+// IT IS A TYPE AND NOT TWO PARAMETERS because the two must move together. A
+// caller that passed `model` and forgot `voices` would fire a parity that
+// varied the whole roster while its record said it varied one seat, and no
+// signature with two loose strings beside each other stays honest for long.
+type Head struct {
+	// Model runs EVERY seat on one tag -- `/model`'s own mechanism.
+	Model string
+	// Voices names a head per SEAT and is applied OVER Model, so "everything
+	// on X except the Steward on Y" is one turn. A parity of one voice is a
+	// question about that voice; moving the rest in the same breath makes the
+	// answer a fact about two changes at once.
+	Voices map[string]string
+}
+
+// Named reports whether this head asks for anything at all.
+func (h Head) Named() bool { return h.Model != "" || len(h.Voices) > 0 }
+
+func (e *Engine) Run(objective, feed, method string, head Head, sink func(Event)) (Result, error) {
 	e.runMu.Lock()
 	defer e.runMu.Unlock()
 	if e.closed.Load() {
@@ -567,12 +588,16 @@ func (e *Engine) Run(objective, feed, method, model string, sink func(Event)) (R
 		row["method"] = method
 	}
 	// THE HEAD IS A PROPERTY OF THE TURN (2026-09-23). A caller may name the
-	// model this one turn runs on; the engine puts its declared targets back
-	// when the turn ends, and refuses by name a tag the rack does not have.
-	// Empty is the ordinary case and sends nothing, so every caller that does
-	// not care is on exactly the wire it was on before.
-	if model != "" {
-		row["model"] = model
+	// model this one turn runs on -- the whole roster, one seat, or both --
+	// and the engine puts its declared targets back when the turn ends,
+	// refusing by name a tag the rack does not have or a seat the ground does
+	// not have, before anything moves. The zero head sends nothing, so every
+	// caller that does not care is on exactly the wire it was on before.
+	if head.Model != "" {
+		row["model"] = head.Model
+	}
+	if len(head.Voices) > 0 {
+		row["voices"] = head.Voices
 	}
 	if err := e.send(row); err != nil {
 		return Result{}, err

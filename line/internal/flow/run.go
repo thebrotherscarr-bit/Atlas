@@ -93,13 +93,31 @@ func Cancel(run string) string {
 	return fmt.Sprintf("run %s cancelled — reached nodes stand, the rest never fire", run)
 }
 
-// Run validates, fires every reachable node, and writes the log. The heads
-// are the ground's declared targets — RunOn names one instead.
-func Run(home string, eng Engine, s Spec, inputs map[string]string) (Result, error) {
-	return RunOn(home, eng, s, inputs, "")
+// Head is which model, or models, a run answers on. The zero value is the
+// ground's declared targets.
+//
+// THE TWO FIELDS REACH DIFFERENT THINGS, and the asymmetry is the shape of
+// what is underneath rather than an oversight. `Voice` is ONE model, which is
+// what an `ask`, `prompt`, `seat` or `memory` node measures against, so it
+// defaults every node that pins none — and it is also the whole roster for a
+// `run` node. `Voices` is seat → model, which only means anything to a `run`
+// node: that is the one kind that reaches the estate's roster rather than a
+// single voice, so there is nothing for a per-seat map to say to the others.
+type Head struct {
+	Voice  string
+	Voices map[string]string
 }
 
-// RunOn fires a flow on ONE named head.
+// Named reports whether this head asks for anything at all.
+func (h Head) Named() bool { return h.Voice != "" || len(h.Voices) > 0 }
+
+// Run validates, fires every reachable node, and writes the log. The heads
+// are the ground's declared targets — RunOn names them instead.
+func Run(home string, eng Engine, s Spec, inputs map[string]string) (Result, error) {
+	return RunOn(home, eng, s, inputs, Head{})
+}
+
+// RunOn fires a flow on a named head.
 //
 // THE HEAD BELONGS TO THE RUN, NOT THE SPEC (2026-09-23). Until now a model
 // could only be named per NODE, so measuring the same flow on two models meant
@@ -114,8 +132,8 @@ func Run(home string, eng Engine, s Spec, inputs map[string]string) (Result, err
 // recover it instead of quietly finishing a run on the declared targets, and
 // two runs are only comparable at all because the record says what each was.
 //
-// Empty is the ordinary case and changes nothing.
-func RunOn(home string, eng Engine, s Spec, inputs map[string]string, voice string) (Result, error) {
+// The zero head is the ordinary case and changes nothing.
+func RunOn(home string, eng Engine, s Spec, inputs map[string]string, head Head) (Result, error) {
 	order, err := Validate(s)
 	if err != nil {
 		return Result{}, err
@@ -127,46 +145,83 @@ func RunOn(home string, eng Engine, s Spec, inputs map[string]string, voice stri
 	if inputs == nil {
 		inputs = map[string]string{}
 	}
-	voice = strings.TrimSpace(voice)
+	head = tidy(head)
 	start := map[string]any{
 		"run": run, "flow": s.Name, "version": s.Version,
 		"ts": nowUTC(), "kind": "start", "inputs": inputs,
 		"budget_s": s.BudgetS, "spec": s,
 	}
-	if voice != "" {
-		start["voice"] = voice
+	if head.Voice != "" {
+		start["voice"] = head.Voice
+	}
+	if len(head.Voices) > 0 {
+		start["voices"] = head.Voices
 	}
 	appendLog(home, start)
-	return runFrom(home, onVoice(eng, voice), s, order, inputs, run, nil, nil, nil, nil, "", voice)
+	return runFrom(home, onHead(eng, head), s, order, inputs, run, nil, nil, nil, nil, "", head)
 }
 
-// onVoice binds a run's head onto the engine that will fire its `run` nodes.
+// tidy trims a head and drops the entries that say nothing, so an empty string
+// in a map cannot reach the start line and make a run look headed when it is
+// not — the record is what two runs are compared on.
+func tidy(h Head) Head {
+	out := Head{Voice: strings.TrimSpace(h.Voice)}
+	for seat, tag := range h.Voices {
+		seat, tag = strings.TrimSpace(seat), strings.TrimSpace(tag)
+		if seat == "" || tag == "" {
+			continue
+		}
+		if out.Voices == nil {
+			out.Voices = map[string]string{}
+		}
+		out.Voices[seat] = tag
+	}
+	return out
+}
+
+// onHead binds a run's head onto the engine that will fire its `run` nodes.
 //
 // A `run` node is the whole council, not one voice, so its head cannot be
 // carried in the node the way `ask` and `seat` carry theirs — it belongs to
-// the Manjuel process the turn goes through. THE LINE's engine implements
-// WithVoice and puts the tag on the objective row; the bare prodEngine does
-// not implement it and refuses `run` nodes anyway.
+// the Manjuel process the turn goes through, which is also the only thing on
+// either side of this wire that HAS a roster for a per-seat map to name. THE
+// LINE's engine implements WithHead and puts it on the objective row; the bare
+// prodEngine does not implement it and refuses `run` nodes anyway.
 //
-// Resume and Replay call this with the voice read back off the run's own start
+// Resume and Replay call this with the head read back off the run's own start
 // line, which is the whole reason it is written there: a paused parity run
 // carried on hours later must finish on the head it began on, or the two runs
 // being compared are not two runs of the same thing.
-func onVoice(eng Engine, voice string) Engine {
-	if strings.TrimSpace(voice) == "" {
+func onHead(eng Engine, head Head) Engine {
+	head = tidy(head)
+	if !head.Named() {
 		return eng
 	}
-	if hv, ok := eng.(interface{ WithVoice(string) Engine }); ok {
-		return hv.WithVoice(voice)
+	if hh, ok := eng.(interface{ WithHead(Head) Engine }); ok {
+		return hh.WithHead(head)
 	}
 	return eng
 }
 
-// startVoice is the head a run was fired on, off its start line ("" = the
-// ground's declared targets, which is every run folded before 2026-09-23).
-func startVoice(start map[string]any) string {
-	v, _ := start["voice"].(string)
-	return strings.TrimSpace(v)
+// startHead is the head a run was fired on, off its start line. The zero head
+// means the ground's declared targets, which is every run folded before
+// 2026-09-23 and every run since that named none.
+func startHead(start map[string]any) Head {
+	h := Head{}
+	h.Voice, _ = start["voice"].(string)
+	// The log round-trips through JSON, so the map comes back as
+	// map[string]any however it went in.
+	if raw, ok := start["voices"].(map[string]any); ok {
+		for seat, tag := range raw {
+			if s, ok := tag.(string); ok {
+				if h.Voices == nil {
+					h.Voices = map[string]string{}
+				}
+				h.Voices[seat] = s
+			}
+		}
+	}
+	return tidy(h)
 }
 
 // specFromStart recovers the fired spec from the run's own start line —
@@ -190,10 +245,10 @@ func specFromStart(home string, start map[string]any) (Spec, error) {
 
 // runFrom continues a run with carried state (empty for a fresh run).
 // resumeGate names the gate being resumed with a continue choice.
-// `voice` is the head the run was fired on ("" for the declared targets).
+// `head` is what the run was fired on (the zero head = the declared targets).
 func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]string,
 	run string, outputs, pass map[string]bool, outText map[string]string,
-	elapsed []int64, resumeGate, voice string) (Result, error) {
+	elapsed []int64, resumeGate string, head Head) (Result, error) {
 	if outputs == nil {
 		outputs = map[string]bool{}
 	}
@@ -267,8 +322,8 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 		// the declared targets, and the run reports itself as a whole-flow
 		// comparison while half of it never moved. `nd` is a copy, so the spec
 		// on disk and in the start line is untouched.
-		if voice != "" && nd.Voice == "" {
-			nd.Voice = voice
+		if head.Voice != "" && nd.Voice == "" {
+			nd.Voice = head.Voice
 		}
 		vars := buildVars(inputs, outText)
 		if nd.Kind == "gate" {
@@ -892,10 +947,10 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	// A gate is for walking away and coming back; coming back to a parity run
 	// and finishing its second half on the declared targets would leave one
 	// run measuring two models, and nothing in the record would say so.
-	voice := startVoice(start)
+	head := startHead(start)
 	// The gate below fires once, then stands fired; runFrom skips it next.
-	return runFrom(home, onVoice(eng, voice), s, order, inputs, run, outputs, pass,
-		outText, elapsed, paused, voice)
+	return runFrom(home, onHead(eng, head), s, order, inputs, run, outputs, pass,
+		outText, elapsed, paused, head)
 }
 
 // Status renders the waterfall: nodes in fire order with elapsed, the
@@ -907,11 +962,11 @@ func Status(home, run string) (string, error) {
 	}
 	budget := 600
 	flowName := ""
-	voice := ""
+	head := Head{}
 	for _, l := range lines {
 		if l["kind"] == "start" {
 			flowName, _ = l["flow"].(string)
-			voice = startVoice(l)
+			head = startHead(l)
 			if b, ok := l["budget_s"].(float64); ok && b > 0 {
 				budget = int(b)
 			}
@@ -924,8 +979,15 @@ func Status(home, run string) (string, error) {
 	// not tell the operator what he was looking at — and a pair of them is what
 	// a parity IS. Silent when there is no override: the declared targets are
 	// the ordinary case and naming them here would say more than the record does.
-	if voice != "" {
-		fmt.Fprintf(&b, "  head: %s (every node that names no voice of its own)\n", voice)
+	if head.Voice != "" {
+		fmt.Fprintf(&b, "  head: %s (every node that names no voice of its own)\n", head.Voice)
+	}
+	// AND THE SEATS NAMED ONE BY ONE, which is the reading a parity of a single
+	// voice lives on: without this line the waterfall of a run that moved only
+	// the Steward is indistinguishable from one that moved nothing at all.
+	if len(head.Voices) > 0 {
+		fmt.Fprintf(&b, "  seats: %s (over the head above, in the council)\n",
+			seatWords(head.Voices))
 	}
 	var total int64
 	verdict := ""
@@ -1027,9 +1089,9 @@ func Compare(home, runA, runB string) (string, error) {
 	// record exists to replace. Quiet when both ran on the same head — then the
 	// difference is the model's own variance, which is a different reading and
 	// deserves not to be dressed as a comparison.
-	hA, hB := runHead(home, runA), runHead(home, runB)
+	hA, hB := headName(runHead(home, runA)), headName(runHead(home, runB))
 	if hA != hB {
-		fmt.Fprintf(&b, "  A: %s   B: %s\n", headName(hA), headName(hB))
+		fmt.Fprintf(&b, "  A: %s   B: %s\n", hA, hB)
 	}
 	for _, n := range sorted {
 		a, oka := outA[n]
@@ -1052,26 +1114,46 @@ func Compare(home, runA, runB string) (string, error) {
 // runHead is the head a run was fired on, read from its log. An unreadable
 // run is "" — the same as one with no override, because Compare has already
 // refused an unreadable run by the time it asks.
-func runHead(home, run string) string {
+func runHead(home, run string) Head {
 	lines, err := runLog(home, run)
 	if err != nil {
-		return ""
+		return Head{}
 	}
 	for _, l := range lines {
 		if l["kind"] == "start" {
-			return startVoice(l)
+			return startHead(l)
 		}
 	}
-	return ""
+	return Head{}
 }
 
-// headName says what a blank head means out loud, so a compare line never
-// leaves one side unexplained.
-func headName(voice string) string {
-	if voice == "" {
+// headName says a head in one line, and says what a blank one means out loud,
+// so a compare row never leaves one side unexplained.
+func headName(h Head) string {
+	switch {
+	case !h.Named():
 		return "the declared targets"
+	case h.Voice == "":
+		return seatWords(h.Voices)
+	case len(h.Voices) == 0:
+		return h.Voice
 	}
-	return voice
+	return h.Voice + ", then " + seatWords(h.Voices)
+}
+
+// seatWords renders a per-seat head in seat order, so two runs' lines can be
+// read against each other rather than against Go's map iteration.
+func seatWords(voices map[string]string) string {
+	seats := make([]string, 0, len(voices))
+	for seat := range voices {
+		seats = append(seats, seat)
+	}
+	sort.Strings(seats)
+	parts := make([]string, 0, len(seats))
+	for _, seat := range seats {
+		parts = append(parts, seat+" on "+voices[seat])
+	}
+	return strings.Join(parts, ", ")
 }
 
 func nodeOutputs(home, run string) (map[string]string, error) {
@@ -1131,17 +1213,20 @@ func Replay(home string, eng Engine, run string) (Result, error) {
 	// than the run it claims to repeat, and would say COMPLETE either way. It
 	// is stamped on the fresh start line as well, so the copy stands on its own
 	// as a comparable run and not only as a pointer back at its origin.
-	voice := startVoice(start)
+	head := startHead(start)
 	fstart := map[string]any{
 		"run": fresh, "flow": s.Name, "version": s.Version,
 		"ts": nowUTC(), "kind": "start", "inputs": inputs,
 		"budget_s": s.BudgetS, "replay_of": run,
 	}
-	if voice != "" {
-		fstart["voice"] = voice
+	if head.Voice != "" {
+		fstart["voice"] = head.Voice
+	}
+	if len(head.Voices) > 0 {
+		fstart["voices"] = head.Voices
 	}
 	appendLog(home, fstart)
-	return runFrom(home, onVoice(eng, voice), s, order, inputs, fresh, nil, nil, nil, nil, "", voice)
+	return runFrom(home, onHead(eng, head), s, order, inputs, fresh, nil, nil, nil, nil, "", head)
 }
 
 // ListRuns names runs for a flow (empty flow = all), newest last.

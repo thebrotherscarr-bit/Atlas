@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"atlas/line/internal/engine"
+	"atlas/line/internal/flow"
 	"atlas/line/internal/tenant"
 )
 
@@ -764,23 +765,32 @@ func TestAFlowLocksItsOwnWorldAndNoOther(t *testing.T) {
 func TestTheCouncilTakesAHeadByCopyAndNotByKeeping(t *testing.T) {
 	home := t.TempDir()
 	base := council(home)
-	bound := base.(councilEngine).WithVoice("head-a:latest")
-	if bound.(councilEngine).voice != "head-a:latest" {
-		t.Fatal("WithVoice did not bind the head it was handed")
+	bound := base.(councilEngine).WithHead(flow.Head{Voice: "head-a:latest"})
+	if bound.(councilEngine).head.Voice != "head-a:latest" {
+		t.Fatal("WithHead did not bind the head it was handed")
 	}
-	if base.(councilEngine).voice != "" {
-		t.Fatal("WithVoice bound the engine itself -- the head outlives its run")
+	if base.(councilEngine).head.Named() {
+		t.Fatal("WithHead bound the engine itself -- the head outlives its run")
 	}
-	other := base.(councilEngine).WithVoice("head-b:latest")
-	if bound.(councilEngine).voice != "head-a:latest" {
+	other := base.(councilEngine).WithHead(flow.Head{Voice: "head-b:latest"})
+	if bound.(councilEngine).head.Voice != "head-a:latest" {
 		t.Fatal("two flows in flight crossed heads")
 	}
-	if other.(councilEngine).voice != "head-b:latest" {
+	if other.(councilEngine).head.Voice != "head-b:latest" {
 		t.Fatal("the second binding did not take")
 	}
 	// And a fresh council is unheaded: the ground's declared targets.
-	if council(home).(councilEngine).voice != "" {
+	if council(home).(councilEngine).head.Named() {
 		t.Fatal("a council was born holding a head")
+	}
+	// A PER-SEAT HEAD RIDES THE SAME WAY (2026-09-23, "then B underneath it").
+	seated := base.(councilEngine).WithHead(flow.Head{
+		Voices: map[string]string{"Steward": "phi4-mini:latest"}})
+	if seated.(councilEngine).head.Voices["Steward"] != "phi4-mini:latest" {
+		t.Fatal("WithHead dropped the per-seat map")
+	}
+	if base.(councilEngine).head.Named() {
+		t.Fatal("a per-seat head bound the registered engine")
 	}
 }
 
@@ -845,4 +855,92 @@ func funcBody(src, sig string) string {
 		body = body[:j+1]
 	}
 	return body
+}
+
+// A PER-SEAT HEAD COMES OFF THE CALL OR IT IS REFUSED (2026-09-23). A caller
+// that meant to vary one seat and silently varied none would get a parity of a
+// model against itself, and BOTH columns would look honest -- which is the one
+// answer a parity must never be able to give. So every shape that is not a
+// seat -> model object refuses in words rather than being dropped.
+func TestAPerSeatHeadIsReadOffTheCallOrRefused(t *testing.T) {
+	got, err := flowVoices(map[string]any{
+		"voices": map[string]any{"Steward": "phi4-mini:latest"}})
+	if err != nil || got["Steward"] != "phi4-mini:latest" {
+		t.Fatalf("an object must be read straight: %v / %v", got, err)
+	}
+	// The same object as a string, exactly as `inputs` is accepted -- an MCP
+	// schema hands every arg over as a string, so refusing this would put the
+	// whole feature out of reach over the wire it was built for.
+	got, err = flowVoices(map[string]any{"voices": `{"Steward":"phi4-mini:latest"}`})
+	if err != nil || got["Steward"] != "phi4-mini:latest" {
+		t.Fatalf("an object in a string must be read too: %v / %v", got, err)
+	}
+	for _, empty := range []any{nil, "", "   ", map[string]any{}} {
+		got, err = flowVoices(map[string]any{"voices": empty})
+		if err != nil || got != nil {
+			t.Fatalf("%#v must name no head at all: %v / %v", empty, got, err)
+		}
+	}
+	if got, err = flowVoices(map[string]any{}); err != nil || got != nil {
+		t.Fatalf("a call with no voices must name no head: %v / %v", got, err)
+	}
+	for _, bad := range []struct {
+		v    any
+		says string
+	}{
+		{"Steward", "JSON object"},
+		{42, "refused rather than run with a head nobody named"},
+		{map[string]any{"Steward": 7}, "not a model"},
+		{map[string]any{"Steward": "  "}, "names no model"},
+	} {
+		if _, err := flowVoices(map[string]any{"voices": bad.v}); err == nil {
+			t.Fatalf("%#v was accepted", bad.v)
+		} else if !strings.Contains(err.Error(), bad.says) {
+			t.Fatalf("the refusal of %#v must say why: %v", bad.v, err)
+		}
+	}
+}
+
+// The wire offers it where a run is FIRED and nowhere else: resume and replay
+// read the head off the run's own record, so a parity cannot be finished or
+// repeated on a different one.
+func TestTheWireOffersASeatMapOnlyWhereARunIsFired(t *testing.T) {
+	r := Build(tenant.NewRegistry(), Options{})
+	run, ok := r.Get("flow_run")
+	if !ok {
+		t.Fatal("flow_run is gone from the registry")
+	}
+	if !hasArg(run.Args, "voices?") {
+		t.Fatalf("flow_run does not offer a per-seat head: %v", run.Args)
+	}
+	for _, name := range []string{"flow_resume", "flow_replay"} {
+		tl, _ := r.Get(name)
+		if hasArg(tl.Args, "voices?") || hasArg(tl.Args, "voices") {
+			t.Fatalf("%s takes a head from the caller; it must read the run's "+
+				"own: %v", name, tl.Args)
+		}
+	}
+	src, err := os.ReadFile("tools.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := funcBody(string(src), "func toolFlowRun(")
+	if !strings.Contains(body, "flowVoices(args)") {
+		t.Fatal("toolFlowRun never reads the seat map off the call")
+	}
+	if !strings.Contains(body, "flow.Head{") {
+		t.Fatal("toolFlowRun does not hand the flow a head")
+	}
+	// AND THE COUNCIL CARRIES IT TO THE ENGINE. flow's head and the engine's
+	// are separate types on purpose -- `Voice` means "one model" to a flow and
+	// "every seat" to the council -- and councilEngine.Turn is the one place
+	// that knows both. A translation that dropped the map would leave a parity
+	// varying nothing while its record named a seat.
+	turn := funcBody(string(src), "func (c councilEngine) Turn(")
+	if !strings.Contains(turn, "Voices: c.head.Voices") {
+		t.Fatal("the council does not carry the seat map down to the engine")
+	}
+	if !strings.Contains(turn, "Model: c.head.Voice") {
+		t.Fatal("the council does not carry the roster-wide head down to the engine")
+	}
 }

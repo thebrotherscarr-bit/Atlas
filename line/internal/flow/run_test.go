@@ -848,13 +848,13 @@ type headLog struct {
 }
 
 // headEngine takes a run-level head exactly as THE LINE's council does: by
-// value, so WithVoice binds a COPY and the engine handed in stays unbound.
+// value, so WithHead binds a COPY and the engine handed in stays unbound.
 type headEngine struct {
 	log  *headLog
-	head string
+	head Head
 }
 
-func (h headEngine) WithVoice(v string) Engine { h.head = v; return h }
+func (h headEngine) WithHead(head Head) Engine { h.head = head; return h }
 
 func (h headEngine) Ask(_ context.Context, q, voice string) (string, error) {
 	h.log.asks = append(h.log.asks, q+"@"+voice)
@@ -876,8 +876,11 @@ func (h headEngine) Recall(voice, q string) (string, error) {
 	return "recalled", nil
 }
 
+// The council's head is written down whole: the roster-wide voice, then the
+// seats named one by one, which is the only record of what a `run` node was
+// actually fired on.
 func (h headEngine) Turn(_ context.Context, objective, _, _ string) (string, error) {
-	h.log.turns = append(h.log.turns, objective+"@"+h.head)
+	h.log.turns = append(h.log.turns, objective+"@"+headName(h.head))
 	return "ran " + objective, nil
 }
 
@@ -927,7 +930,8 @@ func hasCall(calls []string, want string) bool {
 func TestTheHeadBelongsToTheRun(t *testing.T) {
 	home := t.TempDir()
 	log := &headLog{}
-	res, err := RunOn(home, headEngine{log: log}, headSpec(), nil, "head-a:latest")
+	res, err := RunOn(home, headEngine{log: log}, headSpec(), nil,
+		Head{Voice: "head-a:latest"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -950,7 +954,7 @@ func TestTheHeadBelongsToTheRun(t *testing.T) {
 	if !hasCall(log.turns, "do the thing@head-a:latest") {
 		t.Fatalf("the council must be fired on the run's head: %v", log.turns)
 	}
-	if got := startVoice(startLineOf(t, home, res.Run)); got != "head-a:latest" {
+	if got := startHead(startLineOf(t, home, res.Run)).Voice; got != "head-a:latest" {
 		t.Fatalf("the start line must carry the head, got %q", got)
 	}
 	st, err := Status(home, res.Run)
@@ -974,8 +978,9 @@ func TestARunWithNoHeadNamesNoneAtAll(t *testing.T) {
 	if !hasCall(log.asks, "Q1@") {
 		t.Fatalf("an unheaded run must leave the voice empty: %v", log.asks)
 	}
-	if !hasCall(log.turns, "do the thing@") {
-		t.Fatalf("an unheaded run must leave the council's head empty: %v", log.turns)
+	if !hasCall(log.turns, "do the thing@the declared targets") {
+		t.Fatalf("an unheaded run must leave the council on the ground's own "+
+			"targets: %v", log.turns)
 	}
 	if _, ok := startLineOf(t, home, res.Run)["voice"]; ok {
 		t.Fatal("an unheaded run wrote a voice field into its record")
@@ -1007,7 +1012,8 @@ func headGateSpec() Spec {
 // hand happens to be holding when it answers.
 func TestAResumedRunFinishesOnTheHeadItBeganOn(t *testing.T) {
 	home := t.TempDir()
-	res, err := RunOn(home, headEngine{log: &headLog{}}, headGateSpec(), nil, "head-a:latest")
+	res, err := RunOn(home, headEngine{log: &headLog{}}, headGateSpec(), nil,
+		Head{Voice: "head-a:latest"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1032,7 +1038,8 @@ func TestAResumedRunFinishesOnTheHeadItBeganOn(t *testing.T) {
 // answer a different question and still report COMPLETE.
 func TestAReplayRefiresTheHeadAndStampsIt(t *testing.T) {
 	home := t.TempDir()
-	res, err := RunOn(home, headEngine{log: &headLog{}}, headSpec(), nil, "head-a:latest")
+	res, err := RunOn(home, headEngine{log: &headLog{}}, headSpec(), nil,
+		Head{Voice: "head-a:latest"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1047,7 +1054,7 @@ func TestAReplayRefiresTheHeadAndStampsIt(t *testing.T) {
 	if !hasCall(again.asks, "Q1@head-a:latest") || !hasCall(again.turns, "do the thing@head-a:latest") {
 		t.Fatalf("the replay ran on a different head: %v / %v", again.asks, again.turns)
 	}
-	if got := startVoice(startLineOf(t, home, rep.Run)); got != "head-a:latest" {
+	if got := startHead(startLineOf(t, home, rep.Run)).Voice; got != "head-a:latest" {
 		t.Fatalf("the replay's own start line must carry the head, got %q", got)
 	}
 }
@@ -1057,11 +1064,11 @@ func TestCompareNamesTheTwoHeadsWhenTheyDiffer(t *testing.T) {
 	home := t.TempDir()
 	s := Spec{Name: "one", BudgetS: 600,
 		Nodes: []Node{{Name: "a", Kind: "ask", Question: "Q"}}, Edges: []Edge{}}
-	a, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, "head-a:latest")
+	a, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, Head{Voice: "head-a:latest"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, "head-b:latest")
+	b, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, Head{Voice: "head-b:latest"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1074,7 +1081,7 @@ func TestCompareNamesTheTwoHeadsWhenTheyDiffer(t *testing.T) {
 	}
 	// Two runs on ONE head is the model's own variance, not a comparison, and
 	// is not dressed as one.
-	c, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, "head-a:latest")
+	c, err := RunOn(home, headEngine{log: &headLog{}}, s, nil, Head{Voice: "head-a:latest"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1092,11 +1099,166 @@ func TestCompareNamesTheTwoHeadsWhenTheyDiffer(t *testing.T) {
 // because a head was named.
 func TestAnEngineThatTakesNoHeadIsLeftAlone(t *testing.T) {
 	eng := &stubEngine{}
-	if got := onVoice(eng, "head-a:latest"); got != Engine(eng) {
-		t.Fatal("onVoice replaced an engine that cannot take a head")
+	if got := onHead(eng, Head{Voice: "head-a:latest"}); got != Engine(eng) {
+		t.Fatal("onHead replaced an engine that cannot take a head")
 	}
 	bound := headEngine{log: &headLog{}}
-	if got := onVoice(bound, ""); got.(headEngine).head != "" {
+	if got := onHead(bound, Head{}); got.(headEngine).head.Named() {
 		t.Fatal("an empty head must bind nothing")
+	}
+	// A HEAD OF NOTHING BUT WHITESPACE IS NO HEAD. tidy drops it, so a caller
+	// that passed a blank field cannot produce a run whose record says it was
+	// headed -- and the record is the whole of what two runs are compared on.
+	if got := onHead(bound, Head{Voice: "  ", Voices: map[string]string{"Steward": " "}}); got.(headEngine).head.Named() {
+		t.Fatal("a head of blanks bound something")
+	}
+}
+
+// --- and a head per seat (2026-09-23, "then B underneath it") ----------------
+//
+// The run-level voice above answers "is this flow better on that model". It
+// cannot answer "does the STEWARD raise a flag where it used to announce",
+// because it moves the whole roster in the same breath and the answer becomes
+// a fact about two changes at once. `Voices` is that narrower question.
+
+// A per-seat head reaches the COUNCIL and nothing else, because a `run` node is
+// the only kind with a roster for it to name. An `ask` node measures against
+// one model; there is nothing for a seat map to say to it, and pretending
+// otherwise would quietly pick one of its entries.
+func TestAPerSeatHeadReachesTheCouncilAndLeavesTheNodesAlone(t *testing.T) {
+	home := t.TempDir()
+	log := &headLog{}
+	head := Head{Voices: map[string]string{"Steward": "phi4-mini:latest"}}
+	res, err := RunOn(home, headEngine{log: log}, headSpec(), nil, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s", res.Verdict)
+	}
+	if !hasCall(log.turns, "do the thing@Steward on phi4-mini:latest") {
+		t.Fatalf("the council must be fired on the per-seat head: %v", log.turns)
+	}
+	if !hasCall(log.asks, "Q1@") {
+		t.Fatalf("a seat map must not be handed to a node that measures one "+
+			"voice: %v", log.asks)
+	}
+	if !hasCall(log.asks, "Q2@pinned:latest") {
+		t.Fatalf("a node that names its own voice must still keep it: %v", log.asks)
+	}
+	got := startHead(startLineOf(t, home, res.Run))
+	if got.Voices["Steward"] != "phi4-mini:latest" || got.Voice != "" {
+		t.Fatalf("the start line must carry the seat map and nothing it was not "+
+			"given, got %+v", got)
+	}
+	st, err := Status(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(st, "seats: Steward on phi4-mini:latest") {
+		t.Fatalf("the waterfall must name the seats, or a run that moved one is "+
+			"indistinguishable from one that moved none:\n%s", st)
+	}
+}
+
+// BOTH AT ONCE: everything on one head, one seat over it. That is the shape a
+// parity of a single voice actually needs, and the two must ride together or
+// the record says one thing while the run did another.
+func TestAHeadCanNameTheRosterAndOneSeatOverIt(t *testing.T) {
+	home := t.TempDir()
+	log := &headLog{}
+	head := Head{Voice: "head-a:latest",
+		Voices: map[string]string{"Steward": "phi4-mini:latest"}}
+	res, err := RunOn(home, headEngine{log: log}, headSpec(), nil, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCall(log.turns, "do the thing@head-a:latest, then Steward on phi4-mini:latest") {
+		t.Fatalf("the council must get both halves, in that order: %v", log.turns)
+	}
+	// The roster-wide half still defaults the nodes; the seat map still does not.
+	if !hasCall(log.asks, "Q1@head-a:latest") {
+		t.Fatalf("the roster-wide half must still default a node: %v", log.asks)
+	}
+	got := startHead(startLineOf(t, home, res.Run))
+	if got.Voice != "head-a:latest" || got.Voices["Steward"] != "phi4-mini:latest" {
+		t.Fatalf("the start line must carry both, got %+v", got)
+	}
+	st, err := Status(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(st, "head: head-a:latest") ||
+		!strings.Contains(st, "seats: Steward on phi4-mini:latest") {
+		t.Fatalf("the waterfall must name both:\n%s", st)
+	}
+}
+
+// A seat map survives the gate and the replay for the same reason the voice
+// does: a parity carried on hours later, or repeated, must be the same run.
+func TestAPerSeatHeadSurvivesResumeAndReplay(t *testing.T) {
+	home := t.TempDir()
+	head := Head{Voices: map[string]string{"Steward": "phi4-mini:latest"}}
+	res, err := RunOn(home, headEngine{log: &headLog{}}, headGateSpec(), nil, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused {
+		t.Fatalf("the gate did not pause: %s", res.Verdict)
+	}
+	res2, err := Resume(home, headEngine{log: &headLog{}}, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s", res2.Verdict)
+	}
+	full, err := RunOn(home, headEngine{log: &headLog{}}, headSpec(), nil, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again := &headLog{}
+	rep, err := Replay(home, headEngine{log: again}, full.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCall(again.turns, "do the thing@Steward on phi4-mini:latest") {
+		t.Fatalf("the replay dropped the seat map: %v", again.turns)
+	}
+	if got := startHead(startLineOf(t, home, rep.Run)); got.Voices["Steward"] != "phi4-mini:latest" {
+		t.Fatalf("the replay's own start line must carry it, got %+v", got)
+	}
+}
+
+// Two runs that differ ONLY in one seat are the parity this exists for, and
+// the compare has to say which seat, or the two columns are unlabelled.
+func TestCompareNamesTwoHeadsThatDifferByOneSeat(t *testing.T) {
+	home := t.TempDir()
+	s := Spec{Name: "one", BudgetS: 600,
+		Nodes: []Node{{Name: "c", Kind: "run", Question: "do it"}}, Edges: []Edge{}}
+	a, err := RunOn(home, headEngine{log: &headLog{}}, s, nil,
+		Head{Voices: map[string]string{"Steward": "llama3.2:latest"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := RunOn(home, headEngine{log: &headLog{}}, s, nil,
+		Head{Voices: map[string]string{"Steward": "phi4-mini:latest"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Compare(home, a.Run, b.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "A: Steward on llama3.2:latest") ||
+		!strings.Contains(out, "B: Steward on phi4-mini:latest") {
+		t.Fatalf("a compare across two seat heads must name both:\n%s", out)
+	}
+	// AND THE SEATS ARE NAMED IN SEAT ORDER, not in Go's map order, or two
+	// runs' lines cannot be read against each other at all.
+	many := Head{Voices: map[string]string{
+		"Router": "r:latest", "Steward": "s:latest", "Delivery Agent": "d:latest"}}
+	if got := headName(many); got != "Delivery Agent on d:latest, Router on r:latest, Steward on s:latest" {
+		t.Fatalf("seats must render in seat order, got %q", got)
 	}
 }

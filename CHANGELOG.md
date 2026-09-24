@@ -12,6 +12,45 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Added — and a head per seat (operator, 2026-09-23: "then B underneath it")
+
+`flow_run` takes `voices` beside `voice`: seat → model, applied OVER it.
+
+**THE TWO REACH DIFFERENT THINGS, and the asymmetry is the shape of what is underneath.** `voice` is ONE
+model, which is what an `ask`, `prompt`, `seat` or `memory` node measures against — so it defaults
+every node that pins none, and is the whole roster to a `run` node. `voices` only means anything to a
+`run` node: that is the one kind reaching the estate's ROSTER rather than a single voice, so there is
+nothing for a per-seat map to say to the others, and handing one to them would quietly pick an entry.
+
+**Why it exists:** a run-level voice answers "is this flow better on that model". It cannot answer "does
+the STEWARD raise a flag where it used to announce", because it moves the whole roster and the answer
+becomes a fact about two changes at once.
+
+### Changed — the run's head is a type, not a string
+
+`flow.Head{Voice, Voices}` and `engine.Head{Model, Voices}` replace the bare `voice string` that landed
+in `1091ae1` an hour earlier, before anything depended on it. **They must move together**: a caller
+passing one and forgetting the other would fire a parity that varied the whole roster while its record
+said it varied one seat, and no signature with two loose strings beside each other stays honest for
+long. The two packages keep SEPARATE types on purpose — `Voice` means "one model" to a flow and "every
+seat" to the council — and `councilEngine.Turn` is the one place that knows both, so neither package
+has to learn the other's vocabulary.
+
+- **`internal/flow/run.go`:** `Head` + `Named()`; `RunOn` takes it; `tidy` drops blanks so a head of
+  whitespace cannot make a run's record say it was headed; `onHead`/`startHead` replace
+  `onVoice`/`startVoice`; `Status` renders a `seats:` line and `Compare` names both sides' seats, in
+  SEAT order rather than Go's map order — two runs' lines have to be readable against each other.
+- **`internal/tools/tools.go`:** `flowVoices` reads the map off a call as an object or as an object in
+  a string, exactly as `inputs` is read, and REFUSES every other shape rather than dropping it; the
+  council's `WithHead` binds a copy; `flow_run` declares `voices?`.
+- **`internal/engine/engine.go`:** `Head` on the objective row — `model`, `voices`, or neither.
+- **`docs/SPEC_CONTROL_CENTER.md`:** the `flow_run` row carries `voices?`.
+
+Measured on a mirror: every package green but the seven long-path git strokes, whose red set is
+identical at HEAD on the same mirror. Reversed five ways — the council dropping the map, a seat map
+reaching nodes that measure one voice, a replay dropping it, a bad shape accepted rather than refused,
+and the seats rendered in map order — each reds its own stroke and no other.
+
 ### Added — the head belongs to the run, not the spec (operator, 2026-09-23: "let's do C first, then B underneath it")
 
 `flow_run` takes an optional `voice`: the model THIS RUN answers on.

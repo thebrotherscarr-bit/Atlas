@@ -40,7 +40,7 @@ func RunStream(t tenant.Tenant, objective, feed, method string, sink func(engine
 				"an engine on your behalf: that would open a sitting you never "+
 				"opened, and the sitting line is the lock", t.Name)
 	}
-	return e.Run(objective, feed, method, "", sink)
+	return e.Run(objective, feed, method, engine.Head{}, sink)
 }
 
 // AnswerStream is the gate crossing the wire. Nothing here supplies a default:
