@@ -12,6 +12,44 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Fixed — the glass carries a service wire, so the door can be armed (operator, 2026-09-24: "build out the auth")
+
+`webapp/main.go` read `h.ConfigureAuth(true, "", "data/sessions.json")`, with a comment saying *"the
+service wire to the door stays empty -- the door is unchanged."* True when it was written, false from
+the day `--auth` existed. Every one of the six send-sites guards on `h.service != ""`, so **the glass
+sent no `Authorization` header at all** — and arming the door would have answered every page 401:
+records, rack, worlds, Version control. The PIN would not have helped; that is a different gate.
+
+It now reads **`ATLAS_SERVICE`** — the same variable the door already falls back to
+(`cmd/atlas-mcp/main.go`), so the two agree by reading one place rather than by someone setting two.
+An environment variable and not a flag, by RULE 7: a key never rides a command line where `ps` can read
+it. Unset is the ordinary case and is exactly the behaviour the glass had before.
+
+The boot line now says **whether** a wire is held, never its value (`team_status`'s shape). A start
+with an armed door and no key is the one failure this piece exists to prevent, and without that line it
+would look exactly like an ordinary start.
+
+**WHAT GOES RED IF THIS COMES UNPLUGGED** (core RULE 11): `TestTheLockIsSwitchedOnWhereTheGlassStarts`
+now asks whether the call CARRIES anything, not only whether it is there — it passed for weeks over a
+hard-coded `""`. Proved by reversal: restore the empty wire and it reds naming the 401. A second stroke,
+`TestTheGlassSendsItsServiceWireAndOnlyWhenItHasOne`, counts sends against guards across all four
+handler files, so an empty wire can never become a bearer of `""`.
+
+One thing found in the building and recorded rather than quietly fixed: the RULE 7 assertion first
+grepped the whole file for `auth-service` and went red on the COMMENT explaining the change, which names
+the door's flag to say the two read one variable. Prose quotes the thing it is explaining — the same
+fault `contains` was narrowed for on 2026-09-12. It asks the IMPORT BLOCK for `"flag"` instead:
+structure rather than wording.
+
+Not in this piece, and named so it is not mistaken for done: **P0-13**, RBAC failing open twice
+(`tools.go` runs no check when a call names no `actor`; `tenant.go` allows all on an empty policy, and
+`DefaultPolicy` ships it empty). It does not block arming — the service wire short-circuits `gateCall`
+before any scope check, and no tenant key has ever been minted — but the holds are only as good as it
+once one is.
+
+**Arming still needs his hand:** a rebuilt `atlas-webapp.exe` placed, the door restarted with `--auth`,
+and `ATLAS_SERVICE` set in both processes' environment.
+
 ### Added — and a head per seat (operator, 2026-09-23: "then B underneath it")
 
 `flow_run` takes `voices` beside `voice`: seat → model, applied OVER it.

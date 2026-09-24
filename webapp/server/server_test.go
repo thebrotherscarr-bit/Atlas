@@ -222,4 +222,63 @@ func TestTheLockIsSwitchedOnWhereTheGlassStarts(t *testing.T) {
 			t.Fatalf("main.go no longer does %s -- the glass would start unlocked", want)
 		}
 	}
+
+	// AND IT CARRIES A SERVICE WIRE (2026-09-24). The line above passed for
+	// weeks while the second argument was the empty string, so the glass sent
+	// no Authorization header and the door could not be armed without blanking
+	// every page. "Is the call there" and "does the call carry anything" are
+	// different questions and only the first was ever asked.
+	if strings.Contains(string(src), `h.ConfigureAuth(true, "",`) {
+		t.Fatal(`main.go hard-codes an empty service wire -- the glass sends no ` +
+			`Authorization header, and arming the door with --auth answers ` +
+			`every page 401`)
+	}
+	if !strings.Contains(string(src), `os.Getenv("ATLAS_SERVICE")`) {
+		t.Fatal(`main.go does not read ATLAS_SERVICE -- the door reads that ` +
+			`same name (cmd/atlas-mcp/main.go), and the two must agree by ` +
+			`reading one place rather than by someone setting two`)
+	}
+	// RULE 7: a key never rides a command line where `ps` can read it.
+	//
+	// ASKED OF THE IMPORT BLOCK, NOT OF THE WHOLE FILE. A first cut grepped
+	// the source for "auth-service" and went red on the COMMENT above the
+	// change, which names the door's flag to say the two read one variable.
+	// Prose quotes the thing it is explaining -- the same fault the `contains`
+	// eval mode was narrowed for on 2026-09-12. A file that does not import
+	// `flag` cannot take a flag, and an import block is structure rather than
+	// wording.
+	head := string(src)
+	if i := strings.Index(head, "import ("); i >= 0 {
+		head = head[i : i+strings.Index(head[i:], "\n)")]
+	}
+	if strings.Contains(head, `"flag"`) {
+		t.Fatal("main.go imports flag -- the service wire must not ride a " +
+			"command line where ps can read it (RULE 7)")
+	}
+}
+
+// THE HEADER IS SENT WHEN THERE IS ONE TO SEND, AND NOT OTHERWISE.
+//
+// Six call sites reach the door and each guards on `h.service != ""`. That
+// guard is the whole mechanism: with a wire the glass is the operator's own
+// panel and the door's holds let it through; without one it behaves exactly
+// as it did before `--auth` existed. A regression either way is silent --
+// no header means 401 on an armed door, and a header built from an empty
+// string would be a bearer of "" offered to `subtleEqual`.
+func TestTheGlassSendsItsServiceWireAndOnlyWhenItHasOne(t *testing.T) {
+	for _, f := range []string{"../handlers/handlers.go", "../handlers/chat.go",
+		"../handlers/council.go", "../handlers/ws.go"} {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := string(src)
+		sends := strings.Count(body, `"Bearer "+h.service`)
+		guards := strings.Count(body, `if h.service != ""`)
+		if sends != guards {
+			t.Fatalf("%s sends the bearer %d time(s) behind %d guard(s) -- every "+
+				"send must sit behind `if h.service != \"\"`, or an empty wire "+
+				"becomes a bearer of \"\"", f, sends, guards)
+		}
+	}
 }
