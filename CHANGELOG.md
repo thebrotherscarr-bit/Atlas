@@ -12,6 +12,30 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Fixed — the engine names a corrupt flow instead of hiding it (operator, 2026-09-25: "the engine shouldn't hide a corrupt spec, either")
+
+`flow.List` read each spec back and, when one would not parse, skipped it without a word
+(`line/internal/flow/flow.go`, `if err != nil { continue }`) — so a corrupt flow was invisible to
+`flow_list` until somebody fired it, and a `.json` named outside the name law vanished the same way.
+The core's release gate found the skip the first day it read `flows/` (its `flows` check, 2026-09-25);
+the door itself said nothing.
+
+- `flow.List` now returns `([]Spec, []Unread, error)`: every flow it could read, and every `.json`
+  under `flows/` it could not, each with why — corrupt, or a name no tool can reach. Folded versions
+  (`<name>.v<k>.json`) are history and are neither; `Get(name, k)` reaches them.
+- `flow_list` prints them under `UNREADABLE — n (not hidden; fix or remove the file)`, beside the
+  flows that can be read; a folder holding only unreadable files says `FLOWS — none that can be
+  read.` rather than `no flows yet`. Its description says so.
+- Proved: `TestListHidesNothing` (flow — a corrupt file, a misnamed file, a folded version that is
+  neither), and one leg in the door's own battery (`atlas-mcp --prove`): a corrupt spec planted
+  beside a good one is named, and the good one is still listed.
+
+**RESTART REQUIRED:** the door carries this only once `atlas-mcp.exe` is rebuilt and restarted; the
+running door is the old build until then.
+
+**WHAT GOES RED IF THIS COMES UNPLUGGED:** `TestListHidesNothing` and the battery leg — and, from
+the other side of the seam, the core gate's `flows` check, which refuses the same file by name.
+
 ### Fixed — the glass carries a service wire, so the door can be armed (operator, 2026-09-24: "build out the auth")
 
 `webapp/main.go` read `h.ConfigureAuth(true, "", "data/sessions.json")`, with a comment saying *"the

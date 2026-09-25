@@ -156,8 +156,47 @@ func TestSpecFold(t *testing.T) {
 	if _, err := Get(home, "ghost", 0); err == nil {
 		t.Fatal("absent flow denied honestly")
 	}
-	list, _ := List(home)
+	list, _, _ := List(home)
 	if len(list) != 1 {
 		t.Fatalf("list must name the flow: %+v", list)
+	}
+}
+
+// NOTHING IS HIDDEN (operator, 2026-09-25). A corrupt spec used to vanish from
+// List without a word; a misnamed one still would. Both are named, with why,
+// and a folded version is neither.
+func TestListHidesNothing(t *testing.T) {
+	home := t.TempDir()
+	s := Spec{Name: "demo", Nodes: []Node{{Name: "a", Kind: "ask", Question: "hi"}}}
+	for i := 0; i < 2; i++ { // the second Save folds demo.v1.json
+		if _, err := Save(home, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := filepath.Join(home, "flows")
+	if err := os.WriteFile(filepath.Join(dir, "broken.json"), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "Bad Name.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, unread, err := List(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Name != "demo" || list[0].Version != 2 {
+		t.Fatalf("list must name demo v2 alone: %+v", list)
+	}
+	if len(unread) != 2 {
+		t.Fatalf("both unreadable files must be named, and the folded v1 must not be: %+v", unread)
+	}
+	if unread[0].File != "Bad Name.json" || !strings.Contains(unread[0].Why, "name law") {
+		t.Errorf("the misnamed file, with why: %+v", unread[0])
+	}
+	if unread[1].File != "broken.json" || !strings.Contains(unread[1].Why, "corrupt") {
+		t.Errorf("the corrupt file, with why: %+v", unread[1])
+	}
+	if _, u, _ := List(t.TempDir()); u != nil {
+		t.Errorf("a home with no flows/ has nothing unreadable: %+v", u)
 	}
 }

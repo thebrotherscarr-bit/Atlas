@@ -903,6 +903,17 @@ func runProve() int {
 			"name": "flow_list", "arguments": map[string]any{"project": "atlas"}})
 		check("flow_list names the registry",
 			!isErr && strings.Contains(text, "linear v1"))
+		// NOTHING IS HIDDEN (operator, 2026-09-25). A .json under flows/ that
+		// will not parse is named by flow_list with its why, not dropped from
+		// the list -- and the flows that CAN be read are still listed beside it.
+		broken := filepath.Join(homes["atlas"], "flows", "broken.json")
+		os.WriteFile(broken, []byte("{not json"), 0o644)
+		text, isErr = callTool(map[string]any{
+			"name": "flow_list", "arguments": map[string]any{"project": "atlas"}})
+		check("flow_list names a corrupt spec instead of hiding it",
+			!isErr && strings.Contains(text, "linear v1") &&
+				strings.Contains(text, "UNREADABLE") && strings.Contains(text, "broken.json"))
+		os.Remove(broken)
 		text, isErr = callTool(map[string]any{
 			"name": "flow_run", "arguments": map[string]any{
 				"project": "atlas", "name": "linear"}})

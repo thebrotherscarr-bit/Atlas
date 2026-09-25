@@ -333,30 +333,57 @@ func Get(home, name string, v int) (Spec, error) {
 	return s, nil
 }
 
-// List names every flow with its latest version.
-func List(home string) ([]Spec, error) {
+// historyRe names a folded version -- <name>.v<k>.json, what Save writes when
+// it folds -- which List leaves to Get(name, k) and never lists as a flow of
+// its own.
+var historyRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}\.v[0-9]+$`)
+
+// Unread is a .json under flows/ that List could not hand back as a flow, and
+// why. NOTHING IS HIDDEN (operator, 2026-09-25: "the engine shouldn't hide a
+// corrupt spec, either"). Until then List skipped a spec that would not parse
+// without a word, so a corrupt flow was invisible until somebody fired it --
+// the core's release gate found the skip the first day it read this folder,
+// and the door itself said nothing.
+type Unread struct {
+	File string `json:"file"`
+	Why  string `json:"why"`
+}
+
+// List names every flow with its latest version, and every .json under flows/
+// it could NOT read as one -- corrupt, or named outside the name law, which no
+// tool can reach. Folded versions (<name>.v<k>.json) are history and are
+// neither: Get(name, k) reaches them.
+func List(home string) ([]Spec, []Unread, error) {
 	entries, err := os.ReadDir(flowsDir(home))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	var out []Spec
+	var unread []Unread
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
 		base := strings.TrimSuffix(e.Name(), ".json")
+		if historyRe.MatchString(base) {
+			continue
+		}
 		if !NameRe.MatchString(base) {
+			unread = append(unread, Unread{File: e.Name(),
+				Why: fmt.Sprintf("name %q breaks the name law, so no tool can reach it", base)})
 			continue
 		}
 		s, err := Get(home, base, 0)
 		if err != nil {
+			unread = append(unread, Unread{File: e.Name(), Why: err.Error()})
 			continue
 		}
 		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	sort.Slice(unread, func(i, j int) bool { return unread[i].File < unread[j].File })
+	return out, unread, nil
 }

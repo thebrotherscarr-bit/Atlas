@@ -736,7 +736,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	})
 	r.add(Tool{
 		Name: "flow_list", Writes: false,
-		Description: "list flows with latest versions (N2)",
+		Description: "list flows with latest versions, and name any .json under flows/ that cannot be read as one (N2)",
 		Args:        []string{"project?"},
 		Fn:          toolFlowList,
 	})
@@ -1735,17 +1735,30 @@ func toolFlowGet(t tenant.Tenant, args map[string]any) (string, error) {
 }
 
 func toolFlowList(t tenant.Tenant, _ map[string]any) (string, error) {
-	list, err := flow.List(t.Home)
+	list, unread, err := flow.List(t.Home)
 	if err != nil {
 		return "", err
 	}
-	if len(list) == 0 {
+	if len(list) == 0 && len(unread) == 0 {
 		return "no flows yet — fold one with flow_save", nil
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "FLOWS — %d:\n", len(list))
-	for _, s := range list {
-		fmt.Fprintf(&b, "  - %s v%d · %d nodes · budget %ds\n", s.Name, s.Version, len(s.Nodes), s.BudgetS)
+	if len(list) == 0 {
+		b.WriteString("FLOWS — none that can be read.\n")
+	} else {
+		fmt.Fprintf(&b, "FLOWS — %d:\n", len(list))
+		for _, s := range list {
+			fmt.Fprintf(&b, "  - %s v%d · %d nodes · budget %ds\n", s.Name, s.Version, len(s.Nodes), s.BudgetS)
+		}
+	}
+	// NOT HIDDEN (2026-09-25). A .json under flows/ that is not a flow the door
+	// can read is named here with its why, rather than dropped from the list --
+	// a corrupt spec was invisible until somebody fired it.
+	if len(unread) > 0 {
+		fmt.Fprintf(&b, "UNREADABLE — %d (not hidden; fix or remove the file):\n", len(unread))
+		for _, u := range unread {
+			fmt.Fprintf(&b, "  - %s: %s\n", u.File, u.Why)
+		}
 	}
 	return b.String(), nil
 }
