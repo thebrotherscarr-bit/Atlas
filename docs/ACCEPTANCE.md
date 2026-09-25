@@ -1,6 +1,6 @@
 # ATLAS Acceptance Criteria
 
-**Version:** 0.1.7
+**Version:** 0.1.8
 
 ---
 
@@ -9,7 +9,7 @@
 ### SPINE (Rust Core)
 - [ ] `cargo build --workspace` exits 0
 - [ ] `cargo test --workspace` passes 85+ tests
-- [ ] `atlas --version` prints `0.1.7`
+- [ ] `atlas --version` prints `0.1.8`
 - [ ] `atlas chain verify` returns INTACT on lawful chain
 - [ ] `atlas chain recognize` identifies form
 - [ ] `atlas db init` creates database
@@ -27,11 +27,11 @@
 - [ ] `atlas-mcp --prove` reports the surface carries 78 tools -- CORRECTED
       2026-09-14: the door built from the `v0.1.5` tag reports 79; `git_tag`
       landed inside the release
-- [ ] `atlas-mcp --version` prints `0.1.7`
+- [ ] `atlas-mcp --version` prints `0.1.8`
 - [ ] `atlas-mcp --prove` 125 strokes PASS
 - [ ] `atlas-town --prove` 11 strokes PASS
 - [ ] `atlas-door --prove` 13 strokes PASS
-- [ ] `atlas-tui --version` prints `atlas-tui 0.1.7`
+- [ ] `atlas-tui --version` prints `atlas-tui 0.1.8`
 
 ### GOLDEN (Python)
 - [ ] The 24 cutters answering `--verify`: byte-identical, or ABSENT naming `ATLAS_ORACLE_ROOT`
@@ -68,7 +68,7 @@
 - [ ] Build exits 0
 - [ ] `go vet` clean
 - [ ] Health endpoint returns status ok
-- [ ] Version matches 0.1.7
+- [ ] Version matches 0.1.8
 - [ ] List agents returns >= 40
 - [ ] Get agent returns agent detail
 - [ ] Add trace returns hash
@@ -136,7 +136,7 @@
 - [ ] All 6 pipelines PASS
 - [ ] All 84 scenarios PASS
 - [ ] All 38 workflow steps PASS
-- [ ] VERSION = 0.1.7 in all 11 pins — the eight `VERSION` files (`VERSION`,
+- [ ] VERSION = 0.1.8 in all 11 pins — the eight `VERSION` files (`VERSION`,
       `line/VERSION`, one beside each of the five `line/cmd/*` mains, and
       `webapp/handlers/VERSION`) plus `Cargo.toml`, `core/src/version.rs` and
       `Cargo.lock` — and every binary AGREES when asked: `atlas-mcp`,
