@@ -135,15 +135,23 @@ func runProve() int {
 	json.Unmarshal(ob.Bytes(), &tl)
 	check(fmt.Sprintf("surface carries %d tools (>=20)", len(tl.Result.Tools)),
 		len(tl.Result.Tools) >= 20)
-	forbidden := map[string]bool{"approve": true, "ascend": true, "merge": true,
-		"commit": true, "push": true, "delete": true, "reject": true, "promote": true}
-	clean := true
-	for _, tt := range tl.Result.Tools {
-		if forbidden[tt.Name] {
-			clean = false
+	// P0-14 (2026-09-25). This compared WHOLE tool names to bare verbs -- no
+	// tool is named `commit` -- so it never fired. The invariant that is true
+	// and worth keeping: a forbidden verb is NEVER FREE. Every tool carrying
+	// one as a word writes, and so is held for any caller but the glass.
+	clean, carried := true, 0
+	for _, tt := range surface2.All() {
+		if v := tools.ForbiddenWord(tt.Name); v != "" {
+			carried++
+			if !tt.Writes || tools.HeldExempt(tt.Name) {
+				clean = false
+			}
 		}
 	}
-	check("forbidden verbs absent by construction (B1-02)", clean)
+	check("a forbidden verb is never free: every tool carrying one writes and is held (B1-02)",
+		clean && carried > 0)
+	check("rbac open mode is said by name, never passed in silence (P0-13)",
+		strings.Contains(tools.RBACLine(reg2), "open (no roles assigned)"))
 
 	// 3-5. MULTI-TENANCY: one server, three grounds, three truths.
 	for _, project := range []string{"atlas", "manjuel", "estate-steward"} {

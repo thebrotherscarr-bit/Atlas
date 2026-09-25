@@ -301,17 +301,12 @@ func (s *Server) handle(line []byte, cred credential) any {
 	}
 }
 
-func endsWithOptional(a string) bool {
-	n := len(a)
-	return n > 1 && a[n-1] == '?' && a[n-2] == '?'
-}
+// The optional-argument rule is protocol's (P0-12, 2026-09-25): this file
+// carried a second copy that demanded two `?`, and both schema builders below
+// published every argument as required because of it.
+func endsWithOptional(a string) bool { return protocol.Optional(a) }
 
-func trimOptional(a string) string {
-	for len(a) > 0 && a[len(a)-1] == '?' {
-		a = a[:len(a)-1]
-	}
-	return a
-}
+func trimOptional(a string) string { return protocol.TrimOptional(a) }
 
 type rpcError struct {
 	Code    int    `json:"code"`

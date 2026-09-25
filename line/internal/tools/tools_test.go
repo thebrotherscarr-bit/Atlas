@@ -944,3 +944,111 @@ func TestTheWireOffersASeatMapOnlyWhereARunIsFired(t *testing.T) {
 		t.Fatal("the council does not carry the roster-wide head down to the engine")
 	}
 }
+
+// P0-13 (2026-09-25): RBAC judges the CALLER the door built from the transport,
+// never the args, on every call; open mode is said, not silent.
+func TestRBACJudgesTheTransportNotTheArgs(t *testing.T) {
+	home := t.TempDir()
+	policy := `{"roles": {"open": {"name": "open", "permissions": {"*": "allow"}},
+	                      "shut": {"name": "shut", "permissions": {"*": "deny"}}},
+	            "assign": {"k-open": "open", "k-shut": "shut"}}`
+	if err := os.WriteFile(filepath.Join(home, "rbac.json"), []byte(policy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(home, "NO-SUCH-SPINE.exe"))
+	reg := Build(tr, Options{})
+	call := func(c Caller, args map[string]any) error {
+		_, err := reg.Call(tr, "muster", args, c)
+		return err
+	}
+	if err := call(Caller{Name: "k-shut"}, map[string]any{}); err == nil || !strings.Contains(err.Error(), `rbac: caller "k-shut"`) {
+		t.Fatalf("a key whose role denies must be refused by its own name: %v", err)
+	}
+	if err := call(Caller{Name: "k-open"}, map[string]any{}); err != nil && strings.Contains(err.Error(), "rbac:") {
+		t.Fatalf("a key whose role allows must pass rbac: %v", err)
+	}
+	if err := call(Caller{Name: "k-nobody"}, map[string]any{}); err == nil || !strings.Contains(err.Error(), "no assigned role") {
+		t.Fatalf("with roles assigned, an unassigned caller is refused: %v", err)
+	}
+	if err := call(Caller{Name: "k-shut"}, map[string]any{"actor": "k-open"}); err == nil || !strings.Contains(err.Error(), `rbac: caller "k-shut"`) {
+		t.Fatalf("the args' actor decides nothing -- the forgery path: %v", err)
+	}
+	if err := call(Caller{Name: "anyone", Service: true}, map[string]any{}); err != nil && strings.Contains(err.Error(), "rbac:") {
+		t.Fatalf("the glass is the operator's hand and is never judged by rbac: %v", err)
+	}
+	tn, _ := tr.Resolve("t")
+	if tn.RBACOpen() {
+		t.Fatal("roles are assigned here; this tenant is not open")
+	}
+
+	// OPEN MODE IS SAID. A bare tenant assigns nothing: every caller passes,
+	// the boot line names it, and a parked hold carries it.
+	bare := t.TempDir()
+	tr2 := tenant.NewRegistry()
+	if err := tr2.Add("bare", bare); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr2.SetDefault("bare"); err != nil {
+		t.Fatal(err)
+	}
+	reg2 := Build(tr2, Options{HoldWrites: true})
+	if _, err := reg2.Call(tr2, "muster", map[string]any{}, Caller{Name: "k-nobody"}); err != nil && strings.Contains(err.Error(), "rbac:") {
+		t.Fatalf("open mode passes everyone: %v", err)
+	}
+	if line := RBACLine(tr2); !strings.Contains(line, "open (no roles assigned) on: bare") {
+		t.Fatalf("open mode must be said by name: %q", line)
+	}
+	if line := RBACLine(tr); line != "" {
+		t.Fatalf("a registry whose tenants all assign roles says nothing: %q", line)
+	}
+	out, err := reg2.Call(tr2, "git_commit", map[string]any{"message": "x"}, Caller{Name: "k-nobody"})
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("a writing call from a key is held: %q %v", out, err)
+	}
+	for _, h := range reg2.held {
+		if h.RBAC != "open (no roles assigned)" {
+			t.Fatalf("the hold record must say the rbac state: %+v", h)
+		}
+	}
+}
+
+// P0-14 (2026-09-25): a forbidden verb is never free.
+func TestAForbiddenVerbIsNeverFree(t *testing.T) {
+	if ForbiddenWord("git_commit") != "commit" || ForbiddenWord("commitment") != "" ||
+		ForbiddenWord("PUSH_it") != "push" || ForbiddenWord("hold_answer") != "" {
+		t.Fatal("the verb is matched as a word, never as a substring")
+	}
+	home := t.TempDir()
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	reg := Build(tr, Options{})
+	carried := 0
+	for _, tool := range reg.All() {
+		v := ForbiddenWord(tool.Name)
+		if v == "" {
+			continue
+		}
+		carried++
+		if !tool.Writes {
+			t.Errorf("%q carries %q and does not declare Writes -- a forbidden verb, free", tool.Name, v)
+		}
+		if HeldExempt(tool.Name) {
+			t.Errorf("%q carries %q and is exempt from the holds", tool.Name, v)
+		}
+	}
+	if carried == 0 {
+		t.Fatal("no tool carries a forbidden verb -- this test would be the vacuous one it replaced")
+	}
+}

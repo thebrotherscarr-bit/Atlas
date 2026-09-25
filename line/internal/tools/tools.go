@@ -156,8 +156,9 @@ func (r *Registry) All() []Tool {
 
 // Call resolves the PROJECT ARGUMENT against the tenant registry, then runs
 // the named tool on that ground. Unknown tools and unknown projects refuse
-// by name -- strangers get nothing. RBAC is checked when a policy is set;
-// open mode (no policy) allows all.
+// by name -- strangers get nothing. RBAC is checked on every call against the
+// CALLER's identity (never the args); a tenant with no roles assigned is open
+// mode, and says so.
 // The CALLER is the door's own judgement of who is asking, taken from the
 // transport and never from the message. See holds.go.
 func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, caller Caller) (string, error) {
@@ -186,12 +187,20 @@ func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, 
 	if err != nil {
 		return "", err
 	}
-	// RBAC check: if the tenant has a policy with assignments, check permission
-	actor, _ := args["actor"].(string)
-	if actor != "" {
-		allowed, role, reason := tn.CheckRBAC(actor, name)
-		if !allowed {
-			return "", fmt.Errorf("rbac: agent %q (role %q) denied tool %q: %s", actor, role, name, reason)
+	// P0-13 (SPEC_CONTROL_CENTER 12.5; closed 2026-09-25). IDENTITY COMES FROM
+	// THE TRANSPORT, HERE TOO. This read `actor` off the caller's own args and
+	// ran no check when it was absent -- a gate any caller stepped around by
+	// saying nothing -- while the hold below had already refused to read the
+	// args for exactly that reason. The check runs on EVERY call now, with the
+	// door's own judgement of who is asking: the glass (the service wire) is the
+	// operator's hand and passes; anything else is judged by the name the door
+	// gave it -- a verified key's id, or what a stdio client called itself --
+	// against the tenant's policy. An empty policy is open mode still, and is
+	// SAID on every hold record and in the boot line (RBACLine) rather than
+	// passed in silence. `actor` in the args is a label and decides nothing.
+	if !caller.Service {
+		if allowed, role, reason := tn.CheckRBAC(caller.Name, name); !allowed {
+			return "", fmt.Errorf("rbac: caller %q (role %q) denied tool %q: %s", caller.Name, role, name, reason)
 		}
 	}
 	// A WRITING CALL FROM A HAND THAT IS NOT HIS WAITS. Armed only when the

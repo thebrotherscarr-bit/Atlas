@@ -254,8 +254,15 @@ func main() {
 		if *authOn {
 			holds = "holds ARMED -- a writing call from anything but the glass waits"
 		}
-		fmt.Fprintf(os.Stderr, "atlas-mcp %s listening on %s (auth=%v, %s)\n",
-			Version(), *httpAddr, *authOn, holds)
+		// AND WHETHER RBAC STANDS IN FRONT OF ANYTHING (P0-13, 2026-09-25):
+		// a tenant with no roles assigned is open mode, and open mode that is
+		// not said is believed to be a gate.
+		rbacLine := tools.RBACLine(reg)
+		if rbacLine != "" {
+			rbacLine = "; " + rbacLine
+		}
+		fmt.Fprintf(os.Stderr, "atlas-mcp %s listening on %s (auth=%v, %s%s)\n",
+			Version(), *httpAddr, *authOn, holds, rbacLine)
 		if err := srv.ListenAndServe(*httpAddr); err != nil {
 			fatal(err)
 		}

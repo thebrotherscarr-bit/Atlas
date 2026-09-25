@@ -147,15 +147,29 @@ func (s *server) handle(line []byte) any {
 	}
 }
 
-func endsWithOptional(a string) bool {
-	n := len(a)
-	return n > 1 && a[n-1] == '?' && a[n-2] == '?'
+// Optional reports whether a declared argument is optional: a trailing `?`,
+// as every tool in the registry writes it (`"project?"`). P0-12 IN
+// SPEC_CONTROL_CENTER 12.5 (2026-09-25): this demanded TWO trailing `?` -- a
+// shape no tool has ever declared -- so every argument, `project?` included,
+// was published REQUIRED, and the "omit it and the ground the session was
+// opened in answers" that the description promised was a law the caller could
+// not read. httpserver carried a second copy of the same wrong rule; both
+// schema builders read this one now.
+func Optional(a string) bool {
+	return len(a) > 1 && a[len(a)-1] == '?'
 }
-func trimOptional(a string) string {
+
+// TrimOptional is the argument's name without its `?`.
+func TrimOptional(a string) string {
 	for len(a) > 0 && a[len(a)-1] == '?' {
 		a = a[:len(a)-1]
 	}
 	return a
+}
+
+func endsWithOptional(a string) bool { return Optional(a) }
+func trimOptional(a string) string {
+	return TrimOptional(a)
 }
 
 type rpcError struct {

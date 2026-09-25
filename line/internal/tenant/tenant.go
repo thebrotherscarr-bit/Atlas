@@ -294,6 +294,11 @@ func (r *Registry) Names() []string {
 	return out
 }
 
+// RBACOpen reports open mode: no roles assigned, so every caller passes.
+// Asked by name so the boot line and every hold record can SAY it (P0-13,
+// 2026-09-25) -- open mode that passes in silence is believed to be a gate.
+func (t Tenant) RBACOpen() bool { return len(t.Policy.Assign) == 0 }
+
 // CheckRBAC checks if an agent has permission for a tool on a tenant.
 // Returns (allowed, role, reason). If no policy is set, allows all (open mode).
 func (t Tenant) CheckRBAC(agentID, toolName string) (bool, string, string) {

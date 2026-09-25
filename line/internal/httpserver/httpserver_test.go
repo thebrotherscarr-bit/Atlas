@@ -185,6 +185,12 @@ func TestToolsListDescribesEveryToolItAdvertises(t *testing.T) {
 			if _, ok := props[n]; !ok {
 				t.Errorf("%q requires %q but does not declare it in properties", name, n)
 			}
+			// P0-12 (2026-09-25): `project?` is declared optional on nearly
+			// every tool and was published required on all of them, because
+			// the rule demanded two `?`. An optional argument is never required.
+			if n == "project" {
+				t.Errorf("%q publishes `project` as required; every tool declares it `project?`", name)
+			}
 		}
 	}
 }

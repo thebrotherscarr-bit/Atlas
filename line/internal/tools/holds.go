@@ -41,6 +41,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,7 +73,65 @@ type Hold struct {
 	Caller  string         `json:"caller"`
 	Project string         `json:"project"`
 	When    time.Time      `json:"when"`
+	// RBAC is what the tenant's policy said of this caller when the call was
+	// parked: "open (no roles assigned)" or "role <name>". SAID, not silent
+	// (P0-13, 2026-09-25): a hold the operator reads should tell him whether
+	// a gate stood in front of it or only this queue.
+	RBAC string `json:"rbac"`
 }
+
+// rbacState is the one line a hold record says about RBAC.
+func rbacState(tn tenant.Tenant, caller Caller) string {
+	if tn.RBACOpen() {
+		return "open (no roles assigned)"
+	}
+	_, role, _ := tn.CheckRBAC(caller.Name, "")
+	if role == "" {
+		role = "none"
+	}
+	return "role " + role
+}
+
+// RBACLine is the boot line's word on RBAC across the carried tenants: which
+// are in open mode, by name. Empty when every tenant assigns roles.
+func RBACLine(reg *tenant.Registry) string {
+	var open []string
+	for _, n := range reg.Names() {
+		if tn, err := reg.Resolve(n); err == nil && tn.RBACOpen() {
+			open = append(open, n)
+		}
+	}
+	if len(open) == 0 {
+		return ""
+	}
+	return "rbac open (no roles assigned) on: " + strings.Join(open, ", ")
+}
+
+// ForbiddenVerbs are the verbs RULE 6 keeps out of an agent's hand: approve,
+// merge, commit, push, promote and their kin (SPEC_CONTROL_CENTER B1-02). THE
+// TEST THAT READ THIS LIST NEVER FIRED (P0-14, closed 2026-09-25): it compared
+// WHOLE tool names to bare verbs, and no tool is named `commit`. The invariant
+// that is true and worth keeping is not absence but that a forbidden verb is
+// NEVER FREE: every tool carrying one as a word writes, and so is held for any
+// caller but the glass. One source, read by the battery and the strokes.
+var ForbiddenVerbs = []string{"approve", "ascend", "merge", "commit", "push", "delete", "reject", "promote"}
+
+// ForbiddenWord is the forbidden verb a tool name carries as a WORD (split on
+// `_`), or "". `git_commit` carries commit; `commitment` carries nothing.
+func ForbiddenWord(name string) string {
+	for _, w := range strings.Split(strings.ToLower(name), "_") {
+		for _, v := range ForbiddenVerbs {
+			if w == v {
+				return v
+			}
+		}
+	}
+	return ""
+}
+
+// HeldExempt reports whether a writing tool is exempt from the holds (the two
+// that run the queue itself).
+func HeldExempt(name string) bool { return heldExempt[name] }
 
 // heldTools never hold, whatever they declare. `hold_answer` writes by
 // definition -- it runs the held call -- and holding the answer behind another
@@ -105,6 +164,7 @@ func (r *Registry) park(tn tenant.Tenant, t Tool, args map[string]any, caller Ca
 		Caller:  callerLabel(caller),
 		Project: tn.Name,
 		When:    time.Now().UTC(),
+		RBAC:    rbacState(tn, caller),
 	}
 	r.held[h.ID] = h
 	r.record(tn.Home, "held", h, "")
@@ -117,6 +177,7 @@ func (r *Registry) record(home, what string, h Hold, note string) {
 	line := map[string]any{
 		"ts": time.Now().UTC().Format(time.RFC3339), "what": what,
 		"id": h.ID, "tool": h.Tool, "caller": h.Caller, "project": h.Project,
+		"rbac": h.RBAC,
 	}
 	if note != "" {
 		line["note"] = note

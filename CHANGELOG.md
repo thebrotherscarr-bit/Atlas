@@ -12,6 +12,67 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Fixed — P0-13: RBAC judges the transport, and open mode is said (SPEC_CONTROL_CENTER §12.5; operator, 2026-09-25: "identity from the transport; open mode said out loud")
+
+RBAC failed open twice. The dispatch read `actor` off the caller's OWN args and ran no check when it
+was absent -- a gate any caller stepped around by saying nothing -- while `holds.go`, two lines below,
+had already refused to read the args for exactly that reason. And a tenant with no roles assigned
+allowed everything in silence. Since the door was armed this afternoon it knows who is calling from
+the transport, so the check runs on EVERY call with that identity: the glass (the service wire) is
+the operator's hand and passes; anything else is judged by the name the door gave it -- a verified
+key's id, or what a stdio client called itself -- against the tenant's policy. `actor` in the args is
+a label for the record and decides nothing. An empty policy is open mode still, and is SAID: the
+boot line names each open tenant (`rbac open (no roles assigned) on: research, atlas`), and every
+hold record carries `rbac: open (no roles assigned)` or `rbac: role <name>`.
+
+- `tools.Call`: the check on `caller`, never `args["actor"]`. `tenant.RBACOpen`; `tools.RBACLine`;
+  `Hold.RBAC` and the holds log line.
+- Proved: `TestRBACJudgesTheTransportNotTheArgs` -- a denying role refused by the caller's own name,
+  an allowing role passed, an unassigned caller refused, the args' `actor` decides nothing (the
+  forgery path), the glass never judged, open mode passing everyone and SAID by name on the boot
+  line and on the parked hold; a battery leg reads the boot line's word. Reversals: the args-actor
+  check restored, the hold's line blanked -- each reds its stroke.
+- FOUND ON THE WAY, NOT BUILT: the shipped `DefaultPolicy` roles carry permissions by KIND
+  (`read`, `edit`, `bash`, `net`, `tools`) while `rbac.Can` looks up TOOL NAMES and a `*` wildcard --
+  so assigning a shipped role to a key today denies it every tool. The policy model and its roles
+  disagree; that is a design ruling, not a patch.
+
+### Fixed — P0-14: a forbidden verb is never free (B1-02; operator, 2026-09-25: "the invariant that is true")
+
+The absence test compared WHOLE tool names to bare verbs -- no tool is named `commit` -- so it had
+never fired. Measured: five tools carry a forbidden verb as a word (`git_commit`, `git_push`,
+`mesh_post`, `chat_send`, `team_send` -- the last three by D4's verbs, the first two by B1-02's), and
+every one declares `Writes: true`, so every one is held for any caller but the glass. That is the
+invariant worth keeping, and it is what the test measures now.
+
+- `tools.ForbiddenVerbs`, one source; `tools.ForbiddenWord` matches the verb as a WORD (`git_commit`
+  carries commit; `commitment` carries nothing); `tools.HeldExempt`.
+- Proved: `TestAForbiddenVerbIsNeverFree` over the whole registry (and refuses to be vacuous -- at
+  least one tool must carry a verb), and the battery leg that replaced the one that never fired.
+  Reversals: `git_commit` declared non-writing, the verb matched as a substring -- each reds.
+
+**RESTART REQUIRED:** the door carries P0-12, P0-13 and P0-14 once rebuilt and restarted.
+
+### Fixed — P0-12: an optional argument is optional (SPEC_CONTROL_CENTER §12.5; operator, 2026-09-25: "then the harm list")
+
+`endsWithOptional` demanded TWO trailing `?` -- a shape no tool has ever declared -- so every
+argument on every tool, `project?` included, was published as REQUIRED, and the description's own
+promise ("omit it and the ground the session was opened in answers") was a law no client could read.
+`httpserver` carried a second copy of the same wrong rule, so both schema builders (`GET /tools` and
+`tools/list`) agreed with each other and with nothing. Listed as P0 on 2026-09-10; verified live
+2026-09-24; closed today.
+
+- `protocol.Optional` / `protocol.TrimOptional`, exported: one `?`, one source. `httpserver`'s copies
+  read them; `protocol`'s private names remain as thin wrappers for the one caller inside the package.
+- Proved: `protocol_test.go` (the package's first test -- `project?` optional, `path` required, the
+  marker stripped and nothing else) and `httpserver_test.go`'s schema walk now refuses any tool that
+  publishes `project` as required. Reversal: the two-`?` rule restored reds both.
+
+**RESTART REQUIRED:** the door carries this once rebuilt and restarted.
+
+**WHAT GOES RED IF THIS COMES UNPLUGGED:** the two tests above; a client reading the schema would be
+told, again, that `project` is mandatory on 82 tools.
+
 ## [v0.1.8] — 2026-09-25 10:36 (tag on 56a3078)
 
 ### Fixed — a credential's issuer is minted in the record's own covenant, not in a literal (operator, 2026-09-25: "one source: the manifest; two readers")
