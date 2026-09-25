@@ -2934,8 +2934,11 @@ func toolUsToVC(t tenant.Tenant, usPath string) (string, error) {
 	if !filepath.IsAbs(usPath) {
 		usPath = filepath.Join(t.Home, usPath)
 	}
-	issuerDID := fmt.Sprintf("did:atlas:1512741580b7239b:operator")
-	v, err := vc.FromFile(usPath, issuerDID)
+	// ONE SOURCE, THE MANIFEST (2026-09-25). This carried
+	// `did:atlas:1512741580b7239b:operator` by hand -- a copy of the id every
+	// record already declares, with nothing to say if one moved. The issuer
+	// is minted in the record's own covenant now (vc.IssuerFor).
+	v, err := vc.FromFile(usPath, "")
 	if err != nil {
 		return "", fmt.Errorf("us_to_vc: %w", err)
 	}

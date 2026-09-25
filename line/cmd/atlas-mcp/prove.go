@@ -914,6 +914,19 @@ func runProve() int {
 			!isErr && strings.Contains(text, "linear v1") &&
 				strings.Contains(text, "UNREADABLE") && strings.Contains(text, "broken.json"))
 		os.Remove(broken)
+		// ONE SOURCE, THE MANIFEST (2026-09-25): a credential's issuer is
+		// minted in the record's own covenant, never in a literal kept here.
+		os.MkdirAll(filepath.Join(homes["atlas"], "us"), 0o755)
+		probeUS := filepath.Join(homes["atlas"], "us", "probe.us")
+		os.WriteFile(probeUS, []byte("# probe\n\n```json\n"+
+			`{"id": "probe", "kind": "skill", "us": 1, "can_approve": false, "covenant": "feedfacecafebeef", "office": "PROBE", "reports_to": "probe"}`+
+			"\n```\n"), 0o644)
+		text, isErr = callTool(map[string]any{
+			"name": "us_to_vc", "arguments": map[string]any{"project": "atlas", "path": "us/probe.us"}})
+		check("us_to_vc mints the issuer in the record's own covenant, not a literal",
+			!isErr && strings.Contains(text, `"issuer": "did:atlas:feedfacecafebeef:operator"`) &&
+				strings.Contains(text, `"id": "did:atlas:feedfacecafebeef:probe"`))
+		os.Remove(probeUS)
 		text, isErr = callTool(map[string]any{
 			"name": "flow_run", "arguments": map[string]any{
 				"project": "atlas", "name": "linear"}})

@@ -155,7 +155,26 @@ func ToJSON(vc *VC) ([]byte, error) {
 	return json.MarshalIndent(vc, "", "  ")
 }
 
-// FromFile reads a .us file and converts it to a VC.
+// IssuerFor mints the issuer's DID in the record's OWN namespace. The
+// covenant on a .us record is the DID namespace every credential from that
+// manifest is minted in (did:atlas:<covenant>:<id>, and the reporting line
+// the same way), and until 2026-09-25 the issuer carried the same id as a
+// literal -- once in the door's us_to_vc, once as the atlas-vc CLI's
+// default: 59 copies of one fact with nothing holding them together. ONE
+// SOURCE, THE MANIFEST (the operator's ruling): the issuer is read off the
+// record, and a record that declares no covenant is refused here, by name.
+func IssuerFor(block map[string]any) (string, error) {
+	covenant, _ := block["covenant"].(string)
+	covenant = strings.TrimSpace(covenant)
+	if covenant == "" {
+		return "", fmt.Errorf("the record declares no covenant, so no issuer can be minted in its namespace")
+	}
+	return fmt.Sprintf("did:atlas:%s:operator", covenant), nil
+}
+
+// FromFile reads a .us file and converts it to a VC. An empty issuerDID
+// means the issuer is minted in the record's own covenant (IssuerFor); a
+// named one is a hand's explicit choice and is used as given.
 func FromFile(path string, issuerDID string) (*VC, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -164,6 +183,11 @@ func FromFile(path string, issuerDID string) (*VC, error) {
 	block, prose, err := ParseUS(string(data))
 	if err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(issuerDID) == "" {
+		if issuerDID, err = IssuerFor(block); err != nil {
+			return nil, err
+		}
 	}
 	return ToVC(block, prose, issuerDID)
 }

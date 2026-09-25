@@ -12,6 +12,30 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Fixed — a credential's issuer is minted in the record's own covenant, not in a literal (operator, 2026-09-25: "one source: the manifest; two readers")
+
+The `covenant` on a `.us` record is the DID namespace every credential from that manifest is minted
+in (`did:atlas:<covenant>:<id>`, and the reporting line the same way). The issuer carried the same id
+by hand: once in the door's `us_to_vc` (`tools.go`), once as `atlas-vc --issuer`'s default — 59
+copies of one fact across two repositories, and nothing to say if one moved. The core's reconciler
+found the field LOOSE on its side the day LOOSE existed; the core now checks that no record drifts
+from the rest of the manifest, and this is the door's half.
+
+- `vc.IssuerFor(block)` mints `did:atlas:<covenant>:operator` from the record, and refuses by name a
+  record that declares no covenant. `vc.FromFile(path, "")` mints; a named issuer is a hand's explicit
+  choice and is used as given.
+- `us_to_vc` passes no issuer; `atlas-vc --issuer` defaults to none, with the help text saying so.
+- Proved: `vc_test.go` (the package's first test — subject, reporting line and issuer share one
+  namespace; no covenant, no credential; a named issuer obeyed), and one leg in the door's battery: a
+  record planted with covenant `feedfacecafebeef` comes back issued in that namespace.
+- Still a literal, flagged and not built: `atlas-tui`'s banner prints `covenant: 1512741580b7239b` as
+  text (`cmd/atlas-tui/main.go:368`), and the glass's sidebar shows the same string.
+
+**RESTART REQUIRED:** the door carries this once `atlas-mcp.exe` is rebuilt and restarted.
+
+**WHAT GOES RED IF THIS COMES UNPLUGGED:** the `vc` test and the battery leg — the tool hard-coding
+the issuer again reds the leg; `IssuerFor` returning a literal reds the test.
+
 ### Fixed — the engine names a corrupt flow instead of hiding it (operator, 2026-09-25: "the engine shouldn't hide a corrupt spec, either")
 
 `flow.List` read each spec back and, when one would not parse, skipped it without a word

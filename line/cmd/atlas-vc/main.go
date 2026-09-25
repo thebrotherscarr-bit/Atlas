@@ -32,7 +32,7 @@ func main() {
 	var (
 		usPath  = flag.String("us", "", "input .us file")
 		vcPath  = flag.String("vc", "", "VC file to verify")
-		issuer  = flag.String("issuer", "did:atlas:1512741580b7239b:operator", "issuer DID")
+		issuer  = flag.String("issuer", "", "issuer DID (default: minted in the record's own covenant)")
 		outPath = flag.String("out", "", "output file (default: stdout)")
 		showVer = flag.Bool("version", false, "print version")
 	)
