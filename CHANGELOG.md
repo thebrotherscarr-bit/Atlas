@@ -12,6 +12,8 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.1.8] — 2026-09-25 10:36 (tag on 56a3078)
+
 ### Fixed — a credential's issuer is minted in the record's own covenant, not in a literal (operator, 2026-09-25: "one source: the manifest; two readers")
 
 The `covenant` on a `.us` record is the DID namespace every credential from that manifest is minted
