@@ -12,6 +12,59 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Fixed — the RBAC role model: a role speaks in the kinds the door declares (operator, 2026-09-26: "kinds from the tool's own declaration")
+
+Found closing P0-13 and left as a design ruling: the shipped `DefaultPolicy` roles carried permissions
+by KIND (`read`, `edit`, `bash`, `net`, `tools`) while `rbac.Can` looked up TOOL NAMES and a `*`
+wildcard, so assigning ANY shipped role to a key denied it every tool -- and no stroke had ever assigned
+one to find out. His ruling by card: the kinds come from the tool's own declaration. `Can` now asks a
+role three questions in order -- the tool BY NAME, the WILDCARD, then the KINDS the call carries -- and
+the kinds are not words the policy invents: `edit` is a tool that declares `Writes: true`, `read` one
+that does not, and `tools` (calling at all) rides on every call. A name beats the wildcard and the
+wildcard beats a kind, so a role may deny `edit` and still allow `git_tag`. A deny on any carried kind
+denies; an allow needs every carried kind; a role that speaks to neither has not answered, and the roles
+it implies are asked the same three questions, breadth-first. `bash` and `net` named nothing the door
+declares and are gone from the shipped roles; a policy on disk that still carries them (this
+repository's own `rbac.json` does) is read as before, and those keys are simply never asked.
+
+- `rbac.Kind`, `KindsOf(writes)`, `IsKind`; `rbac.Can(p, agent, tool, writes)` -- every caller says
+  whether the tool writes, so a kind is never guessed from a name; `rbac.RoleOf` for the hold record.
+- `tenant.CheckRBAC(agent, tool, writes)`, `tenant.RoleOf`; `tools.Call` hands `Tool.Writes` down with
+  the name; `tenant_rbac_check` looks the tool up at this door for its declaration and refuses a name
+  the door does not carry rather than judging a word.
+- Proved: `internal/rbac` has its first prover, `rbac_test.go` (8) -- every shipped permission is a kind
+  the door declares or `*`, every shipped role speaks to all three kinds and the policy ships open; the
+  kinds a call carries come from the declaration; each shipped role over a reader and a writer (every
+  row was DENIED before); name over wildcard over kind, both ways; an allow needs every carried kind
+  and a deny needs one; implied roles asked after the assigned one, a cycle ending, a missing role
+  skipped; no role, no entry; a policy on disk carrying `bash`/`net` still deciding by the live kinds.
+  Through the door, `TestAShippedRoleAssignedToAKeyDecidesByWhatTheToolDeclares` assigns all four
+  shipped roles to keys on a real registry: operator and steward read and write, agent reads and is
+  refused a writer by kind with nothing landed, guest is refused calling at all, and `tenant_rbac_check`
+  answers the same with the same declaration. One battery leg. Reversals on a scratch copy: R1 `Call`
+  passes `false` for the declaration -- the door stroke and the battery red; R2 `bash` back in a
+  shipped role -- 1 red; R3 the kinds never asked (the original fault) -- 5 red in the package and 1
+  through the door; R4 the tool's name never asked -- 1 red. Restored: green but the scratchpad's
+  seven "Filename too long" strokes, identical at HEAD.
+- `docs/ARCHITECTURE.md` 4d says the three questions; `tests/PROVING.md` takes `internal/rbac` off the
+  unproven list (and `internal/tenant`, off it since 2026-09-11 unrecorded), with the count measured:
+  two packages carry no prover, `cmd/atlas-vc` and `internal/orient`.
+- **`rbac.json`** (this repository's own -- the atlas tenant's policy), on his word. Found on the
+  way: since 2026-09-09 it assigned `agent` to an actor named `5 carried projects` -- muster's first
+  line, pasted into the glass's Assign Role box -- which put the atlas tenant in closed mode (the
+  2026-09-25 boot line named only `research` as open) and refused every keyed caller there
+  `no assigned role`. His ruling by card: "Steward is the default actor." The door names a bearer by
+  its key id (`httpserver`: `Caller{Name: cred.keyID}`), and the council's key is `k-ae2e9481`
+  (`manjuel-council`), so that id now holds `steward` -- reads and writes, the writes held for his
+  hand -- and the accidental actor is struck. The roles in the file keep their dead `bash`/`net`
+  keys; nothing reads them.
+
+**RESTART REQUIRED:** the door carries the role model once rebuilt and restarted; the glass is
+untouched. **WHAT GOES RED IF THIS COMES UNPLUGGED:** the compiler first -- `CheckRBAC` and `Can` take
+the declaration as a parameter, and no caller can leave it out; then the door stroke and the battery
+leg, if `Call` stops passing `Tool.Writes` (R1); and `TestEveryShippedPermissionIsAKindTheDoorDeclares`,
+if a shipped role names a word no tool declares (R2).
+
 ### Fixed — P0-13: RBAC judges the transport, and open mode is said (SPEC_CONTROL_CENTER §12.5; operator, 2026-09-25: "identity from the transport; open mode said out loud")
 
 RBAC failed open twice. The dispatch read `actor` off the caller's OWN args and ran no check when it

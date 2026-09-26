@@ -130,10 +130,12 @@ never a pass.
 
 ---
 
-## The real gap: 16 packages carry no prover
+## The real gap: the packages that carry no prover
 
-`go test ./...` says `[no test files]` sixteen times. That is not an absence
-— it is untested code.
+`go test ./...` said `[no test files]` sixteen times when this was written
+(2026-09-10). That is not an absence — it is untested code. Measured again
+2026-09-26: **two** — `cmd/atlas-vc` and `internal/orient`. What follows is
+the record of how the list came down.
 
 **`internal/tools` came off this list on 2026-09-10**, and is now the
 best-covered package in THE LINE with **34 strokes**:
@@ -160,7 +162,7 @@ record, no network.
 and `ListenStream` all need a live engine on an open sitting, which is not a
 thing a hermetic stroke can stand up. A mock there would prove the mock.
 
-**THE LINE (8):**
+**THE LINE (8, as the list stood 2026-09-10):**
 
 | Package | Why it matters |
 |---|---|
@@ -176,8 +178,19 @@ thing a hermetic stroke can stand up. A mock there would prove the mock.
 `search`, `server`, `traces` — only `handlers` has a prover.
 
 Ranked by what would hurt most if it broke silently:
-1. `internal/tenant` — a leak here crosses projects
-2. `internal/rbac` — a leak here crosses permissions
+1. `internal/tenant` — a leak here crosses projects. **Off the list
+   2026-09-11:** `tenant_test.go` (strangers refused by name, a name the same
+   however typed, the default declared, Home absolute, the archive never
+   carried, a plan name never a path).
+2. `internal/rbac` — a leak here crosses permissions. **Off the list
+   2026-09-26:** `rbac_test.go` (8) — every shipped permission is a kind the
+   door declares or `*`; each shipped role over a reader and a writer (every
+   row was DENIED before the role model was fixed that day); name over wildcard
+   over kind; an allow needs every kind a call carries and a deny needs one;
+   the roles a role implies asked after it; no role, no entry; a policy on
+   disk still carrying `bash`/`net` deciding by the live kinds. Through the
+   door, `tools_test.go` assigns all four shipped roles to keys on a real
+   registry, and the battery carries a leg.
 3. `webapp/db` — the face's persistence
 4. the rest
 

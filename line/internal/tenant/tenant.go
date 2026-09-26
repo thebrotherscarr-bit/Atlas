@@ -299,14 +299,21 @@ func (r *Registry) Names() []string {
 // 2026-09-25) -- open mode that passes in silence is believed to be a gate.
 func (t Tenant) RBACOpen() bool { return len(t.Policy.Assign) == 0 }
 
-// CheckRBAC checks if an agent has permission for a tool on a tenant.
+// RoleOf is the role this tenant's policy assigns an agent, or "" and false.
+// Read to SAY a role (a hold record); it decides nothing.
+func (t Tenant) RoleOf(agentID string) (string, bool) { return rbac.RoleOf(t.Policy, agentID) }
+
+// CheckRBAC checks if an agent has permission for a tool on a tenant. `writes`
+// is the tool's OWN declaration (Tool.Writes at the door): the kind a role is
+// asked about when it names neither the tool nor the wildcard (rbac.Can,
+// 2026-09-26). Every caller says it, so a kind is never guessed from a name.
 // Returns (allowed, role, reason). If no policy is set, allows all (open mode).
-func (t Tenant) CheckRBAC(agentID, toolName string) (bool, string, string) {
+func (t Tenant) CheckRBAC(agentID, toolName string, writes bool) (bool, string, string) {
 	// If no roles are assigned, open mode — allow everything
-	if len(t.Policy.Assign) == 0 {
+	if t.RBACOpen() {
 		return true, "", ""
 	}
-	return rbac.Can(t.Policy, agentID, toolName)
+	return rbac.Can(t.Policy, agentID, toolName, writes)
 }
 
 // AssignRole assigns a role to an agent in this tenant's policy.

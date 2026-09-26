@@ -85,9 +85,12 @@ func rbacState(tn tenant.Tenant, caller Caller) string {
 	if tn.RBACOpen() {
 		return "open (no roles assigned)"
 	}
-	_, role, _ := tn.CheckRBAC(caller.Name, "")
-	if role == "" {
-		role = "none"
+	// The role as ASSIGNED, said and not judged: a hold names the gate that
+	// stood in front of it, not a verdict on a tool it did not name. An
+	// unassigned caller is "guest", the same word the door's refusal uses.
+	role, ok := tn.RoleOf(caller.Name)
+	if !ok {
+		role = "guest"
 	}
 	return "role " + role
 }

@@ -3,6 +3,21 @@
 // Roles are scoped to tenants: each tenant defines its own role hierarchy
 // and permission set. The operator's role is absolute — approval lives in
 // the hand alone, and rbac never grants it.
+//
+// THE ROLE MODEL (2026-09-26; the operator's ruling: "kinds from the tool's
+// own declaration"). A role's permissions are keyed three ways, and Can asks
+// them in this order: the TOOL BY NAME (`git_tag`), the WILDCARD (`*`), then
+// the KINDS the call carries. A kind is not a word the policy invents. It is
+// the one thing the door already declares about a tool beyond its name --
+// whether it writes -- read as `edit` for Writes:true and `read` otherwise,
+// with `tools` (calling at all) carried by every call. Until this ruling the
+// shipped roles spoke only in kinds (`read`, `edit`, `bash`, `net`, `tools`)
+// while Can looked up tool names and the wildcard, so assigning ANY shipped
+// role to a key denied it every tool: the policy and its reader disagreed,
+// and nothing had ever assigned a shipped role to find out. `bash` and `net`
+// named nothing the door declares, and are gone from the shipped roles; a
+// policy on disk that still carries them is read, and those keys are simply
+// never asked.
 package rbac
 
 import (
@@ -17,7 +32,7 @@ import (
 type Role struct {
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
-	Permissions map[string]string `json:"permissions"`       // tool → allow/deny
+	Permissions map[string]string `json:"permissions"`       // tool name, "*", or a Kind → allow/deny
 	Implies     []string          `json:"implies,omitempty"` // roles this role includes
 }
 
@@ -27,11 +42,49 @@ type Policy struct {
 	Assign map[string]string `json:"assign"` // agent_id → role_name
 }
 
-// DefaultPolicy returns the default Atlas RBAC policy:
-// - operator: full access (but can_approve is still structurally false)
-// - steward: read + edit atlas, deny bash/net
-// - agent: read-only
-// - guest: deny all
+// Kind is what the door declares of a tool, and what a role is asked about
+// when it names neither the tool nor the wildcard. Exactly these three exist,
+// because the door declares exactly one thing about a tool beyond its name.
+type Kind string
+
+const (
+	// KindTools is calling at all. Every call carries it.
+	KindTools Kind = "tools"
+	// KindRead is a tool that declares Writes: false.
+	KindRead Kind = "read"
+	// KindEdit is a tool that declares Writes: true.
+	KindEdit Kind = "edit"
+)
+
+// Kinds are the three, in the order a role is asked about them.
+var Kinds = []Kind{KindTools, KindRead, KindEdit}
+
+// KindsOf are the kinds one call carries, from the declaration: `tools`
+// always, then `edit` or `read` by whether the tool writes.
+func KindsOf(writes bool) []Kind {
+	if writes {
+		return []Kind{KindTools, KindEdit}
+	}
+	return []Kind{KindTools, KindRead}
+}
+
+// IsKind reports whether a permission key is one of the three kinds.
+func IsKind(key string) bool {
+	for _, k := range Kinds {
+		if string(k) == key {
+			return true
+		}
+	}
+	return false
+}
+
+// DefaultPolicy returns the default Atlas RBAC policy, spoken in the kinds
+// the door declares (and nothing else, which TestEveryShippedPermission-
+// IsAKindTheDoorDeclares holds it to):
+//   - operator: reads and writes (can_approve is still structurally false)
+//   - steward:  reads and writes; implies agent
+//   - agent:    reads; every tool that writes is denied by kind
+//   - guest:    denied calling at all
 func DefaultPolicy() Policy {
 	return Policy{
 		Roles: map[string]Role{
@@ -39,22 +92,18 @@ func DefaultPolicy() Policy {
 				Name:        "operator",
 				Description: "the hand; holds the gate",
 				Permissions: map[string]string{
+					"tools": "allow",
 					"read":  "allow",
 					"edit":  "allow",
-					"bash":  "deny",
-					"net":   "deny",
-					"tools": "allow",
 				},
 			},
 			"steward": {
 				Name:        "steward",
 				Description: "plans, specs, keeps THE_ROAD",
 				Permissions: map[string]string{
+					"tools": "allow",
 					"read":  "allow",
 					"edit":  "allow",
-					"bash":  "deny",
-					"net":   "deny",
-					"tools": "allow",
 				},
 				Implies: []string{"agent"},
 			},
@@ -62,22 +111,18 @@ func DefaultPolicy() Policy {
 				Name:        "agent",
 				Description: "a declared seat with limited scope",
 				Permissions: map[string]string{
+					"tools": "allow",
 					"read":  "allow",
 					"edit":  "deny",
-					"bash":  "deny",
-					"net":   "deny",
-					"tools": "allow",
 				},
 			},
 			"guest": {
 				Name:        "guest",
 				Description: "unauthenticated; deny all",
 				Permissions: map[string]string{
+					"tools": "deny",
 					"read":  "deny",
 					"edit":  "deny",
-					"bash":  "deny",
-					"net":   "deny",
-					"tools": "deny",
 				},
 			},
 		},
@@ -112,38 +157,43 @@ func LoadPolicy(home string) Policy {
 	return p
 }
 
-// Can checks if an agent has permission for a tool under a policy.
-// Returns (allowed, role_name, reason).
-func Can(p Policy, agentID, toolName string) (bool, string, string) {
+// RoleOf is the role a policy assigns an agent, or "" and false when it
+// assigns none. A hold record reads this to SAY the role beside a parked
+// call; it decides nothing.
+func RoleOf(p Policy, agentID string) (string, bool) {
+	r, ok := p.Assign[agentID]
+	return r, ok
+}
+
+// Can checks if an agent may call a tool under a policy. `writes` is the
+// tool's own declaration (Tool.Writes at the door), and every caller says it:
+// a kind is never guessed from a name.
+//
+// The assigned role is asked first, then each role it implies, breadth-first.
+// Every role is asked the same three questions in the same order, and the
+// first that answers decides:
+//
+//  1. THE TOOL BY NAME  -- `git_tag: allow|deny`. A name beats everything
+//     below it, so a role may deny a kind and still allow one tool of it.
+//  2. THE WILDCARD      -- `*: allow|deny`, every tool by name.
+//  3. THE KINDS         -- the ones this call carries (KindsOf). A deny on
+//     any carried kind denies the call; an allow needs every carried kind
+//     allowed. A role that speaks to neither has not answered, and the next
+//     role is asked.
+//
+// Nothing answering is a refusal that names what nobody allowed. Returns
+// (allowed, the role that decided, reason).
+func Can(p Policy, agentID, toolName string, writes bool) (bool, string, string) {
 	roleName, ok := p.Assign[agentID]
 	if !ok {
 		return false, "guest", fmt.Sprintf("agent %q has no assigned role", agentID)
 	}
-	role, ok := p.Roles[roleName]
-	if !ok {
+	if _, ok := p.Roles[roleName]; !ok {
 		return false, "guest", fmt.Sprintf("role %q not found in policy", roleName)
 	}
-	// Check direct permission
-	if perm, ok := role.Permissions[toolName]; ok {
-		if perm == "allow" {
-			return true, roleName, ""
-		}
-		if perm == "deny" {
-			return false, roleName, fmt.Sprintf("role %q denies tool %q", roleName, toolName)
-		}
-	}
-	// Check wildcard
-	if perm, ok := role.Permissions["*"]; ok {
-		if perm == "allow" {
-			return true, roleName, ""
-		}
-		if perm == "deny" {
-			return false, roleName, fmt.Sprintf("role %q denies all tools", roleName)
-		}
-	}
-	// Check implied roles (breadth-first)
-	visited := map[string]bool{roleName: true}
-	queue := append([]string{}, role.Implies...)
+	kinds := KindsOf(writes)
+	visited := map[string]bool{}
+	queue := []string{roleName}
 	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
@@ -155,17 +205,61 @@ func Can(p Policy, agentID, toolName string) (bool, string, string) {
 		if !ok {
 			continue
 		}
-		if perm, ok := r.Permissions[toolName]; ok {
-			if perm == "allow" {
-				return true, current, ""
-			}
-			if perm == "deny" {
-				return false, current, fmt.Sprintf("implied role %q denies tool %q", current, toolName)
-			}
+		label := "role"
+		if current != roleName {
+			label = "implied role"
+		}
+		if allowed, decided, why := asked(r, label, current, toolName, kinds); decided {
+			return allowed, current, why
 		}
 		queue = append(queue, r.Implies...)
 	}
-	return false, roleName, fmt.Sprintf("role %q has no permission for tool %q", roleName, toolName)
+	return false, roleName, fmt.Sprintf("role %q allows neither tool %q by name nor its kind (%s: %s)",
+		roleName, toolName, kinds[1], describe(toolName, kinds[1]))
+}
+
+// asked puts the three questions to one role, in order. decided is false when
+// the role has nothing to say about this call. A permission that is neither
+// "allow" nor "deny" is no answer.
+func asked(r Role, label, roleName, toolName string, kinds []Kind) (allowed, decided bool, why string) {
+	switch r.Permissions[toolName] {
+	case "allow":
+		return true, true, ""
+	case "deny":
+		return false, true, fmt.Sprintf("%s %q denies tool %q", label, roleName, toolName)
+	}
+	switch r.Permissions["*"] {
+	case "allow":
+		return true, true, ""
+	case "deny":
+		return false, true, fmt.Sprintf("%s %q denies all tools", label, roleName)
+	}
+	every := true
+	for _, k := range kinds {
+		switch r.Permissions[string(k)] {
+		case "allow":
+		case "deny":
+			return false, true, fmt.Sprintf("%s %q denies %s (%s)", label, roleName, k, describe(toolName, k))
+		default:
+			every = false
+		}
+	}
+	if every {
+		return true, true, ""
+	}
+	return false, false, ""
+}
+
+// describe is a kind in a reader's words, for a refusal.
+func describe(toolName string, k Kind) string {
+	switch k {
+	case KindEdit:
+		return toolName + " writes"
+	case KindRead:
+		return toolName + " reads"
+	default:
+		return "calling any tool at all"
+	}
 }
 
 // AssignAgent assigns a role to an agent in the policy.

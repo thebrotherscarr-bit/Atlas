@@ -198,8 +198,11 @@ func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, 
 	// against the tenant's policy. An empty policy is open mode still, and is
 	// SAID on every hold record and in the boot line (RBACLine) rather than
 	// passed in silence. `actor` in the args is a label and decides nothing.
+	// THE TOOL'S OWN DECLARATION RIDES WITH ITS NAME (2026-09-26): a role that
+	// names neither the tool nor `*` is asked about its KIND, and the kind is
+	// `t.Writes` read as edit or read -- never a word guessed from the name.
 	if !caller.Service {
-		if allowed, role, reason := tn.CheckRBAC(caller.Name, name); !allowed {
+		if allowed, role, reason := tn.CheckRBAC(caller.Name, name, t.Writes); !allowed {
 			return "", fmt.Errorf("rbac: caller %q (role %q) denied tool %q: %s", caller.Name, role, name, reason)
 		}
 	}
@@ -3012,7 +3015,11 @@ func toolTenantRBACAssign(t tenant.Tenant, args map[string]any) (string, error) 
 	return fmt.Sprintf("ASSIGNED role %q to agent %q in tenant %q", role, actor, t.Name), nil
 }
 
-// toolTenantRBACCheck checks if an agent has permission for a tool.
+// toolTenantRBACCheck asks the tenant's policy what it would say of an agent
+// calling a tool -- the same question Call asks, with the same declaration.
+// The tool is looked up at THIS door so the kind judged is the one it declares
+// (2026-09-26); a name the door does not carry is refused rather than judged
+// as a word, because nothing could call it anyway.
 func toolTenantRBACCheck(t tenant.Tenant, args map[string]any) (string, error) {
 	actor, _ := args["actor"].(string)
 	if actor == "" {
@@ -3022,7 +3029,15 @@ func toolTenantRBACCheck(t tenant.Tenant, args map[string]any) (string, error) {
 	if toolName == "" {
 		return "", fmt.Errorf("tenant_rbac_check needs a tool")
 	}
-	allowed, role, reason := t.CheckRBAC(actor, toolName)
+	reg := regOf(args)
+	if reg == nil {
+		return "", fmt.Errorf("tenant_rbac_check cannot see this door's own surface from here")
+	}
+	tool, ok := reg.Get(toolName)
+	if !ok {
+		return "", fmt.Errorf("%w: %q -- tenant_rbac_check judges a tool this door carries", ErrUnknownTool, toolName)
+	}
+	allowed, role, reason := t.CheckRBAC(actor, toolName, tool.Writes)
 	if allowed {
 		if role == "" {
 			return fmt.Sprintf("ALLOWED — %s on %s (open mode)", actor, t.Name), nil

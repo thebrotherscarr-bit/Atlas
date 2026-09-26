@@ -610,6 +610,29 @@ func runProve() int {
 	check("tenant_trust refuses stranger grounds",
 		isErr && strings.Contains(text, "not a carried tenant"))
 
+	// THE ROLE MODEL (2026-09-26): a shipped role assigned to a key decides by
+	// what the tool DECLARES. Before this, every shipped role denied every tool
+	// -- the roles spoke in kinds and Can read names -- and no leg had ever
+	// assigned one. Called in-process with the door's own Caller, because the
+	// stdio battery cannot wear a key.
+	rbacHome := filepath.Join(root, "rbachome")
+	os.MkdirAll(rbacHome, 0o755)
+	os.WriteFile(filepath.Join(rbacHome, "rbac.json"), []byte(`{"assign":{"k-agent":"agent"}}`), 0o644)
+	reg2.Add("rbachome", rbacHome)
+	_, readErr := surface2.Call(reg2, "muster", map[string]any{"project": "rbachome"},
+		tools.Caller{Name: "k-agent"})
+	_, writeErr := surface2.Call(reg2, "remember", map[string]any{"project": "rbachome", "text": "x"},
+		tools.Caller{Name: "k-agent"})
+	rbacOK := readErr == nil && writeErr != nil &&
+		strings.Contains(writeErr.Error(), `(role "agent") denied tool "remember"`) &&
+		strings.Contains(writeErr.Error(), "remember writes")
+	rbacDet := ""
+	if !rbacOK {
+		rbacDet = fmt.Sprintf("read=%v write=%v", readErr, writeErr)
+	}
+	check("a shipped role decides by the tool's declaration: agent reads, and is denied a writer by kind",
+		rbacOK, rbacDet)
+
 	// --- N3 rack_plan + management -------------------------------------------
 	planRaw, planErr := loadFixture("rack_plan.json")
 	if planErr != nil {

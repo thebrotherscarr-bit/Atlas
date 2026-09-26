@@ -1052,3 +1052,93 @@ func TestAForbiddenVerbIsNeverFree(t *testing.T) {
 		t.Fatal("no tool carries a forbidden verb -- this test would be the vacuous one it replaced")
 	}
 }
+
+// THE ROLE MODEL (2026-09-26): a SHIPPED role assigned to a key decides by
+// what the tool declares. Until this day every shipped role denied every tool
+// -- `DefaultPolicy` spoke in kinds (`read`, `edit`, `bash`, `net`, `tools`)
+// while `rbac.Can` looked up tool names and `*` -- and no stroke had ever
+// assigned one. This one assigns all four through a real registry and calls a
+// reader and a writer as each. The door hands `Tool.Writes` down with the name;
+// that is the wire, and passing `false` there lets the agent write.
+func TestAShippedRoleAssignedToAKeyDecidesByWhatTheToolDeclares(t *testing.T) {
+	home := t.TempDir()
+	// Only the assignments: the roles are the shipped ones, merged beneath.
+	if err := os.WriteFile(filepath.Join(home, "rbac.json"), []byte(
+		`{"assign": {"k-op": "operator", "k-steward": "steward", "k-agent": "agent", "k-guest": "guest"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(home, "NO-SUCH-SPINE.exe"))
+	reg := Build(tr, Options{})
+	rbacErr := func(key, tool string, args map[string]any) string {
+		_, err := reg.Call(tr, tool, args, Caller{Name: key})
+		if err == nil || !strings.Contains(err.Error(), "rbac:") {
+			return ""
+		}
+		return err.Error()
+	}
+	reads := func(key string) string { return rbacErr(key, "muster", map[string]any{}) }
+	writes := func(key string) string {
+		return rbacErr(key, "remember", map[string]any{"text": "a line from " + key})
+	}
+	for _, key := range []string{"k-op", "k-steward"} {
+		if why := reads(key); why != "" {
+			t.Fatalf("%s may read and was refused: %s", key, why)
+		}
+		if why := writes(key); why != "" {
+			t.Fatalf("%s may write and was refused: %s", key, why)
+		}
+	}
+	if why := reads("k-agent"); why != "" {
+		t.Fatalf("agent may read and was refused: %s", why)
+	}
+	why := writes("k-agent")
+	for _, want := range []string{`rbac: caller "k-agent" (role "agent") denied tool "remember"`, "remember writes"} {
+		if !strings.Contains(why, want) {
+			t.Fatalf("agent's write must be refused by kind, saying %q: %q", want, why)
+		}
+	}
+	why = reads("k-guest")
+	for _, want := range []string{`(role "guest")`, "denies tools"} {
+		if !strings.Contains(why, want) {
+			t.Fatalf("guest must be refused calling at all, saying %q: %q", want, why)
+		}
+	}
+	if why := writes("k-guest"); why == "" {
+		t.Fatal("guest wrote")
+	}
+	// The two that may write did, and the two refusals wrote nothing.
+	body, err := os.ReadFile(filepath.Join(home, "state", "remembered.jsonl"))
+	if err != nil {
+		t.Fatal("operator and steward may write and nothing landed:", err)
+	}
+	if n := strings.Count(strings.TrimRight(string(body), "\n"), "\n") + 1; n != 2 {
+		t.Fatalf("remembered.jsonl holds %d lines; the two allowed writes and no other", n)
+	}
+	if strings.Contains(string(body), "k-agent") || strings.Contains(string(body), "k-guest") {
+		t.Fatal("a refused write landed")
+	}
+
+	// tenant_rbac_check asks the same question with the same declaration, and
+	// refuses a tool the door does not carry rather than judging a word.
+	ask := func(actor, tool string) (string, error) {
+		return reg.Call(tr, "tenant_rbac_check", map[string]any{"actor": actor, "tool": tool},
+			Caller{Name: "glass", Service: true})
+	}
+	if out, err := ask("k-agent", "remember"); err != nil || !strings.HasPrefix(out, "DENIED") ||
+		!strings.Contains(out, "remember writes") {
+		t.Fatalf("the check must deny the agent's write by kind: %q %v", out, err)
+	}
+	if out, err := ask("k-agent", "muster"); err != nil || !strings.HasPrefix(out, "ALLOWED") {
+		t.Fatalf("the check must allow the agent's read: %q %v", out, err)
+	}
+	if _, err := ask("k-agent", "no_such_tool"); !errors.Is(err, ErrUnknownTool) {
+		t.Fatalf("a tool the door does not carry is refused by name, not judged: %v", err)
+	}
+}

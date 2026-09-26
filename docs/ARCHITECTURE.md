@@ -140,7 +140,12 @@ User/Agent → guard (injection block)
 Per-tenant role-based access control:
 - Policy stored in `<tenant_home>/rbac.json`
 - Roles: operator, steward, agent, guest
-- Permissions: read, edit, bash, net, tools (allow/deny)
+- Permissions (allow/deny), asked in this order: the tool by name (`git_tag`),
+  the wildcard (`*`), then the KIND the door declares of the tool -- `tools`
+  (calling at all, carried by every call), `read` (`Writes: false`) or `edit`
+  (`Writes: true`). A name beats the wildcard, the wildcard beats a kind; a deny
+  on any carried kind denies, an allow needs every carried kind; the roles a
+  role implies are asked after it (2026-09-26)
 - `tenant_rbac_assign` / `tenant_rbac_check` MCP tools
 - Open mode when no assignments (backward compatible)
 - `can_approve:false` remains structural — RBAC never grants it
