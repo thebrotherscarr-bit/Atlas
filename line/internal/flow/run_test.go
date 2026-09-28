@@ -1262,3 +1262,178 @@ func TestCompareNamesTwoHeadsThatDifferByOneSeat(t *testing.T) {
 		t.Fatalf("seats must render in seat order, got %q", got)
 	}
 }
+
+// --- a crossed gate carries its grants (2026-09-28) ---------------------------
+//
+// Under --auth the council's writes parked even after the operator resumed a
+// gate that asked exactly that question. A gate may now declare `grants`: what
+// its `continue` authorises, from that gate until the next gate or the end of
+// the run. These strike the flow's half -- the grants ride to the nodes after
+// the gate and no further, are written on the pause and on the resume, and
+// belong to gates alone. THE LINE's half, the hand over the door, is in tools.
+
+// handLog is shared by every copy of a handEngine, so a stroke can read what
+// hand each turn ran under after WithHand has handed back a copy.
+type handLog struct{ turns []string }
+
+// handEngine takes a crossing exactly as THE LINE's council does: by value, so
+// WithHand binds a COPY and the engine handed in stays unbound.
+type handEngine struct {
+	log    *handLog
+	run    string
+	gate   string
+	grants []string
+}
+
+func (h handEngine) WithHand(run, gate string, grants []string) Engine {
+	h.run, h.gate, h.grants = run, gate, grants
+	return h
+}
+
+func (h handEngine) Turn(_ context.Context, objective, _, _ string) (string, error) {
+	h.log.turns = append(h.log.turns, objective+"@"+h.gate+":"+strings.Join(h.grants, ","))
+	return "ran " + objective, nil
+}
+
+func (h handEngine) Ask(_ context.Context, _, _ string) (string, error) { return "answered", nil }
+
+func (h handEngine) RunPrompt(_ string, _ int, _ map[string]string, _ string) (play.Run, error) {
+	return play.Run{Output: "prompted"}, nil
+}
+
+func (h handEngine) SeatAsk(_, _, _, _ string) (play.Run, error) {
+	return play.Run{Output: "seated"}, nil
+}
+
+func (h handEngine) Recall(_, _ string) (string, error) { return "recalled", nil }
+
+// One gate that grants, a run node after it, a second gate that grants
+// nothing, and a run node after that.
+func grantSpec() Spec {
+	return Spec{Name: "granted", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "a", Kind: "ask", Question: "Q"},
+			{Name: "g", Kind: "gate", Title: "cut it?", Grants: []string{"git_tag"}},
+			{Name: "w", Kind: "run", Question: "cut it"},
+			{Name: "g2", Kind: "gate", Title: "send it?"},
+			{Name: "w2", Kind: "run", Question: "send it"},
+		},
+		Edges: []Edge{
+			{From: "a", To: "g", When: "always"},
+			{From: "g", To: "w", When: "pass"},
+			{From: "w", To: "g2", When: "always"},
+			{From: "g2", To: "w2", When: "pass"},
+		}}
+}
+
+func TestACrossedGateCarriesItsGrantsToTheNodesAfterItAndNoFurther(t *testing.T) {
+	home := t.TempDir()
+	res, err := Run(home, handEngine{log: &handLog{}}, grantSpec(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused || res.PausedNode != "g" {
+		t.Fatalf("the first gate did not pause: %s at %q", res.Verdict, res.PausedNode)
+	}
+	// The pause says what continue will authorise, beside the question.
+	lines, err := runLog(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pausedGrants := ""
+	for _, l := range lines {
+		if l["kind"] == "node" && l["node"] == "g" && l["status"] == "paused" {
+			b, _ := json.Marshal(l["grants"])
+			pausedGrants = string(b)
+		}
+	}
+	if pausedGrants != `["git_tag"]` {
+		t.Fatalf("the pause must carry the grants, got %s", pausedGrants)
+	}
+	st, err := Status(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(st, "continue grants the council: git_tag") {
+		t.Fatalf("the waterfall must say what continue authorises:\n%s", st)
+	}
+
+	// Crossing the first gate: the node after it runs under the grants.
+	first := &handLog{}
+	res2, err := Resume(home, handEngine{log: first}, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictPaused || res2.PausedNode != "g2" {
+		t.Fatalf("the second gate did not pause: %s at %q", res2.Verdict, res2.PausedNode)
+	}
+	if strings.Join(first.turns, "|") != "cut it@g:git_tag" {
+		t.Fatalf("the node after the crossed gate must run under its grants: %v", first.turns)
+	}
+	lines, _ = runLog(home, res.Run)
+	resumedGrants := ""
+	for _, l := range lines {
+		if l["kind"] == "resumed" && l["node"] == "g" {
+			b, _ := json.Marshal(l["grants"])
+			resumedGrants = string(b)
+		}
+	}
+	if resumedGrants != `["git_tag"]` {
+		t.Fatalf("the resume must say what the hand authorised, got %s", resumedGrants)
+	}
+
+	// Crossing the second gate, which grants nothing: the hand is gone.
+	second := &handLog{}
+	res3, err := Resume(home, handEngine{log: second}, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res3.Verdict != VerdictComplete {
+		t.Fatalf("verdict = %s after both gates", res3.Verdict)
+	}
+	if strings.Join(second.turns, "|") != "send it@:" {
+		t.Fatalf("a gate that grants nothing must carry no hand past it: %v", second.turns)
+	}
+
+	// An engine that takes no hand is left alone; a gate with no grants binds
+	// nothing; and a bound copy leaves the engine handed in unbound.
+	eng := &stubEngine{}
+	if got := onHand(eng, "r", Node{Kind: "gate", Grants: []string{"git_tag"}}); got != Engine(eng) {
+		t.Fatal("onHand replaced an engine that cannot take a hand")
+	}
+	plain := handEngine{log: &handLog{}}
+	if got := onHand(plain, "r", Node{Kind: "gate", Title: "t"}); len(got.(handEngine).grants) != 0 {
+		t.Fatal("a gate with no grants bound a hand")
+	}
+	bound := onHand(plain, "r", Node{Kind: "gate", Grants: []string{"git_tag"}})
+	if len(plain.grants) != 0 || len(bound.(handEngine).grants) != 1 {
+		t.Fatal("WithHand must bind a copy and leave the engine handed in unbound")
+	}
+}
+
+// ONLY A GATE GRANTS: a grant on any other kind is refused at the save, and an
+// empty grant name is refused with it.
+func TestOnlyAGateGrants(t *testing.T) {
+	for _, n := range []Node{
+		{Name: "n", Kind: "ask", Question: "Q", Grants: []string{"git_tag"}},
+		{Name: "n", Kind: "run", Question: "Q", Grants: []string{"git_tag"}},
+		{Name: "n", Kind: "eval", Ref: "a", Expected: "x", Grants: []string{"git_tag"}},
+	} {
+		s := Spec{Name: "g", Nodes: []Node{{Name: "a", Kind: "ask", Question: "Q"}, n},
+			Edges: []Edge{{From: "a", To: "n"}}}
+		_, err := Validate(s)
+		if err == nil || !strings.Contains(err.Error(), "only a gate") {
+			t.Fatalf("a %s with grants must be refused by name: %v", n.Kind, err)
+		}
+	}
+	empty := Spec{Name: "g", Nodes: []Node{{Name: "g", Kind: "gate", Title: "t", Grants: []string{" "}}}}
+	if _, err := Validate(empty); err == nil || !strings.Contains(err.Error(), "empty name") {
+		t.Fatalf("an empty grant must be refused: %v", err)
+	}
+	for _, grants := range [][]string{nil, {"git_tag"}, {"git_tag", "git_branch"}} {
+		s := Spec{Name: "g", Nodes: []Node{{Name: "g", Kind: "gate", Title: "t", Grants: grants}}}
+		if _, err := Validate(s); err != nil {
+			t.Fatalf("a gate granting %v must validate: %v", grants, err)
+		}
+	}
+}

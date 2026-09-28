@@ -1370,3 +1370,266 @@ func TestAKeysScopeIsMovedByAProvedHandOntoCarriedGroundOrHeld(t *testing.T) {
 		t.Fatalf("narrowing replaces the list whole: %+v", got)
 	}
 }
+
+// --- a secret in the hold queue (2026-09-28) ------------------------------------
+
+// A SECRET ARGUMENT IS DECLARED WHEREVER A KEY IS TAKEN. Every tool that takes
+// `key` says so in Secrets, every Secrets entry names an argument the tool
+// takes, and `shown` withholds by the declaration first and by the door's own
+// key shape second -- even on a tool the door no longer carries.
+func TestASecretArgumentIsDeclaredWhereverAKeyIsTaken(t *testing.T) {
+	reg := Build(tenant.NewRegistry(), Options{})
+	declared := 0
+	for _, tool := range reg.All() {
+		takes := map[string]bool{}
+		for _, a := range tool.Args {
+			takes[strings.TrimRight(a, "?")] = true
+		}
+		for _, s := range tool.Secrets {
+			declared++
+			if !takes[s] {
+				t.Errorf("%s declares %q secret and takes no such argument", tool.Name, s)
+			}
+		}
+		if takes["key"] && !hasArg(tool.Secrets, "key") {
+			t.Errorf("%s takes a key and does not declare it secret", tool.Name)
+		}
+	}
+	if declared == 0 {
+		t.Fatal("no tool declares a secret; this stroke would be vacuous")
+	}
+	shaped := "atl_" + strings.Repeat("ab", 16)
+	// By the declaration: a value of any shape, in a declared argument.
+	scope, _ := reg.Get("auth_key_scope")
+	got := shown(scope, true, map[string]any{"id": "k-1", "tenants": "t", "key": "not-a-key-shape"})
+	if got["key"] != Withheld || got["id"] != "k-1" || got["tenants"] != "t" {
+		t.Fatalf("a declared secret is withheld and nothing else is: %v", got)
+	}
+	// By the shape: a key where nobody declared one.
+	rem, _ := reg.Get("remember")
+	got = shown(rem, true, map[string]any{"text": shaped, "project": "t"})
+	if got["text"] != Withheld || got["project"] != "t" {
+		t.Fatalf("a key-shaped value is withheld wherever it sits: %v", got)
+	}
+	// And on a tool the door does not carry, the shape still holds.
+	got = shown(Tool{}, false, map[string]any{"key": shaped, "note": "plain"})
+	if got["key"] != Withheld || got["note"] != "plain" {
+		t.Fatalf("with no declaration the shape still withholds: %v", got)
+	}
+	// A plain word in a declared-elsewhere name is not a secret here.
+	got = shown(rem, true, map[string]any{"key": "the key to the shed"})
+	if got["key"] != "the key to the shed" {
+		t.Fatalf("a plain value on an undeclared tool is shown: %v", got)
+	}
+}
+
+// A PARKED SECRET IS WITHHELD WHERE IT IS SHOWN AND RUNS WHOLE. A scope move
+// from a key parks with the re-proof key in its arguments; the queue shows the
+// call without it, the holds record never carried it, and approving runs the
+// parked call with the real key.
+func TestAParkedSecretIsWithheldWhereItIsShownAndRunsWhole(t *testing.T) {
+	home, other := t.TempDir(), t.TempDir()
+	key, rec, err := auth.Create(home, "council", []string{"t"}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := tenant.NewRegistry()
+	for name, h := range map[string]string{"t": home, "u": other} {
+		if err := tr.Add(name, h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(home, "NO-SUCH-SPINE.exe"))
+	reg := Build(tr, Options{HoldWrites: true})
+	glass := Caller{Name: "glass", Service: true}
+
+	out, err := reg.Call(tr, "auth_key_scope",
+		map[string]any{"id": rec.ID, "tenants": "t,u", "key": key}, Caller{Name: rec.ID})
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("the move from a key must park: %q %v", out, err)
+	}
+	if strings.Contains(out, key) {
+		t.Fatal("the held answer carries the key")
+	}
+	list, err := reg.Call(tr, "hold_list", map[string]any{}, glass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(list, key) {
+		t.Fatalf("the plaintext key is shown on the queue:\n%s", list)
+	}
+	if !strings.Contains(list, Withheld) || !strings.Contains(list, `"tenants": "t,u"`) ||
+		!strings.Contains(list, rec.ID) {
+		t.Fatalf("the queue must show the call with its secret withheld and the rest whole:\n%s", list)
+	}
+	raw, err := os.ReadFile(filepath.Join(home, "state", "holds.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), key) {
+		t.Fatal("the holds record carries the key")
+	}
+	var id string
+	for h := range reg.held {
+		id = h
+	}
+	out, err = reg.Call(tr, "hold_answer", map[string]any{"id": id, "decision": "approve"}, glass)
+	if err != nil || !strings.Contains(out, "SCOPED "+rec.ID) {
+		t.Fatalf("approving must run the parked call whole, with the real key: %q %v", out, err)
+	}
+	if got, _ := auth.Verify(home, key); strings.Join(got.Tenants, ",") != "t,u" {
+		t.Fatalf("the parked call ran with its key and moved the scope: %+v", got)
+	}
+}
+
+// --- the operator's hand carried past a crossed gate (2026-09-28) ---------------
+
+// A CROSSED GATE CARRIES THE HAND TO THE TOOLS IT GRANTS AND NO OTHER. With the
+// hand raised over git_tag for a world, the council's cut reaches the tool
+// (which speaks for itself) and the holds record says `crossed`, naming the run
+// and the gate; an ungranted writer still parks; the hand is lowered after the
+// turn and the same cut parks again. WithHand binds a copy, and a council with
+// no hand raises nothing.
+func TestACrossedGateCarriesTheHandToTheToolsItGrantsAndNoOther(t *testing.T) {
+	tn := tempWorld(t)
+	t.Setenv("MANJUEL_GIT_REMOTE", "")
+	t.Setenv("CHAINKIT_GIT_REMOTE", "")
+	t.Setenv("ATLAS_BIN", filepath.Join(tn.Home, "NO-SUCH-SPINE.exe"))
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", tn.Home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	reg := Build(tr, Options{HoldWrites: true})
+	key := Caller{Name: "k-council"}
+	cut := func() map[string]any {
+		return map[string]any{"action": "cut", "name": "v0.1.5", "message": "m"}
+	}
+
+	out, err := reg.Call(tr, "git_tag", cut(), key)
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("with no hand the cut parks: %q %v", out, err)
+	}
+
+	base := council(tn.Home).(councilEngine)
+	if len(base.hand.Tools) != 0 {
+		t.Fatal("a council is born with no hand")
+	}
+	bound := base.WithHand("f-20260928-000000-deadbeef", "judge", []string{"git_tag"}).(councilEngine)
+	if len(base.hand.Tools) != 0 {
+		t.Fatal("WithHand bound the registered engine -- the hand would outlive its segment")
+	}
+	if strings.Join(bound.hand.Tools, ",") != "git_tag" || bound.hand.Gate != "judge" {
+		t.Fatalf("WithHand did not bind the crossing it was handed: %+v", bound.hand)
+	}
+
+	err = bound.underHand(func() error {
+		out, err := reg.Call(tr, "git_tag", cut(), key)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(out, "HELD:") {
+			t.Fatalf("under the hand the cut parked: %s", out)
+		}
+		if !strings.HasPrefix(out, "Refused:") {
+			t.Fatalf("under the hand the tool itself must answer (here, refusing on its own law): %s", out)
+		}
+		out, err = reg.Call(tr, "remember", map[string]any{"text": "x"}, key)
+		if err != nil || !strings.HasPrefix(out, "HELD:") {
+			t.Fatalf("an ungranted writer must still park under the hand: %q %v", out, err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Lowered after the turn: the same cut parks again.
+	out, err = reg.Call(tr, "git_tag", cut(), key)
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("after the turn the hand must be lowered: %q %v", out, err)
+	}
+	// The record says whose hand it was, and where.
+	raw, err := os.ReadFile(filepath.Join(tn.Home, "state", "holds.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	crossed := 0
+	for _, ln := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		if !strings.Contains(ln, `"what":"crossed"`) {
+			continue
+		}
+		crossed++
+		for _, want := range []string{`"tool":"git_tag"`, `"caller":"k-council"`,
+			"run f-20260928-000000-deadbeef gate judge"} {
+			if !strings.Contains(ln, want) {
+				t.Fatalf("the crossed line must say %s: %s", want, ln)
+			}
+		}
+	}
+	if crossed != 1 {
+		t.Fatalf("%d crossed lines, wanted exactly one -- the cut that rode the hand", crossed)
+	}
+	// A council with no hand raises nothing.
+	ran := false
+	if err := base.underHand(func() error {
+		ran = true
+		if _, ok := hands.covers(tn.Home, "git_tag"); ok {
+			t.Fatal("a handless turn raised a hand")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !ran {
+		t.Fatal("underHand did not run the turn")
+	}
+}
+
+// A GRANT NAMES A WRITING TOOL THIS DOOR CARRIES, or the save is refused by
+// name -- at the save, not at the crossing.
+func TestFlowSaveRefusesAGrantOnAStrangerOrAReader(t *testing.T) {
+	home := t.TempDir()
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(home, "NO-SUCH-SPINE.exe"))
+	reg := Build(tr, Options{})
+	glass := Caller{Name: "glass", Service: true}
+	spec := func(grant string) string {
+		return `{"nodes":[{"name":"a","kind":"ask","question":"Q"},` +
+			`{"name":"g","kind":"gate","title":"cut?","grants":["` + grant + `"]},` +
+			`{"name":"w","kind":"run","question":"cut it"}],` +
+			`"edges":[{"from":"a","to":"g"},{"from":"g","to":"w","when":"pass"}]}`
+	}
+	save := func(name, spec string) (string, error) {
+		return reg.Call(tr, "flow_save", map[string]any{"name": name, "spec": spec}, glass)
+	}
+	if _, err := save("granted", spec("muster")); err == nil || !strings.Contains(err.Error(), `grants "muster", which does not write`) {
+		t.Fatalf("a grant on a reader must be refused by name: %v", err)
+	}
+	if _, err := save("granted", spec("no_such_tool")); err == nil || !strings.Contains(err.Error(), "not a tool this door carries") {
+		t.Fatalf("a grant on a stranger must be refused by name: %v", err)
+	}
+	out, err := save("granted", spec("git_tag"))
+	if err != nil || !strings.Contains(out, "SAVED flow granted v1") {
+		t.Fatalf("a grant on a writing tool the door carries must fold: %q %v", out, err)
+	}
+	got, err := reg.Call(tr, "flow_get", map[string]any{"name": "granted"}, glass)
+	if err != nil || !strings.Contains(got, `"grants"`) || !strings.Contains(got, `"git_tag"`) {
+		t.Fatalf("the folded spec must carry the grant: %q %v", got, err)
+	}
+	// The flow package's own refusal reaches the door too.
+	bad := `{"nodes":[{"name":"w","kind":"run","question":"cut it","grants":["git_tag"]}],"edges":[]}`
+	if _, err := save("wrong", bad); err == nil || !strings.Contains(err.Error(), "only a gate") {
+		t.Fatalf("a grant on a run node must be refused: %v", err)
+	}
+}

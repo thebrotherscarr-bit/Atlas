@@ -203,6 +203,24 @@ func onHead(eng Engine, head Head) Engine {
 	return eng
 }
 
+// onHand binds a crossed gate's grants onto the engine that fires the nodes
+// after it (2026-09-28). Only a gate that declares grants binds anything; THE
+// LINE's council implements WithHand and raises the hand over the world for
+// each turn it fires, and the bare prodEngine, which refuses `run` nodes
+// anyway, does not. A copy is bound, as with the head: the engine handed in
+// stays unbound, so the hand ends with the segment it was raised for.
+func onHand(eng Engine, run string, gate Node) Engine {
+	if gate.Kind != "gate" || len(gate.Grants) == 0 {
+		return eng
+	}
+	if hh, ok := eng.(interface {
+		WithHand(run, gate string, grants []string) Engine
+	}); ok {
+		return hh.WithHand(run, gate.Name, gate.Grants)
+	}
+	return eng
+}
+
 // startHead is the head a run was fired on, off its start line. The zero head
 // means the ground's declared targets, which is every run folded before
 // 2026-09-23 and every run since that named none.
@@ -283,10 +301,20 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 	resumed := resumeGate != ""
 	if resumed {
 		pass[resumeGate] = true
-		appendLog(home, map[string]any{
+		line := map[string]any{
 			"run": run, "ts": nowUTC(), "kind": "resumed",
 			"node": resumeGate, "decision": "continue",
-		})
+		}
+		// THE HAND RIDES FROM THIS GATE TO THE NEXT (2026-09-28). A gate that
+		// declares grants binds them onto the engine that fires the nodes after
+		// it; this runFrom ends at the next gate or the end of the run, so that
+		// is exactly how far the crossing reaches. Written on the resumed line,
+		// so the record says what the hand authorised when it said continue.
+		if g := byName[resumeGate]; len(g.Grants) > 0 {
+			line["grants"] = g.Grants
+			eng = onHand(eng, run, g)
+		}
+		appendLog(home, line)
 	}
 	var total int64
 	for _, e := range elapsed {
@@ -345,11 +373,17 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 			} else {
 				title = title + "  [title unrendered: " + err.Error() + "]"
 			}
-			appendLog(home, map[string]any{
+			paused := map[string]any{
 				"run": run, "ts": nowUTC(), "kind": "node",
 				"node": name, "nkind": "gate", "status": "paused",
 				"title": title,
-			})
+			}
+			// What `continue` will authorise is ON the pause, beside the
+			// question, so the hand deciding knows what its answer carries.
+			if len(nd.Grants) > 0 {
+				paused["grants"] = nd.Grants
+			}
+			appendLog(home, paused)
 			r := finishRun(run, VerdictPaused, total, outputs, outText)
 			r.PausedNode = name
 			return r, nil
@@ -1018,6 +1052,17 @@ func Status(home, run string) (string, error) {
 			if t, _ := l["title"].(string); t != "" {
 				for _, ln := range strings.Split(strings.TrimRight(t, "\n"), "\n") {
 					fmt.Fprintf(&b, "      %s\n", ln)
+				}
+				// WHAT CONTINUE AUTHORISES, said where the decision is made.
+				if raw, ok := l["grants"].([]any); ok && len(raw) > 0 {
+					names := make([]string, 0, len(raw))
+					for _, g := range raw {
+						if s, ok := g.(string); ok {
+							names = append(names, s)
+						}
+					}
+					fmt.Fprintf(&b, "      continue grants the council: %s (those calls run instead of parking, until the next gate)\n",
+						strings.Join(names, ", "))
 				}
 				fmt.Fprintf(&b, "      -> flow_resume run=%s decision=continue|stop\n", run)
 			}

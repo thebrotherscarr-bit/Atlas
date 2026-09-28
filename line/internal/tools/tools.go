@@ -126,6 +126,13 @@ type Tool struct {
 	// TestAReadingActionIsDeclaredOnlyWhereItCanBeRead holds every declaration
 	// to; TestAReadingActionOfAWritingToolIsNotHeld measures it on a repository.
 	Reads []string
+	// Secrets names the arguments whose values are secrets (2026-09-28): the
+	// re-proof `key` the auth verbs take. A parked call keeps them whole --
+	// approving runs exactly what was parked -- but where a hold is SHOWN
+	// (hold_list, and the glass behind it) they read as Withheld (holds.go).
+	// TestASecretArgumentIsDeclaredWhereverAKeyIsTaken holds every `key`
+	// argument to this declaration.
+	Secrets []string
 	// Tier is what this tool needs beyond a directory. Zero value is core.
 	Tier Tier
 	Args []string
@@ -251,7 +258,17 @@ func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, 
 	// door can actually tell them apart (--auth); inert and honest about it
 	// otherwise, because a gate that silently passes everyone is believed.
 	if r.holdWrites && writes && !caller.Service && !heldExempt[name] {
-		return heldAnswer(r.park(tn, t, args, caller)), nil
+		// ...UNLESS HIS HAND STANDS OVER IT (2026-09-28): a gate he crossed
+		// declared this tool, and the call rides that decision. Written down as
+		// `crossed`, so the record says whose hand it was and where.
+		hd, crossed := hands.covers(tn.Home, name)
+		if !crossed {
+			return heldAnswer(r.park(tn, t, args, caller)), nil
+		}
+		r.record(tn.Home, "crossed", Hold{
+			ID: fmt.Sprintf("crossed_%d_%s", time.Now().UnixMilli(), name), Tool: name,
+			Caller: callerLabel(caller), Project: tn.Name, RBAC: rbacState(tn, caller),
+		}, "run "+hd.Run+" gate "+hd.Gate)
 	}
 	args[CallerKey] = caller
 	args[registryKey] = r
@@ -349,6 +366,55 @@ var engines = engine.NewRegistry()
 // holds its world's sitting open, and an open sitting is what RULE 9 forbids
 // editing under and what the release gate refuses a tag over.
 func Engines() *engine.Registry { return engines }
+
+// hand is THE OPERATOR'S HAND, CARRIED PAST A GATE HE CROSSED (2026-09-28). A
+// gate node may declare `grants`, the writing tools its `continue` authorises.
+// While a `run` node after that gate is in its turn, the council's calls to
+// those tools on that world run instead of parking, and each is written to the
+// holds record as `crossed`, naming the run and the gate. Everything else still
+// parks; RBAC still judges. Keyed by the world's home -- one flow per world at a
+// time (flowLock) -- raised for the turn and lowered after it.
+type hand struct {
+	Run   string
+	Gate  string
+	Tools []string
+}
+
+type handRegistry struct {
+	mu   sync.Mutex
+	open map[string]hand
+}
+
+var hands = &handRegistry{open: map[string]hand{}}
+
+func (h *handRegistry) raise(home string, hd hand) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.open[home] = hd
+}
+
+func (h *handRegistry) lower(home string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.open, home)
+}
+
+// covers reports whether the operator's hand stands over this tool on this
+// world right now, and the crossing it rides.
+func (h *handRegistry) covers(home, tool string) (hand, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	hd, ok := h.open[home]
+	if !ok {
+		return hand{}, false
+	}
+	for _, t := range hd.Tools {
+		if t == tool {
+			return hd, true
+		}
+	}
+	return hand{}, false
+}
 
 // Build wires the lawful surface onto a tenant registry. Landed tools run
 // for real; later-stone tools refuse honestly rather than fabricate.
@@ -777,9 +843,11 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	// lock — branches declare parallelism, the queue runs them one by one.
 	r.add(Tool{
 		Name: "flow_save", Writes: true,
-		Description: "fold a new flow spec version; history kept whole (N2)",
+		Description: "fold a new flow spec version; history kept whole (N2). A gate's `grants` must name writing tools this door carries",
 		Args:        []string{"name", "spec", "project?"},
-		Fn:          toolFlowSave,
+		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
+			return toolFlowSave(r, t, args)
+		},
 	})
 	r.add(Tool{
 		Name: "flow_get", Writes: false,
@@ -869,7 +937,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	// and revocation name an existing key — sensitive moves re-prove
 	// possession, like sudo. Plaintext returns once, at creation.
 	r.add(Tool{
-		Name: "auth_key_create", Writes: true,
+		Name: "auth_key_create", Writes: true, Secrets: []string{"key"},
 		Description: "mint a scoped API key; plaintext returns once (N6)",
 		Args:        []string{"name", "tenants?", "key?", "project?"},
 		Fn:          toolAuthCreate,
@@ -881,13 +949,13 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolAuthList,
 	})
 	r.add(Tool{
-		Name: "auth_key_revoke", Writes: true,
+		Name: "auth_key_revoke", Writes: true, Secrets: []string{"key"},
 		Description: "fold a key: flagged, kept for audit (N6)",
 		Args:        []string{"id", "key?", "project?"},
 		Fn:          toolAuthRevoke,
 	})
 	r.add(Tool{
-		Name: "auth_key_scope", Writes: true,
+		Name: "auth_key_scope", Writes: true, Secrets: []string{"key"},
 		Description: "set which carried tenants a live key carries, the list replaced whole; possession re-proved like create and revoke, and the move audited (N6)",
 		Args:        []string{"id", "tenants", "key?", "project?"},
 		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
@@ -895,7 +963,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		},
 	})
 	r.add(Tool{
-		Name: "auth_verify", Writes: false,
+		Name: "auth_verify", Writes: false, Secrets: []string{"key"},
 		Description: "check a key against a tenant store; the login door (N6)",
 		Args:        []string{"key", "project?"},
 		Fn:          toolAuthVerify,
@@ -1761,7 +1829,7 @@ func flowFace(r flow.Result) string {
 	return out
 }
 
-func toolFlowSave(t tenant.Tenant, args map[string]any) (string, error) {
+func toolFlowSave(r *Registry, t tenant.Tenant, args map[string]any) (string, error) {
 	name, _ := args["name"].(string)
 	raw, _ := args["spec"].(string)
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(raw) == "" {
@@ -1774,6 +1842,23 @@ func toolFlowSave(t tenant.Tenant, args map[string]any) (string, error) {
 	}
 	if err := json.Unmarshal([]byte(raw), &doc); err != nil {
 		return "", fmt.Errorf("flow spec must be JSON: %s", err)
+	}
+	// A GRANT NAMES A WRITING TOOL THIS DOOR CARRIES (2026-09-28), refused by
+	// name otherwise, at the save and not at the crossing: a grant on a
+	// stranger is a permission read by nothing, and a grant on a reader
+	// authorises nothing the queue ever held. The flow package keeps grants to
+	// gates; only the door knows its own surface.
+	for _, n := range doc.Nodes {
+		for _, g := range n.Grants {
+			tool, ok := r.Get(g)
+			if !ok {
+				return "", fmt.Errorf("refused: gate %q grants %q, which is not a tool this door carries", n.Name, g)
+			}
+			if !tool.Writes {
+				return "", fmt.Errorf("refused: gate %q grants %q, which does not write -- a grant carries the "+
+					"hand past the holds, and a reader is never held", n.Name, g)
+			}
+		}
 	}
 	askLock.Lock()
 	defer askLock.Unlock()
@@ -1981,6 +2066,30 @@ type councilEngine struct {
 	// construction rather than two specs that drift into two experiments.
 	// The zero head is the ordinary case: the ground's declared targets.
 	head flow.Head
+	// hand is the operator's crossing of a gate that declared grants, bound
+	// by flow on the way into the nodes after it (WithHand); the zero hand is
+	// none, and a turn under it parks every write as before.
+	hand hand
+}
+
+// WithHand is how flow hands a crossed gate's grants down to the council, on
+// the way into the nodes after the gate. A copy, like WithHead: the registered
+// engine stays unbound, and the hand ends with the segment it was raised for.
+func (c councilEngine) WithHand(run, gate string, grants []string) flow.Engine {
+	c.hand = hand{Run: run, Gate: gate, Tools: append([]string{}, grants...)}
+	return c
+}
+
+// underHand raises the hand over the world for the length of one turn and
+// lowers it after, whatever the turn did. A hand left raised would cover the
+// next flow's council, or a stray call, with a decision nobody made for it.
+func (c councilEngine) underHand(turn func() error) error {
+	if len(c.hand.Tools) == 0 {
+		return turn()
+	}
+	hands.raise(c.home, c.hand)
+	defer hands.lower(c.home)
+	return turn()
 }
 
 func (c councilEngine) Turn(ctx context.Context, objective, feed, method string) (string, error) {
@@ -2008,8 +2117,17 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 	// and "every seat" to the council, which is the only side with a roster.
 	// This is the one place that knows both, which is what councilEngine is
 	// for -- neither package has to learn the other's vocabulary.
-	res, err := e.Run(objective, feed, method,
-		engine.Head{Model: c.head.Voice, Voices: c.head.Voices}, nil)
+	//
+	// AND THE TURN RUNS UNDER THE HAND (2026-09-28): if the gate before this
+	// node declared grants, the council's calls to those tools run instead of
+	// parking, for this turn and no longer.
+	var res engine.Result
+	err := c.underHand(func() error {
+		var rerr error
+		res, rerr = e.Run(objective, feed, method,
+			engine.Head{Model: c.head.Voice, Voices: c.head.Voices}, nil)
+		return rerr
+	})
 	if err != nil {
 		return "", err
 	}
@@ -2116,7 +2234,7 @@ func (c councilEngine) WithHead(head flow.Head) flow.Engine {
 }
 
 func council(home string) flow.Engine {
-	return councilEngine{flow.Production(home), home, flow.Head{}}
+	return councilEngine{flow.Production(home), home, flow.Head{}, hand{}}
 }
 
 func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {

@@ -45,6 +45,7 @@ import (
 	"sync"
 	"time"
 
+	"atlas/line/internal/auth"
 	"atlas/line/internal/tenant"
 )
 
@@ -236,6 +237,40 @@ func heldAnswer(h Hold) string {
 		"is waiting.", h.Tool, h.Caller, h.ID)
 }
 
+// Withheld is what a secret reads as where a hold is SHOWN (2026-09-28). A
+// parked call keeps its arguments whole -- approving runs exactly what was
+// parked -- but hold_list hands them to the glass, and on 2026-09-28 the first
+// re-proof key that would have parked there would have been in plain view
+// (RULE 7). Two readings hide it: the tool's own declaration of which
+// arguments are secrets (Tool.Secrets), and the door's own key shape
+// (auth.KeyRe), withheld even where nobody declared it.
+const Withheld = "[withheld: a secret; the parked call keeps it]"
+
+// shown is a hold's arguments as the glass may see them. `ok` is whether the
+// door still carries the tool; a tool it does not carry has no declaration,
+// and the key shape still holds.
+func shown(t Tool, ok bool, args map[string]any) map[string]any {
+	out := make(map[string]any, len(args))
+	secret := map[string]bool{}
+	if ok {
+		for _, s := range t.Secrets {
+			secret[s] = true
+		}
+	}
+	for k, v := range args {
+		if secret[k] {
+			out[k] = Withheld
+			continue
+		}
+		if s, isStr := v.(string); isStr && auth.KeyRe.MatchString(strings.TrimSpace(s)) {
+			out[k] = Withheld
+			continue
+		}
+		out[k] = v
+	}
+	return out
+}
+
 // callerOf reads the door's own judgement back out of the args it wrote.
 func callerOf(args map[string]any) Caller {
 	if c, ok := args[CallerKey].(Caller); ok {
@@ -288,10 +323,13 @@ func toolHoldList(t tenant.Tenant, args map[string]any) (string, error) {
 	rows := []map[string]any{}
 	for _, id := range ids {
 		h := reg.held[id]
+		// SHOWN, NOT HANDED OVER: a secret in the parked arguments reads as
+		// Withheld here; the call itself keeps it (shown, above).
+		t, ok := reg.Get(h.Tool)
 		rows = append(rows, map[string]any{
 			"id": h.ID, "tool": h.Tool, "caller": h.Caller,
 			"project": h.Project, "when": h.When.Format(time.RFC3339),
-			"args": h.Args,
+			"args": shown(t, ok, h.Args),
 		})
 	}
 	out["held"] = rows

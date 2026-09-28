@@ -652,6 +652,19 @@ func runProve() int {
 	}
 	check("a reading action of a writing tool is not held: git_tag list answers, git_tag cut is parked",
 		heldOK, heldDet)
+	// A SECRET IN THE HOLD QUEUE IS WITHHELD WHERE IT IS SHOWN (2026-09-28): a
+	// scope move parked from a key carries its re-proof key; the queue shows the
+	// call without it.
+	fakeKey := "atl_" + strings.Repeat("0f", 16)
+	parkOut, parkErr := armed.Call(reg2, "auth_key_scope",
+		map[string]any{"project": "atlas", "id": "k-00000000", "tenants": "atlas", "key": fakeKey},
+		tools.Caller{Name: "k-agent"})
+	queueOut, queueErr := armed.Call(reg2, "hold_list", map[string]any{"project": "atlas"},
+		tools.Caller{Name: "glass", Service: true})
+	check("a secret parked in the holds is withheld where the queue is shown",
+		parkErr == nil && strings.HasPrefix(parkOut, "HELD:") && !strings.Contains(parkOut, fakeKey) &&
+			queueErr == nil && !strings.Contains(queueOut, fakeKey) && strings.Contains(queueOut, tools.Withheld) &&
+			strings.Contains(queueOut, "k-00000000"))
 
 	// --- N3 rack_plan + management -------------------------------------------
 	planRaw, planErr := loadFixture("rack_plan.json")
@@ -950,6 +963,24 @@ func runProve() int {
 				"spec": `{"nodes":[{"name":"a","kind":"ask"},{"name":"b","kind":"ask"}],"edges":[{"from":"a","to":"b"},{"from":"b","to":"a"}]}`}})
 		check("flow_save refuses cycles",
 			isErr && (strings.Contains(text, "cycle") || strings.Contains(text, "start")))
+		// A GATE DECLARES WHAT IT GRANTS (2026-09-28): a grant names a writing
+		// tool this door carries, refused by name otherwise.
+		grantedSpec := func(grant string) string {
+			return `{"nodes":[{"name":"a","kind":"ask","question":"Q"},` +
+				`{"name":"g","kind":"gate","title":"cut?","grants":["` + grant + `"]},` +
+				`{"name":"w","kind":"run","question":"cut it"}],` +
+				`"edges":[{"from":"a","to":"g"},{"from":"g","to":"w","when":"pass"}]}`
+		}
+		text, isErr = callTool(map[string]any{
+			"name": "flow_save", "arguments": map[string]any{
+				"project": "atlas", "name": "granted", "spec": grantedSpec("git_tag")}})
+		check("flow_save folds a gate that grants a writing tool",
+			!isErr && strings.Contains(text, "SAVED flow granted v1"))
+		text, isErr = callTool(map[string]any{
+			"name": "flow_save", "arguments": map[string]any{
+				"project": "atlas", "name": "granted", "spec": grantedSpec("muster")}})
+		check("flow_save refuses a grant on a tool that does not write",
+			isErr && strings.Contains(text, "does not write"))
 		text, isErr = callTool(map[string]any{
 			"name": "flow_list", "arguments": map[string]any{"project": "atlas"}})
 		check("flow_list names the registry",

@@ -12,6 +12,76 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Added — a gate declares what its crossing grants (operator, 2026-09-28: "then the crossed gate"; by card, "the gate declares what it grants")
+
+Under `--auth` the council's writes parked even after the operator had resumed a gate that asked
+exactly that question, so `version-tag` could read the marks and never cut or send one through the
+council: his `continue` at the gate and his approval of the hold were one decision asked twice, and
+the flow recorded the hold's words as the node's answer.
+
+- `flow.Node.Grants`: a GATE's declaration of the writing tools its `continue` authorises, from that
+  gate until the next gate or the end of the run. Only a gate carries grants (`Validate` refuses the
+  rest by name, and an empty name); the pause and the resume lines carry them, and `flow_status`
+  says "continue grants the council: ..." beside the question. `runFrom` binds a crossed gate's
+  grants onto the engine that fires the nodes after it (`onHand`, a copy like `onHead`).
+- THE LINE: `councilEngine.WithHand` takes the crossing (a copy; the registered engine stays
+  unbound) and `underHand` raises the hand over the world for the length of one turn and lowers it
+  after. `tools.Call`, about to park a write from a key, asks whether the hand stands over that tool
+  on that world: if it does the call runs and the holds record gets a `crossed` line naming the
+  tool, the caller and "run <id> gate <name>"; if not it parks as before. RBAC still judges first.
+  `flow_save` refuses a grant naming a tool the door does not carry, or one that does not write, at
+  the save.
+- Proved: flow -- `TestACrossedGateCarriesItsGrantsToTheNodesAfterItAndNoFurther` (the pause and
+  the resume carry the grants, the waterfall says them, the node after the crossed gate runs under
+  them and the node after a gate that grants nothing runs under none; an engine that takes no hand
+  is left alone, a gate with no grants binds nothing, a bound copy leaves the engine unbound) and
+  `TestOnlyAGateGrants`. tools -- `TestACrossedGateCarriesTheHandToTheToolsItGrantsAndNoOther` on a
+  real repository with holds armed (the cut parks with no hand; under the hand it reaches the tool,
+  which refuses on its own law, while an ungranted writer still parks; lowered after the turn the
+  same cut parks again; exactly one `crossed` line naming the run and the gate; a handless council
+  raises nothing) and `TestFlowSaveRefusesAGrantOnAStrangerOrAReader`. Two battery legs. Reversals:
+  R1 the door never asks for the hand -- 1 red; R2 the crossing never bound -- 1 red; R3 the save
+  accepting any grant -- 1 red and the battery; R4 the crossing leaving no record line -- 1 red.
+- `version-tag`'s two gates, `judge` and `send_gate`, declare `git_tag`: folded as v3 through
+  `flow_save` on his word ("fold it, as the glass"), everything else in the spec unchanged. The
+  core's RUNBOOK says what a gate grants.
+- PROVED LIVE on the placed door, on his word: `version-tag` v3 fired on research for a mark it
+  already carries; the read step listed the marks through the council (not held); the judge gate
+  paused saying "continue grants the council: git_tag"; the crossing ran the cut under the hand --
+  the council's `git_tag cut` reached the tool, which refused on its own law ("already exists
+  here ... A mark is never moved"), the proof step failed honestly, no mark moved, and the holds
+  record carries the `crossed` line naming the run and the gate.
+
+**RESTART REQUIRED:** the door carries this once rebuilt and restarted (done 2026-09-28). **WHAT GOES RED IF THIS
+COMES UNPLUGGED:** the tools stroke, if the door stops asking for the hand (R1) or stops writing the
+crossing down (R4); the flow stroke, if the crossing stops being bound (R2); the save stroke and the
+battery, if a grant is no longer judged at the save (R3).
+
+### Fixed — a secret parked in the holds is withheld where the queue is shown (operator, 2026-09-28: "take the hold queue's key argument next"; by card, "withhold it where it is shown")
+
+Found on 2026-09-28 while widening the council's key: a parked call keeps its arguments whole, and
+`hold_list` handed them to the glass whole, so the re-proof `key` a keyed caller sends to
+`auth_key_scope` (or create, or revoke) would have sat in plain view on Version control (RULE 7).
+The widening rode the glass's wire that day to avoid it.
+
+- `Tool.Secrets` names the arguments whose values are secrets; the four auth verbs declare `key`.
+  `hold_list` shows a parked call with those arguments as `[withheld: a secret; the parked call
+  keeps it]`, and any value in the door's own key shape (`auth.KeyRe`) is withheld even where nobody
+  declared it, on a tool the door no longer carries included. The parked call keeps the real values
+  and approving runs it whole. The holds record never carried arguments.
+- Proved: `TestASecretArgumentIsDeclaredWhereverAKeyIsTaken` -- every tool that takes `key` declares
+  it, every declaration names an argument the tool takes, and `shown` withholds by the declaration
+  (any shape), by the shape (any name) and on an uncarried tool, while a plain word stays.
+  `TestAParkedSecretIsWithheldWhereItIsShownAndRunsWhole` -- a scope move parked from a key: the
+  held answer, the queue and the record all without the plaintext, the rest of the call shown whole,
+  and the approval running it with the real key so the scope moves. One battery leg. Reversals: R1
+  the verb's declaration struck -- 1 red; R2 the shape belt struck -- 1 red; R3 `hold_list` handing
+  the arguments over whole -- 1 red and the battery; R4 a reading verb's declaration struck -- 1 red.
+
+**WHAT GOES RED IF THIS COMES UNPLUGGED:** the declaration stroke, if a tool takes a key and does
+not say so (R1, R4) or the shape stops being read (R2); the parked stroke and the battery leg, if
+the queue hands the arguments over whole again (R3).
+
 ### Added — `auth_key_scope`: a live key's tenants move without the secret (operator, 2026-09-28: "then the key's scope"; by card, "a scope verb, then widen it")
 
 The council's key (`k-ae2e9481`, `manjuel-council`) was minted for `research` alone while RUNBOOK

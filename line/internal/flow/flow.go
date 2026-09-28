@@ -69,6 +69,14 @@ type Node struct {
 	Match    string            `json:"match,omitempty"`
 	Title    string            `json:"title,omitempty"`
 	Retries  int               `json:"retries,omitempty"`
+	// Grants is a GATE's declaration of what the hand that crosses it
+	// authorises (2026-09-28): the writing tools the council may call, from
+	// this gate until the next gate or the end of the run, without each call
+	// parking for a second decision. The gate's title is the question; the
+	// grants are what `continue` answers. Only a gate carries them; THE LINE
+	// refuses a grant naming a tool it does not carry or one that does not
+	// write, and writes every call that rode a crossing to the holds record.
+	Grants []string `json:"grants,omitempty"`
 }
 
 // MaxRetries caps what a node may ask for. BOUNDED EVERYTHING (ESTATE LAW 7):
@@ -198,6 +206,17 @@ func Validate(s Spec) ([]string, error) {
 		if n.Retries > 0 && (n.Kind == "eval" || n.Kind == "gate") {
 			return nil, fmt.Errorf("refused: node %q is a %s, and a %s is not "+
 				"retried -- retry answers an ERROR, never a verdict", n.Name, n.Kind, n.Kind)
+		}
+		// ONLY A GATE GRANTS. A grant is what a hand's `continue` authorises,
+		// and nothing but a gate is ever answered by a hand.
+		if len(n.Grants) > 0 && n.Kind != "gate" {
+			return nil, fmt.Errorf("refused: node %q is a %s and grants nothing -- only "+
+				"a gate is crossed by a hand, so only a gate carries `grants`", n.Name, n.Kind)
+		}
+		for _, g := range n.Grants {
+			if strings.TrimSpace(g) == "" {
+				return nil, fmt.Errorf("refused: gate %q grants an empty name", n.Name)
+			}
 		}
 		byName[n.Name] = n
 	}
