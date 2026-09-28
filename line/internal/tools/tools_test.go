@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1631,5 +1632,100 @@ func TestFlowSaveRefusesAGrantOnAStrangerOrAReader(t *testing.T) {
 	bad := `{"nodes":[{"name":"w","kind":"run","question":"cut it","grants":["git_tag"]}],"edges":[]}`
 	if _, err := save("wrong", bad); err == nil || !strings.Contains(err.Error(), "only a gate") {
 		t.Fatalf("a grant on a run node must be refused: %v", err)
+	}
+}
+
+// --- the standup, fired from the glass (2026-09-28) -----------------------------
+//
+// His word: "fire the standup through the glass". `standup_run` runs the
+// estate's own tests/standup.py in the world, with the python the door runs the
+// engine with, and hands back the tally line and the whole of what it printed.
+// Its refusals are the door's own, and each is struck here by name; the run
+// itself is struck against a stand-in script where a python is on the PATH.
+func TestTheStandupRunsInTheWorldAndRefusesByName(t *testing.T) {
+	tr := tenant.NewRegistry()
+	bare := t.TempDir()
+	if err := tr.Add("bare", bare); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("bare"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(bare, "NO-SUCH-SPINE.exe"))
+	glass := Caller{Name: "glass", Service: true}
+
+	// No core command: nothing to run the standup with.
+	noCore := Build(tr, Options{})
+	if _, err := noCore.Call(tr, "standup_run", map[string]any{}, glass); err == nil ||
+		!strings.Contains(err.Error(), "started without --manjuel") {
+		t.Fatalf("with no core command the tool must say so: %v", err)
+	}
+	// A world with no standup of its own.
+	reg := Build(tr, Options{CoreCmd: "python"})
+	if _, err := reg.Call(tr, "standup_run", map[string]any{}, glass); err == nil ||
+		!strings.Contains(err.Error(), "carries no tests/standup.py") {
+		t.Fatalf("a world without the standup must be refused by name: %v", err)
+	}
+	// A set that is not one of the three, refused before anything is looked up.
+	if _, err := reg.Call(tr, "standup_run", map[string]any{"set": "evening"}, glass); err == nil ||
+		!strings.Contains(err.Error(), `"evening" is none of them`) {
+		t.Fatalf("an unknown set must be refused by name: %v", err)
+	}
+
+	// A world that carries a standup: a stand-in script that prints what the
+	// real one prints and exits 1, the way a missed expectation does.
+	script := "import sys\n" +
+		"print('  manjuel -- the standup')\n" +
+		"print('  ' + ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else '  (morning)')\n" +
+		"print('  8/9 cases met their expectations.  report: logs/standup_x.md')\n" +
+		"sys.exit(1)\n"
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "tests", "standup.py"), []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.Add("w", home); err != nil {
+		t.Fatal(err)
+	}
+	// An open sitting on the world refuses the run: the standup opens its own.
+	os.MkdirAll(filepath.Join(home, "sessions"), 0o755)
+	os.WriteFile(filepath.Join(home, "sessions", "sessions.jsonl"),
+		[]byte(`{"n": 7, "started": "2026-09-28T09:00:00", "pid": 1}`+"\n"), 0o644)
+	if _, err := reg.Call(tr, "standup_run", map[string]any{"project": "w"}, glass); err == nil ||
+		!strings.Contains(err.Error(), "has an open sitting (7, opened 2026-09-28T09:00:00)") {
+		t.Fatalf("an open sitting must refuse the standup by name: %v", err)
+	}
+	os.WriteFile(filepath.Join(home, "sessions", "sessions.jsonl"),
+		[]byte(`{"n": 7, "started": "2026-09-28T09:00:00", "ended": "2026-09-28T09:10:00"}`+"\n"), 0o644)
+
+	if _, err := exec.LookPath("python"); err != nil {
+		t.Skip("no python on the PATH to run the stand-in with")
+	}
+	out, err := reg.Call(tr, "standup_run", map[string]any{"project": "w", "set": "Court"}, glass)
+	if err != nil {
+		t.Fatalf("the standup must answer, exit code and all: %v", err)
+	}
+	head := strings.SplitN(out, "\n", 2)[0]
+	if head != `STANDUP court on "w" · exit status 1 · 8/9 cases met their expectations. · report logs/standup_x.md` {
+		t.Fatalf("the head must carry the set, the exit, the tally and the report: %q", head)
+	}
+	if !strings.Contains(out, "  --court\n") || !strings.Contains(out, "manjuel -- the standup") {
+		t.Fatalf("the set's flag must reach the script and its words must come back whole:\n%s", out)
+	}
+	// The morning set is the bare command, and its head says exit 0.
+	script0 := "print('  9/9 cases met their expectations.  report: logs/standup_y.md')\n"
+	os.WriteFile(filepath.Join(home, "tests", "standup.py"), []byte(script0), 0o644)
+	out, err = reg.Call(tr, "standup_run", map[string]any{"project": "w"}, glass)
+	if err != nil || !strings.HasPrefix(out, `STANDUP morning on "w" · exit 0 · 9/9 cases met their expectations. · report logs/standup_y.md`) {
+		t.Fatalf("the morning set must run bare and report exit 0: %q %v", out, err)
+	}
+	// A script that prints no tally says so rather than inventing one.
+	os.WriteFile(filepath.Join(home, "tests", "standup.py"), []byte("print('the rack is unreachable')\nraise SystemExit(2)\n"), 0o644)
+	out, err = reg.Call(tr, "standup_run", map[string]any{"project": "w"}, glass)
+	if err != nil || !strings.Contains(out, "the script printed no tally -- read what it said below") ||
+		!strings.Contains(out, "the rack is unreachable") {
+		t.Fatalf("no tally must be said out loud, with the script's words: %q %v", out, err)
 	}
 }

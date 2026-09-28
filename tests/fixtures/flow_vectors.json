@@ -205,6 +205,180 @@
         ]
       },
       "why": "run node with no objective"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "w",
+            "to": "c",
+            "when": "always"
+          },
+          {
+            "from": "c",
+            "to": "w",
+            "when": "fail"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "run",
+            "name": "w",
+            "question": "do"
+          },
+          {
+            "expected": "RAN:",
+            "kind": "eval",
+            "match": "contains",
+            "name": "c",
+            "node": "w"
+          }
+        ]
+      },
+      "why": "back-edge with no ceiling (LAW_003: the cycle it always was)"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "w",
+            "to": "c",
+            "when": "always"
+          },
+          {
+            "from": "c",
+            "to": "w",
+            "when": "fail"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "run",
+            "loops": 6,
+            "name": "w",
+            "question": "do"
+          },
+          {
+            "expected": "RAN:",
+            "kind": "eval",
+            "match": "contains",
+            "name": "c",
+            "node": "w"
+          }
+        ]
+      },
+      "why": "ceiling above MaxLoops"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "w",
+            "to": "c",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "run",
+            "loops": 2,
+            "name": "w",
+            "question": "do"
+          },
+          {
+            "expected": "RAN:",
+            "kind": "eval",
+            "match": "contains",
+            "name": "c",
+            "node": "w"
+          }
+        ]
+      },
+      "why": "ceiling nothing returns to"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "w",
+            "to": "g",
+            "when": "always"
+          },
+          {
+            "from": "g",
+            "to": "c",
+            "when": "pass"
+          },
+          {
+            "from": "c",
+            "to": "w",
+            "when": "fail"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "run",
+            "loops": 2,
+            "name": "w",
+            "question": "do"
+          },
+          {
+            "kind": "gate",
+            "name": "g",
+            "title": "t"
+          },
+          {
+            "expected": "RAN:",
+            "kind": "eval",
+            "match": "contains",
+            "name": "c",
+            "node": "w"
+          }
+        ]
+      },
+      "why": "gate inside the loop"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "c1",
+            "when": "always"
+          },
+          {
+            "from": "c1",
+            "to": "c2",
+            "when": "pass"
+          },
+          {
+            "from": "c2",
+            "to": "c1",
+            "when": "fail"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "expected": "x",
+            "kind": "eval",
+            "loops": 1,
+            "name": "c1",
+            "node": "a"
+          },
+          {
+            "expected": "y",
+            "kind": "eval",
+            "name": "c2",
+            "node": "a"
+          }
+        ]
+      },
+      "why": "loops on a check"
     }
   ],
   "run_re": "^f-\\d{8}-\\d{6}-[0-9a-f]{8}$",

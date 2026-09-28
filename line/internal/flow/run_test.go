@@ -1437,3 +1437,270 @@ func TestOnlyAGateGrants(t *testing.T) {
 		}
 	}
 }
+
+// --- a bounded return (2026-09-28, LAW_003's mechanism) -----------------------
+//
+// The operator: "create the bounded back-edge looping". A check whose fail-edge
+// points back at a node that declares `loops` sends the run back there, the
+// work between is fired again, at most that many times, with every pass and
+// every return on the record. The ceiling is on the node returned to (his
+// card), it is read by the loop and nowhere else, and the check is the stop.
+
+// countingEngine answers a run node by how many times it has been asked, so a
+// check can fail the first passes and pass a later one: the work re-done, the
+// score never re-rolled.
+type countingEngine struct {
+	stubEngine
+	turns  int
+	passAt int
+	asked  []string
+}
+
+func (c *countingEngine) Turn(_ context.Context, objective, _, _ string) (string, error) {
+	c.turns++
+	c.asked = append(c.asked, objective)
+	if c.turns >= c.passAt {
+		return fmt.Sprintf("attempt %d %s RAN: fine", c.turns, play.ToolVerdictHead), nil
+	}
+	return fmt.Sprintf("attempt %d %s FAILED: not yet", c.turns, play.ToolVerdictHead), nil
+}
+
+// loopSpec: brief -> attempt(loops) -> verify -> verdict; the verdict returns
+// to attempt on fail and reaches a gate on pass. `attempt` is told its pass
+// and why the last one came back, so the retry is not blind.
+func loopSpec(loops int) Spec {
+	return Spec{Name: "looped", BudgetS: 600,
+		Nodes: []Node{
+			{Name: "brief", Kind: "ask", Question: "Q"},
+			{Name: "attempt", Kind: "run", Question: "do it (pass {{pass_attempt}}) {{fail_attempt}}", Loops: loops},
+			{Name: "verify", Kind: "ask", Question: "V {{out_attempt}}"},
+			{Name: "verdict", Kind: "eval", Ref: "attempt", Expected: "RAN:", Match: "contains"},
+			{Name: "land", Kind: "gate", Title: "land after {{pass_attempt}} pass(es)?"},
+		},
+		Edges: []Edge{
+			{From: "brief", To: "attempt", When: "always"},
+			{From: "attempt", To: "verify", When: "always"},
+			{From: "verify", To: "verdict", When: "always"},
+			{From: "verdict", To: "attempt", When: "fail"},
+			{From: "verdict", To: "land", When: "pass"},
+		}}
+}
+
+// recordOf renders a run's node and loop lines as one line, for a golden.
+func recordOf(t *testing.T, home, run string) string {
+	t.Helper()
+	lines, err := runLog(home, run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seq []string
+	for _, l := range lines {
+		switch l["kind"] {
+		case "node":
+			seq = append(seq, fmt.Sprint(l["node"], ":", l["status"]))
+		case "loop":
+			seq = append(seq, fmt.Sprint("loop:", l["node"], ":", l["status"], ":", l["return"], "/", l["ceiling"]))
+		}
+	}
+	return strings.Join(seq, " ")
+}
+
+func TestACheckThatFailsReturnsTheRunToTheWorkAndTheCeilingHolds(t *testing.T) {
+	home := t.TempDir()
+	// Passes on the third attempt, under a ceiling of two returns.
+	eng := &countingEngine{passAt: 3}
+	res, err := Run(home, eng, loopSpec(2), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused || res.PausedNode != "land" {
+		t.Fatalf("a loop that passes must reach the gate: %s at %q", res.Verdict, res.PausedNode)
+	}
+	if eng.turns != 3 {
+		t.Fatalf("the work must be re-done, not the score: %d turns", eng.turns)
+	}
+	// The retry is told its pass and why the last one came back.
+	if !strings.Contains(eng.asked[0], "(pass 1) ") || strings.Contains(eng.asked[0], "sent back") {
+		t.Fatalf("the first pass must see pass 1 and no failure: %q", eng.asked[0])
+	}
+	if !strings.Contains(eng.asked[1], "(pass 2) pass 1 of `attempt` was sent back by `verdict`: fail: expected contains \"RAN:\"") ||
+		!strings.Contains(eng.asked[1], "what `attempt` answered on that pass:\nattempt 1 ") {
+		t.Fatalf("the second pass must carry the first's failure and answer: %q", eng.asked[1])
+	}
+	if !strings.Contains(eng.asked[2], "(pass 3) pass 2 of `attempt` was sent back") {
+		t.Fatalf("the third pass must carry the second's failure: %q", eng.asked[2])
+	}
+	// Every pass is on the record, with a loop line between each.
+	want := "brief:ok attempt:ok verify:ok verdict:ok loop:attempt:returned:1/2 " +
+		"attempt:ok verify:ok verdict:ok loop:attempt:returned:2/2 " +
+		"attempt:ok verify:ok verdict:ok land:paused"
+	if got := recordOf(t, home, res.Run); got != want {
+		t.Fatalf("the record must carry every pass and every return:\n got %s\nwant %s", got, want)
+	}
+	// The waterfall shows the returns, and the gate's title saw the pass count.
+	st, err := Status(home, res.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{
+		"loop     return 1 of 2 -> back to attempt; the work runs again",
+		"loop     return 2 of 2 -> back to attempt",
+		`why: fail: expected contains "RAN:"`,
+		"land after 3 pass(es)?",
+	} {
+		if !strings.Contains(st, needle) {
+			t.Fatalf("waterfall lacks %q:\n%s", needle, st)
+		}
+	}
+	// The final pass's answer is the run's.
+	outs, _ := nodeOutputs(home, res.Run)
+	if !strings.HasPrefix(outs["attempt"], "attempt 3 ") {
+		t.Fatalf("the last pass must stand as the node's answer: %q", outs["attempt"])
+	}
+
+	// The ceiling holds: never passes, two returns, then the fail is a fail
+	// and the run stops FAIL with the spent ceiling on the record.
+	home2 := t.TempDir()
+	eng2 := &countingEngine{passAt: 99}
+	res2, err := Run(home2, eng2, loopSpec(2), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictFail {
+		t.Fatalf("a spent ceiling with no forward fail-edge must end FAIL, got %s", res2.Verdict)
+	}
+	if eng2.turns != 3 {
+		t.Fatalf("a ceiling of 2 returns is 3 passes, got %d", eng2.turns)
+	}
+	if got := recordOf(t, home2, res2.Run); !strings.HasSuffix(got, "verdict:ok loop:attempt:spent:2/2") {
+		t.Fatalf("the spent ceiling must close the record: %s", got)
+	}
+	st2, _ := Status(home2, res2.Run)
+	if !strings.Contains(st2, "loop     ceiling 2 of 2 spent; attempt is not returned to again") {
+		t.Fatalf("the spent ceiling must be on the waterfall:\n%s", st2)
+	}
+	// Zero returns declared is no loop at all: the same spec without `loops`
+	// is refused as the cycle it is.
+	if _, err := Validate(loopSpec(0)); err == nil || !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("a back-edge to a node with no ceiling must be refused as a cycle: %v", err)
+	}
+}
+
+// A spent ceiling with a forward fail-edge goes down it: the loop is exhausted
+// and the run reports, rather than stopping FAIL.
+func TestASpentCeilingFollowsAForwardFailEdge(t *testing.T) {
+	s := loopSpec(1)
+	s.Nodes = append(s.Nodes, Node{Name: "report", Kind: "ask", Question: "R {{fail_attempt}}"})
+	s.Edges = append(s.Edges, Edge{From: "verdict", To: "report", When: "fail"})
+	home := t.TempDir()
+	eng := &countingEngine{passAt: 99}
+	res, err := Run(home, eng, s, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictComplete {
+		t.Fatalf("a spent ceiling must take the forward fail-edge to the end: %s", res.Verdict)
+	}
+	if eng.turns != 2 {
+		t.Fatalf("one return is two passes, got %d", eng.turns)
+	}
+	outs, _ := nodeOutputs(home, res.Run)
+	if _, ok := outs["report"]; !ok {
+		t.Fatal("the forward fail-edge must have fired")
+	}
+	if _, ok := outs["land"]; ok {
+		t.Fatal("the gate on the pass-edge must not fire on a fail")
+	}
+}
+
+// A resume after a looped segment rebuilds the count and what the node was
+// told, off the run's own loop lines: a node after the gate still reads
+// pass_attempt and fail_attempt, and the looped work is not fired again.
+func TestAResumeRebuildsTheLoopCount(t *testing.T) {
+	s := loopSpec(2)
+	s.Nodes = append(s.Nodes, Node{Name: "after", Kind: "ask", Question: "A {{pass_attempt}} {{fail_attempt}}"})
+	s.Edges = append(s.Edges, Edge{From: "land", To: "after", When: "pass"})
+	home := t.TempDir()
+	eng := &countingEngine{passAt: 2}
+	res, err := Run(home, eng, s, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused {
+		t.Fatalf("expected a pause at the gate, got %s", res.Verdict)
+	}
+	after := &stubEngine{}
+	res2, err := Resume(home, after, res.Run, "continue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Verdict != VerdictComplete {
+		t.Fatalf("the resumed run must complete: %s", res2.Verdict)
+	}
+	if len(after.calls) != 1 || !strings.HasPrefix(after.calls[0], "ask:A 2 pass 1 of `attempt` was sent back by `verdict`") {
+		t.Fatalf("the node after the gate must read the rebuilt count and carry: %v", after.calls)
+	}
+}
+
+// What refuses by name (LAW_003 section 5), at the save and not at the run.
+func TestAReturnIsRefusedWhereItIsNotALoop(t *testing.T) {
+	work := func(loops int) Node {
+		return Node{Name: "w", Kind: "run", Question: "do", Loops: loops}
+	}
+	check := Node{Name: "c", Kind: "eval", Ref: "w", Expected: "RAN:", Match: "contains"}
+	back := []Edge{{From: "w", To: "c"}, {From: "c", To: "w", When: "fail"}}
+	cases := []struct {
+		why   string
+		spec  Spec
+		wants string
+	}{
+		{"a back-edge to a node with no ceiling is the cycle it always was",
+			Spec{Name: "p", Nodes: []Node{work(0), check}, Edges: back}, "cycle"},
+		{"a ceiling above MaxLoops",
+			Spec{Name: "p", Nodes: []Node{work(MaxLoops + 1), check}, Edges: back}, "the range is 0 to 5"},
+		{"a ceiling nothing returns to is read by nothing",
+			Spec{Name: "p", Nodes: []Node{work(2), check}, Edges: back[:1]}, "nothing returns to it"},
+		{"a pass-edge back is not a return",
+			Spec{Name: "p", Nodes: []Node{work(2), check},
+				Edges: []Edge{{From: "w", To: "c"}, {From: "c", To: "w", When: "pass"}}}, "cycle"},
+		{"an always-edge back is not a return",
+			Spec{Name: "p", Nodes: []Node{work(2), {Name: "x", Kind: "ask", Question: "Q"}},
+				Edges: []Edge{{From: "w", To: "x"}, {From: "x", To: "w"}}}, "cycle"},
+		{"a gate's fail-edge is a stop, not a return",
+			Spec{Name: "p", Nodes: []Node{work(2), {Name: "g", Kind: "gate", Title: "t"}},
+				Edges: []Edge{{From: "w", To: "g"}, {From: "g", To: "w", When: "fail"}}}, "cycle"},
+		{"a gate inside the loop",
+			Spec{Name: "p", Nodes: []Node{work(2), {Name: "g", Kind: "gate", Title: "t"}, check},
+				Edges: []Edge{{From: "w", To: "g"}, {From: "g", To: "c", When: "pass"}, {From: "c", To: "w", When: "fail"}}},
+			"gate \"g\" stands inside the return"},
+		{"loops on a check",
+			Spec{Name: "p", Nodes: []Node{{Name: "a", Kind: "ask", Question: "Q"},
+				{Name: "c1", Kind: "eval", Ref: "a", Expected: "x", Loops: 1},
+				{Name: "c2", Kind: "eval", Ref: "a", Expected: "y"}},
+				Edges: []Edge{{From: "a", To: "c1"}, {From: "c1", To: "c2", When: "pass"}, {From: "c2", To: "c1", When: "fail"}}},
+			"is not returned to"},
+		{"loops on a gate",
+			Spec{Name: "p", Nodes: []Node{{Name: "g", Kind: "gate", Title: "t", Loops: 1}}}, "is not returned to"},
+		{"a check that returns twice",
+			Spec{Name: "p", Nodes: []Node{{Name: "a", Kind: "run", Question: "A", Loops: 1}, work(1), check},
+				Edges: []Edge{{From: "a", To: "w"}, {From: "w", To: "c"}, {From: "c", To: "w", When: "fail"}, {From: "c", To: "a", When: "fail"}}},
+			"returns twice"},
+	}
+	for _, c := range cases {
+		_, err := Validate(c.spec)
+		// A back-edge that is not a return leaves the spec with no start node
+		// at all when the loop is the whole flow, and Validate says THAT first;
+		// either refusal is the cycle refused, and neither is a loop.
+		if err == nil || !(strings.Contains(err.Error(), c.wants) ||
+			(c.wants == "cycle" && strings.Contains(err.Error(), "want exactly one start"))) {
+			t.Errorf("%s: want a refusal naming %q, got %v", c.why, c.wants, err)
+		}
+	}
+	// The lawful shapes validate: the loop above, and a return to the start node.
+	if _, err := Validate(loopSpec(2)); err != nil {
+		t.Fatalf("the lawful loop must validate: %v", err)
+	}
+	if _, err := Validate(Spec{Name: "p", Nodes: []Node{work(1), check}, Edges: back}); err != nil {
+		t.Fatalf("a return to the start node must validate: %v", err)
+	}
+}

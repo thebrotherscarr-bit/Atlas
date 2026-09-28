@@ -666,6 +666,20 @@ func runProve() int {
 			queueErr == nil && !strings.Contains(queueOut, fakeKey) && strings.Contains(queueOut, tools.Withheld) &&
 			strings.Contains(queueOut, "k-00000000"))
 
+	// THE STANDUP FROM THE GLASS (2026-09-28): the door runs tests/standup.py
+	// in the world with the python it runs the engine with. This battery's door
+	// has no core command, so it says so; a door with one refuses a world that
+	// carries no standup, by name, before anything is spawned.
+	text, isErr = callTool(map[string]any{
+		"name": "standup_run", "arguments": map[string]any{"project": "atlas"}})
+	check("standup_run says when the door has no python to run the standup with",
+		isErr && strings.Contains(text, "started without --manjuel"))
+	withCore := tools.Build(reg2, tools.Options{AtlasBin: "atlas", CoreCmd: "python"})
+	_, standupErr := withCore.Call(reg2, "standup_run", map[string]any{"project": "atlas"},
+		tools.Caller{Name: "glass", Service: true})
+	check("standup_run refuses a world that carries no tests/standup.py",
+		standupErr != nil && strings.Contains(standupErr.Error(), "carries no tests/standup.py"))
+
 	// --- N3 rack_plan + management -------------------------------------------
 	planRaw, planErr := loadFixture("rack_plan.json")
 	if planErr != nil {
@@ -981,6 +995,27 @@ func runProve() int {
 				"project": "atlas", "name": "granted", "spec": grantedSpec("muster")}})
 		check("flow_save refuses a grant on a tool that does not write",
 			isErr && strings.Contains(text, "does not write"))
+		// A BOUNDED RETURN FOLDS (2026-09-28, LAW_003): a check's fail-edge back
+		// to a node that declares `loops` is a loop, not the cycle refused above;
+		// the same shape with a ceiling nothing returns to is refused by name.
+		returnSpec := func(loops int, back bool) string {
+			edges := `{"from":"w","to":"c"}`
+			if back {
+				edges += `,{"from":"c","to":"w","when":"fail"}`
+			}
+			return fmt.Sprintf(`{"nodes":[{"name":"w","kind":"run","question":"do","loops":%d},`+
+				`{"name":"c","kind":"eval","node":"w","expected":"RAN:","match":"contains"}],"edges":[%s]}`, loops, edges)
+		}
+		text, isErr = callTool(map[string]any{
+			"name": "flow_save", "arguments": map[string]any{
+				"project": "atlas", "name": "returned", "spec": returnSpec(2, true)}})
+		check("flow_save folds a check that returns to a node with a ceiling",
+			!isErr && strings.Contains(text, "SAVED flow returned v1"))
+		text, isErr = callTool(map[string]any{
+			"name": "flow_save", "arguments": map[string]any{
+				"project": "atlas", "name": "returned", "spec": returnSpec(2, false)}})
+		check("flow_save refuses a ceiling nothing returns to",
+			isErr && strings.Contains(text, "nothing returns to it"))
 		text, isErr = callTool(map[string]any{
 			"name": "flow_list", "arguments": map[string]any{"project": "atlas"}})
 		check("flow_list names the registry",

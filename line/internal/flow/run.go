@@ -1,7 +1,10 @@
 // Runner: one run at a time per home, branches sequential in topo order,
 // gates pausing for the hand, evals steering edges, the wall clock summed
 // against the spec budget. Cancel ends the run; a late whole answer may
-// still witness (receipted, never partial, never invented).
+// still witness (receipted, never partial, never invented). A check that
+// FAILS may send the run back to a node that declares `loops` (LAW_003): the
+// work between is fired again, at most that many times, every pass on the
+// record, the budget still binding.
 package flow
 
 import (
@@ -158,7 +161,7 @@ func RunOn(home string, eng Engine, s Spec, inputs map[string]string, head Head)
 		start["voices"] = head.Voices
 	}
 	appendLog(home, start)
-	return runFrom(home, onHead(eng, head), s, order, inputs, run, nil, nil, nil, nil, "", head)
+	return runFrom(home, onHead(eng, head), s, order, inputs, run, nil, nil, nil, nil, nil, nil, "", head)
 }
 
 // tidy trims a head and drops the entries that say nothing, so an empty string
@@ -263,9 +266,13 @@ func specFromStart(home string, start map[string]any) (Spec, error) {
 
 // runFrom continues a run with carried state (empty for a fresh run).
 // resumeGate names the gate being resumed with a continue choice.
+// `passes` is how many times each looped node has been returned to and
+// `sentBack` what it was told about the last pass (both empty for a fresh run;
+// Resume rebuilds them off the run's own `loop` lines).
 // `head` is what the run was fired on (the zero head = the declared targets).
 func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]string,
 	run string, outputs, pass map[string]bool, outText map[string]string,
+	passes map[string]int, sentBack map[string]string,
 	elapsed []int64, resumeGate string, head Head) (Result, error) {
 	if outputs == nil {
 		outputs = map[string]bool{}
@@ -275,6 +282,12 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 	}
 	if outText == nil {
 		outText = map[string]string{}
+	}
+	if passes == nil {
+		passes = map[string]int{}
+	}
+	if sentBack == nil {
+		sentBack = map[string]string{}
 	}
 	budget := s.BudgetS
 	if budget <= 0 {
@@ -293,6 +306,15 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 	byName := map[string]Node{}
 	for _, n := range s.Nodes {
 		byName[n.Name] = n
+	}
+	// THE RETURNS (2026-09-28): which check sends the run back to which node,
+	// and the forward edges a pass walks. Validate judged them at the save;
+	// this is the same reading, so what was refused there and what is re-fired
+	// here cannot disagree.
+	returning, forward, _ := loopsOf(s, byName)
+	pos := map[string]int{}
+	for i, name := range order {
+		pos[name] = i
 	}
 	firedSet := map[string]bool{}
 	for name := range outputs {
@@ -320,7 +342,8 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 	for _, e := range elapsed {
 		total += e
 	}
-	for _, name := range order {
+	for i := 0; i < len(order); i++ {
+		name := order[i]
 		if firedSet[name] {
 			continue
 		}
@@ -354,6 +377,7 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 			nd.Voice = head.Voice
 		}
 		vars := buildVars(inputs, outText)
+		loopVars(vars, s.Nodes, passes, sentBack)
 		if nd.Kind == "gate" {
 			if resumeGate == name {
 				// Resumed: the hand said continue. The gate stands
@@ -479,7 +503,44 @@ func runFrom(home string, eng Engine, s Spec, order []string, inputs map[string]
 			pass[name] = true
 		}
 		if nd.Kind == "eval" && !pok {
-			if !hasFailEdge(s.Edges, name) {
+			// A FAIL MAY SEND THE RUN BACK (2026-09-28, LAW_003). A check whose
+			// fail-edge returns to a node that declares `loops` sends the run
+			// back there: the body -- that node, this check, and every node on
+			// a path between -- is unfired and walked again from the node, so
+			// the WORK is re-done and the same answer is never re-scored (§4).
+			// Bounded by the ceiling the node declares, which is read HERE and
+			// nowhere else (§2a); every pass has already written its own node
+			// lines (§2c), and a `loop` line between them says why it went
+			// back. The clock is untouched: a pass costs what it costs and the
+			// budget check at the top of the walk still ends a run that runs
+			// long. When the ceiling is spent the fail is a fail, and the run
+			// goes where a fail goes: down a forward fail-edge if the check has
+			// one, else it stops FAIL.
+			if ret, returns := returning[name]; returns {
+				target := byName[ret.To]
+				taken := passes[ret.To]
+				line := map[string]any{
+					"run": run, "ts": nowUTC(), "kind": "loop", "node": ret.To,
+					"check": name, "checked": nd.Ref, "ceiling": target.Loops, "why": outcome,
+				}
+				if taken < target.Loops {
+					passes[ret.To] = taken + 1
+					sentBack[ret.To] = carried(ret.To, name, nd.Ref, taken+1, outcome, outText[nd.Ref])
+					line["return"], line["status"] = taken+1, "returned"
+					appendLog(home, line)
+					for _, b := range loopBody(ret.To, name, forward) {
+						delete(firedSet, b)
+						delete(outputs, b)
+						delete(outText, b)
+						delete(pass, b)
+					}
+					i = pos[ret.To] - 1 // the walk resumes AT the node
+					continue
+				}
+				line["return"], line["status"] = taken, "spent"
+				appendLog(home, line)
+			}
+			if !hasFailEdge(forward, name) {
 				return finishRun(run, VerdictFail, total, outputs, outText),
 					appendStopped(home, run, VerdictFail, total)
 			}
@@ -760,6 +821,38 @@ func buildVars(inputs, outText map[string]string) map[string]string {
 	return vars
 }
 
+// loopVars seeds what a returned-to node is told about its own passes, and
+// seeds it on EVERY pass so a template may name it from the first: `pass_<node>`
+// is the pass about to run ("1" the first time) and `fail_<node>` is why the
+// last pass was sent back, empty until one was. Without these a retry is the
+// same roll of the same dice: the failure is in the record, and the node that
+// has to answer it never saw it.
+func loopVars(vars map[string]string, nodes []Node, passes map[string]int, sentBack map[string]string) {
+	for _, n := range nodes {
+		if n.Loops <= 0 {
+			continue
+		}
+		vars["pass_"+n.Name] = fmt.Sprintf("%d", passes[n.Name]+1)
+		vars["fail_"+n.Name] = sentBack[n.Name]
+	}
+}
+
+// loopCarry bounds what a returned-to node is handed of the answer that
+// failed its check. The record holds the whole of it.
+const loopCarry = 4000
+
+// carried is what `fail_<to>` says on the pass after a return: which check
+// sent pass n back and why, then what the checked node answered on that pass,
+// bounded. Resume rebuilds it from the `loop` line and the record by this same
+// function, so a run carried on later reads what the live one read.
+func carried(to, check, checked string, n int, why, answer string) string {
+	out := fmt.Sprintf("pass %d of `%s` was sent back by `%s`: %s", n, to, check, why)
+	if strings.TrimSpace(answer) != "" {
+		out += fmt.Sprintf("\nwhat `%s` answered on that pass:\n%s", checked, truncate(answer, loopCarry))
+	}
+	return out
+}
+
 func finishRun(run, verdict string, total int64, outputs map[string]bool, outText map[string]string) Result {
 	fired := []string{}
 	for name := range outputs {
@@ -913,6 +1006,8 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	outputs := map[string]bool{}
 	outText := map[string]string{}
 	pass := map[string]bool{}
+	passes := map[string]int{}
+	sentBack := map[string]string{}
 	var elapsed []int64
 	for _, l := range lines {
 		// A GATE ANSWERED EARLIER STANDS FIRED (2026-09-22). runFrom writes no
@@ -925,6 +1020,22 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 				outputs[name] = true
 				pass[name] = true
 				outText[name] = "continue"
+			}
+			continue
+		}
+		// A RETURN TAKEN EARLIER COUNTS (2026-09-28). Every pass's node lines
+		// are read in order below, so the LAST pass's answers stand as the
+		// run's; the `loop` lines between them are the count against the
+		// ceiling and what the returned-to node was told, rebuilt by the same
+		// function that built it live.
+		if k, _ := l["kind"].(string); k == "loop" {
+			if l["status"] == "returned" {
+				to, _ := l["node"].(string)
+				check, _ := l["check"].(string)
+				checked, _ := l["checked"].(string)
+				why, _ := l["why"].(string)
+				passes[to]++
+				sentBack[to] = carried(to, check, checked, passes[to], why, outText[checked])
 			}
 			continue
 		}
@@ -984,7 +1095,7 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	head := startHead(start)
 	// The gate below fires once, then stands fired; runFrom skips it next.
 	return runFrom(home, onHead(eng, head), s, order, inputs, run, outputs, pass,
-		outText, elapsed, paused, head)
+		outText, passes, sentBack, elapsed, paused, head)
 }
 
 // Status renders the waterfall: nodes in fire order with elapsed, the
@@ -1065,6 +1176,25 @@ func Status(home, run string) (string, error) {
 						strings.Join(names, ", "))
 				}
 				fmt.Fprintf(&b, "      -> flow_resume run=%s decision=continue|stop\n", run)
+			}
+		// A RETURN IS ON THE WATERFALL (2026-09-28), between the pass it ended
+		// and the pass it began, with the count against the ceiling and the
+		// why. Each pass's node lines are already rendered above it like any
+		// other; this is the line that says they are passes.
+		case "loop":
+			node, _ := l["node"].(string)
+			check, _ := l["check"].(string)
+			ret, _ := l["return"].(float64)
+			ceiling, _ := l["ceiling"].(float64)
+			if l["status"] == "returned" {
+				fmt.Fprintf(&b, "  %-14s loop     return %d of %d -> back to %s; the work runs again\n",
+					check, int(ret), int(ceiling), node)
+			} else {
+				fmt.Fprintf(&b, "  %-14s loop     ceiling %d of %d spent; %s is not returned to again\n",
+					check, int(ret), int(ceiling), node)
+			}
+			if why, _ := l["why"].(string); why != "" {
+				fmt.Fprintf(&b, "      why: %s\n", why)
 			}
 		case "stopped":
 			verdict, _ = l["verdict"].(string)
@@ -1271,7 +1401,7 @@ func Replay(home string, eng Engine, run string) (Result, error) {
 		fstart["voices"] = head.Voices
 	}
 	appendLog(home, fstart)
-	return runFrom(home, onHead(eng, head), s, order, inputs, fresh, nil, nil, nil, nil, "", head)
+	return runFrom(home, onHead(eng, head), s, order, inputs, fresh, nil, nil, nil, nil, nil, nil, "", head)
 }
 
 // ListRuns names runs for a flow (empty flow = all), newest last.

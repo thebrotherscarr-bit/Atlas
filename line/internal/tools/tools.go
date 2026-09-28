@@ -1136,6 +1136,19 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		},
 	})
 
+	// THE STANDUP, FIRED FROM THE GLASS (2026-09-28, his word: "fire the
+	// standup through the glass"). The estate's own live standup -- the same
+	// script his terminal runs, with its own judge, its own sitting and its own
+	// record -- run in the world with the python the door runs the engine with.
+	r.add(Tool{
+		Name: "standup_run", Writes: true, Tier: TierEngine,
+		Description: "run the estate's live standup in this world -- the morning set (default), the court, or all -- and hand back its tally and report; it opens and tolls a sitting of its own, so it refuses while one is open here",
+		Args:        []string{"set?", "project?"},
+		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
+			return toolStandupRun(opts.CoreCmd, t, args)
+		},
+	})
+
 	r.add(Tool{
 		Name: "run_cancel", Writes: false, Tier: TierEngine,
 		Description: "interrupt the turn in flight; the sitting stays open",
@@ -1153,6 +1166,90 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	})
 
 	return r
+}
+
+// standupTimeout bounds one standup. The morning set runs in about two
+// minutes and the court in five to ten; the glass waits up to thirty on a
+// tool call (handlers.callWait), and this is that same bound.
+const standupTimeout = 30 * time.Minute
+
+// standupSets are the three the script takes, by the flag each one is.
+var standupSets = map[string]string{"morning": "", "court": "--court", "all": "--all"}
+
+// toolStandupRun fires tests/standup.py in the world the way his terminal does
+// (2026-09-28). The standup opens a sitting of its own, runs its cases through
+// the real pipeline on the real rack, judges each one mechanically, writes its
+// report to logs/ and its line to tests/run_history.jsonl, and pays the toll.
+// This tool adds nothing to that: it runs the same script with the same python
+// the door runs the engine with, bounded, and hands back what it printed --
+// the tally first, then the whole of it. Its refusals are the door's own: no
+// core command wired (nothing to run it with); a world that carries no
+// standup; a set that is not one of the three; and a sitting already open on
+// the world, whether by this door's engine or elsewhere, because the standup
+// opens one of its own and the sitting line is the lock. It takes no rack
+// lock: the standup is a whole process on the rack, as a council turn is.
+func toolStandupRun(coreCmd string, t tenant.Tenant, args map[string]any) (string, error) {
+	set := strings.ToLower(strings.TrimSpace(str(args, "set")))
+	if set == "" {
+		set = "morning"
+	}
+	flag, known := standupSets[set]
+	if !known {
+		return "", fmt.Errorf("refused: the standup's sets are morning, court and all; %q is none of them", set)
+	}
+	fields := splitCommand(coreCmd)
+	if len(fields) == 0 {
+		return "", fmt.Errorf("refused: the door was started without --manjuel, so it has no python to run the standup with")
+	}
+	script := filepath.Join(t.Home, "tests", "standup.py")
+	if st, err := os.Stat(script); err != nil || st.IsDir() {
+		return "", fmt.Errorf("refused: %q carries no tests/standup.py -- the standup is the core's own, and this world is not it", t.Name)
+	}
+	if e, open := engines.Get(t.Home); open {
+		return "", fmt.Errorf("refused: an engine is open on %q (sitting %s), and the standup opens a sitting of its own -- close it first (env_close)",
+			t.Name, e.Opened().Str("sitting"))
+	}
+	if n, started, sat := engine.SittingOpen(t.Home); sat {
+		return "", fmt.Errorf("refused: %q has an open sitting (%d, opened %s), and the standup opens one of its own",
+			t.Name, int(n), started)
+	}
+	cmdArgs := []string{script}
+	if flag != "" {
+		cmdArgs = append(cmdArgs, flag)
+	}
+	res := spawn(fields[0], cmdArgs, spawnOpts{Dir: t.Home, Timeout: standupTimeout})
+	if res.TimedOut {
+		return "", res.Err
+	}
+	// THE SCRIPT'S OWN WORDS OUTRANK THE EXIT CODE (ADR-006 item 2). It exits 1
+	// when a case missed its expectation and 2 when it could not run at all --
+	// both are answers, and both come back whole with the tally on top. Python
+	// on Windows ends its lines \r\n; the glass reads one shape.
+	combined := strings.ReplaceAll(res.Combined, "\r\n", "\n")
+	tally := ""
+	report := ""
+	for _, ln := range strings.Split(combined, "\n") {
+		ln = strings.TrimSpace(ln)
+		if strings.Contains(ln, "cases met their expectations") {
+			tally = ln
+			if i := strings.Index(ln, "report: "); i >= 0 {
+				report = strings.TrimSpace(ln[i+len("report: "):])
+				tally = strings.TrimSpace(ln[:i])
+			}
+		}
+	}
+	exit := "exit 0"
+	if res.Err != nil {
+		exit = res.Err.Error()
+	}
+	head := fmt.Sprintf("STANDUP %s on %q · %s · %s", set, t.Name, exit, tally)
+	if tally == "" {
+		head = fmt.Sprintf("STANDUP %s on %q · %s · the script printed no tally -- read what it said below", set, t.Name, exit)
+	}
+	if report != "" {
+		head += " · report " + report
+	}
+	return head + "\n\n" + strings.TrimSpace(combined), nil
 }
 
 // renderRun reports the turn off the engine's OWN events -- elapsed, tools,

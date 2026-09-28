@@ -77,7 +77,24 @@ type Node struct {
 	// refuses a grant naming a tool it does not carry or one that does not
 	// write, and writes every call that rode a crossing to the holds record.
 	Grants []string `json:"grants,omitempty"`
+	// Loops is how many times this node may be RETURNED TO (2026-09-28,
+	// LAW_003's mechanism, on the operator's word: "create the bounded
+	// back-edge looping"). A check downstream that FAILS may send the run back
+	// here, and every node between is fired again -- the WORK re-done, never
+	// an answer re-scored -- at most this many times. The ceiling is declared
+	// where a reader meets it and read by the loop (MaxLoops bounds it); the
+	// stop condition is the check, a machine over the machine's own evidence;
+	// every pass is a fresh line in the record, with a `loop` line between.
+	// Only a check's `fail` edge may return here, only around a body that does
+	// work, never around a gate, and a node that declares this with nothing
+	// returning to it is refused: a ceiling read by nothing.
+	Loops int `json:"loops,omitempty"`
 }
+
+// MaxLoops caps how many times a node may be returned to. BOUNDED EVERYTHING
+// (ESTATE LAW 7), as a number in the spec rather than a prohibition: LAW_003
+// §6.
+const MaxLoops = 5
 
 // MaxRetries caps what a node may ask for. BOUNDED EVERYTHING (ESTATE LAW 7):
 // an unbounded retry is an indefinite ticker wearing a different hat, and the
@@ -159,8 +176,10 @@ func OverBudget(elapsedMs []int64, budgetS int) bool {
 	return sum > int64(budgetS)*1000
 }
 
-// Validate judges a spec: names, kinds, refs, one start, full reach, no
-// cycles. It returns the deterministic fire order (Kahn, name-sorted).
+// Validate judges a spec: names, kinds, refs, one start, full reach, and no
+// cycle but a check's bounded RETURN (LAW_003: a fail-edge back to a node that
+// declares `loops`). It returns the deterministic fire order (Kahn over the
+// forward edges, name-sorted); a return is judged against that order.
 func Validate(s Spec) ([]string, error) {
 	if !NameRe.MatchString(s.Name) {
 		return nil, fmt.Errorf("refused: flow name %q breaks the name law", s.Name)
@@ -218,6 +237,17 @@ func Validate(s Spec) ([]string, error) {
 				return nil, fmt.Errorf("refused: gate %q grants an empty name", n.Name)
 			}
 		}
+		if n.Loops < 0 || n.Loops > MaxLoops {
+			return nil, fmt.Errorf("refused: node %q may be returned to %d times; the range "+
+				"is 0 to %d", n.Name, n.Loops, MaxLoops)
+		}
+		// THE WORK IS RETURNED TO, NEVER THE VERDICT. A check scores the same
+		// answer the same way every time, so returning to one re-scores what it
+		// already has (LAW_003 §4); a gate is never inside a loop at all (§3).
+		if n.Loops > 0 && (n.Kind == "eval" || n.Kind == "gate") {
+			return nil, fmt.Errorf("refused: node %q is a %s and is not returned to -- a loop "+
+				"re-does WORK, so `loops` goes on the node that does it", n.Name, n.Kind)
+		}
 		byName[n.Name] = n
 	}
 	for _, n := range s.Nodes {
@@ -232,13 +262,11 @@ func Validate(s Spec) ([]string, error) {
 	for name := range byName {
 		incoming[name] = 0
 	}
-	for _, e := range s.Edges {
-		if _, ok := byName[e.From]; !ok {
-			return nil, fmt.Errorf("refused: edge from unknown node %q", e.From)
-		}
-		if _, ok := byName[e.To]; !ok {
-			return nil, fmt.Errorf("refused: edge to unknown node %q", e.To)
-		}
+	returning, forward, err := loopsOf(s, byName)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range forward {
 		switch e.When {
 		case "", "always":
 			e.When = "always"
@@ -284,9 +312,134 @@ func Validate(s Spec) ([]string, error) {
 		sort.Strings(ready)
 	}
 	if len(order) != len(byName) {
-		return nil, fmt.Errorf("refused: cycle or unreachable node in flow %q", s.Name)
+		return nil, fmt.Errorf("refused: cycle or unreachable node in flow %q -- a node is "+
+			"returned to only by a check's fail-edge, and only when it declares `loops`", s.Name)
+	}
+	// A RETURN IS JUDGED AGAINST THE FORWARD ORDER: it must go BACK, around a
+	// body that does work, with no gate inside; and a declared ceiling must be
+	// reached by something.
+	if err := lawfulReturns(s, byName, order, returning, forward); err != nil {
+		return nil, err
 	}
 	return order, nil
+}
+
+// loopsOf splits a spec's edges into the ones that RETURN -- a check's
+// fail-edge into a node that declares `loops` -- and the forward rest, keyed
+// by the check that returns. ONE READING for Validate and the runner, so what
+// is refused at the save and what is re-fired at run time cannot disagree.
+// Every other edge is forward, and a forward edge that closes a cycle is still
+// refused by Kahn's count: a node is returned to by a check's fail-edge, and
+// only when it declares `loops`.
+func loopsOf(s Spec, byName map[string]Node) (returning map[string]Edge, forward []Edge, err error) {
+	returning = map[string]Edge{}
+	for _, e := range s.Edges {
+		from, okf := byName[e.From]
+		to, okt := byName[e.To]
+		if !okf {
+			return nil, nil, fmt.Errorf("refused: edge from unknown node %q", e.From)
+		}
+		if !okt {
+			return nil, nil, fmt.Errorf("refused: edge to unknown node %q", e.To)
+		}
+		if to.Loops > 0 && from.Kind == "eval" && e.When == "fail" {
+			if _, twice := returning[e.From]; twice {
+				return nil, nil, fmt.Errorf("refused: check %q returns twice; one return per check", e.From)
+			}
+			returning[e.From] = e
+			continue
+		}
+		forward = append(forward, e)
+	}
+	return returning, forward, nil
+}
+
+// lawfulReturns judges every return against the forward order, and names the
+// ceiling nobody reaches.
+func lawfulReturns(s Spec, byName map[string]Node, order []string, returning map[string]Edge, forward []Edge) error {
+	pos := map[string]int{}
+	for i, n := range order {
+		pos[n] = i
+	}
+	reached := map[string]bool{}
+	checks := make([]string, 0, len(returning))
+	for check := range returning {
+		checks = append(checks, check)
+	}
+	sort.Strings(checks) // one refusal, the same one every time
+	for _, check := range checks {
+		e := returning[check]
+		if pos[e.To] >= pos[check] {
+			return fmt.Errorf("refused: edge %s->%s does not return: %s does not stand before %s",
+				check, e.To, e.To, check)
+		}
+		body := loopBody(e.To, check, forward)
+		work := false
+		for _, name := range body {
+			switch byName[name].Kind {
+			case "gate":
+				return fmt.Errorf("refused: gate %q stands inside the return from %s to %s; a "+
+					"gate stands at the end of a loop, never inside it (LAW_003 §3)", name, check, e.To)
+			case "eval":
+			default:
+				work = true
+			}
+		}
+		if !work {
+			return fmt.Errorf("refused: the return from %s to %s re-does no work -- it would score "+
+				"the same answer again until the score agrees (LAW_003 §4)", check, e.To)
+		}
+		reached[e.To] = true
+	}
+	for _, n := range s.Nodes {
+		if n.Loops > 0 && !reached[n.Name] {
+			return fmt.Errorf("refused: node %q declares `loops` and nothing returns to it -- "+
+				"a ceiling read by nothing", n.Name)
+		}
+	}
+	return nil
+}
+
+// loopBody is the nodes on forward paths from `to` to `check`, both included:
+// what a return re-fires.
+func loopBody(to, check string, forward []Edge) []string {
+	down := reach(to, forward, false)
+	up := reach(check, forward, true)
+	body := []string{to, check}
+	seen := map[string]bool{to: true, check: true}
+	for name := range down {
+		if up[name] && !seen[name] {
+			body = append(body, name)
+			seen[name] = true
+		}
+	}
+	sort.Strings(body)
+	return body
+}
+
+// reach is every node reachable from `start` over the forward edges, walking
+// them backwards when `up` is set; the start itself is not included.
+func reach(start string, forward []Edge, up bool) map[string]bool {
+	out := map[string]bool{}
+	queue := []string{start}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, e := range forward {
+			next := ""
+			if !up && e.From == cur {
+				next = e.To
+			} else if up && e.To == cur {
+				next = e.From
+			}
+			if next == "" || out[next] || next == start {
+				continue
+			}
+			out[next] = true
+			queue = append(queue, next)
+		}
+	}
+	return out
 }
 
 // Save folds a new spec version; history kept whole.

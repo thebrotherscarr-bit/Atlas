@@ -12,6 +12,84 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Added — a check's fail-edge may return the run to the work, bounded (operator, 2026-09-28: "create the bounded back-edge looping"; by card, the ceiling lives on the node returned to)
+
+LAW_003 was sealed 2026-09-17 and the flow engine still refused every cycle by name: the coder
+flow's retry was one repair pass unrolled into a line, and a FAIL could never be re-attempted. A
+node may now be RETURNED TO, and only with the law's three bounds, each refused by name at the save
+(section 5) and none inferred at run time.
+
+- `flow.Node.Loops` (0 to `MaxLoops`, 5): how many times THIS node may be returned to -- the
+  ceiling, on the node the work starts at, where a reader meets it. A return is a check's `fail`
+  edge into a node that declares it (`loopsOf`, ONE reading for `Validate` and the runner); every
+  other back-edge is still the cycle it always was. `Validate` refuses: a ceiling nothing returns
+  to ("a ceiling read by nothing"); a return that does not go back; a gate inside the return (a
+  gate stands at the end of a loop, section 3); a return that re-does no work (section 4); `loops`
+  on an eval or a gate (the work is returned to, never the verdict); a check that returns twice.
+- The runner: when the check fails and the ceiling has room, a `loop` line is written (`node`,
+  `check`, `checked`, `return` k, `ceiling`, `why`, `status: returned`), the body -- the node, the
+  check and every node on a path between -- is unfired, and the walk resumes AT the node, so every
+  pass writes fresh node lines with receipts (section 2c). At the ceiling the `loop` line says
+  `spent` and the fail is a fail: a forward fail-edge if the check has one, else FAIL. The budget
+  binds every pass; a cancel still stops. `pass_<node>` ("1" the first time) and `fail_<node>`
+  (why the last pass was sent back and what the checked node answered, bounded to 4000 runes,
+  empty until a return) are seeded on every pass, so the retry is told what failed instead of
+  rolling the same dice; `Resume` rebuilds both off the run's own `loop` lines by the same
+  function. `flow_status` renders each return and a spent ceiling with its why.
+- Proved: `TestACheckThatFailsReturnsTheRunToTheWorkAndTheCeilingHolds` (three passes under a
+  ceiling of two, the work re-done and the retry told the failure, the record `attempt verify
+  verdict loop attempt ... land:paused` exactly, the waterfall, the last pass standing as the
+  answer; the never-passing case ending FAIL after exactly three passes with `spent` on the record;
+  the same spec without `loops` refused as a cycle), `TestASpentCeilingFollowsAForwardFailEdge`,
+  `TestAResumeRebuildsTheLoopCount`, `TestAReturnIsRefusedWhereItIsNotALoop` (ten refusals by
+  name; two lawful shapes, a return to the start node among them); five refusal vectors added to
+  `tests/fixtures/flow_vectors.json`, held by `TestFlowContract`; two battery legs. Reversals: R1
+  the ceiling not read -- 1 red; R2 no loop line -- 1 red; R3 the unreached ceiling accepted -- 1
+  red and the fixture's golden; R4 the resume not rebuilding -- 1 red; R5 the body not unfired -- 1
+  red.
+
+- FOLDED ON THE PLACED DOOR, as the glass's wire, on his card: the core's `coder` flow as v13 --
+  `brief -> attempt(loops 2) -> verify -> verdict`, `verdict --fail--> attempt`, `--pass--> land`;
+  `repair`, `recheck` and `proof` struck, v1-v12 kept on disk.
+
+**RESTART REQUIRED:** the door carries this once rebuilt and restarted (done 2026-09-28, pid 86180).
+**WHAT GOES RED IF THIS COMES UNPLUGGED:** the runner stroke, if the loop stops reading the ceiling (R1), stops writing the return
+down (R2) or stops re-firing the work (R5); the refusal stroke AND the fixture's golden, if the save
+stops refusing a ceiling read by nothing (R3); the resume stroke, if a carried-on run forgets its
+count (R4). NOT BUILT: a `loops` box in the glass's builder -- a looped spec is folded with
+`flow_save` and the JSON.
+
+### Added — the standup runs from the glass (operator, 2026-09-28: "fire the standup through the glass"; by card, a door tool that runs it)
+
+- `standup_run` (`set?` = morning | court | all; TierEngine; writes): the door runs the world's own
+  `tests/standup.py` with the python it runs the engine with (`--manjuel`'s first word), bounded at
+  thirty minutes, in the world, and hands back one head -- `STANDUP <set> on "<world>" · exit N ·
+  <tally> · report <path>` -- over the whole of what the script printed (its words outrank the exit
+  code, ADR-006 item 2; exit 1 is a missed expectation, 2 could not run; `\r\n` read as one shape).
+  Refuses by name: no core command; a world that carries no `tests/standup.py`; a set not one of the
+  three; an engine open on the world, or a sitting open in its ledger -- the standup opens and tolls
+  a sitting of its own, and the sitting line is the lock. It takes no rack lock: the standup is a
+  whole process on the rack, as a council turn is. A script that prints no tally is said so, never
+  invented.
+- Proved: `TestTheStandupRunsInTheWorldAndRefusesByName` (the four refusals; then, where a python
+  is on the PATH, against a stand-in script: the court's flag reaches the script, the head carries
+  set, exit, tally and report, the morning set runs bare, and a script with no tally is said so);
+  two battery legs. Reversals: R6 the set's flag dropped -- 1 red; R7 the open sitting not refused
+  -- 1 red.
+
+- FIRED FROM THE GLASS on the placed door, his order: the morning set, sitting 284, 9/9 LIVE, report
+  `logs/standup_2026-09-28_104238.md`, the tool's head `STANDUP morning on "research" · exit 0 ·
+  9/9 cases met their expectations. · report ...`; then the court on his ruling ("measure first"),
+  sitting 285, 0/1, `exit status 1` carried in the head with the script's whole account under it.
+  The glass's Tools page asks for arguments with `prompt()`, which the desktop's browser pane
+  dismisses unseen; the page's own `App.tool` made the same request.
+
+**RESTART REQUIRED:** the door carries this once rebuilt and restarted (done 2026-09-28, pid 86180);
+**84 tools** by its own battery and by `tools/list` (83 before). **WHAT GOES RED IF THIS COMES UNPLUGGED:** the tools stroke, if the set stops
+reaching the script (R6) or an open sitting stops refusing (R7); the battery, if the door stops
+naming its missing python or refusing a world with no standup. NOT BUILT: a Dashboard button for it
+-- the glass's own piece; it is fired from the glass's Tools page.
+
 ### Added — a gate declares what its crossing grants (operator, 2026-09-28: "then the crossed gate"; by card, "the gate declares what it grants")
 
 Under `--auth` the council's writes parked even after the operator had resumed a gate that asked
