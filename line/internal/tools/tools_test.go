@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1727,5 +1728,147 @@ func TestTheStandupRunsInTheWorldAndRefusesByName(t *testing.T) {
 	if err != nil || !strings.Contains(out, "the script printed no tally -- read what it said below") ||
 		!strings.Contains(out, "the rack is unreachable") {
 		t.Fatalf("no tally must be said out loud, with the script's words: %q %v", out, err)
+	}
+}
+
+// --- the suites, from the glass (2026-09-28) ------------------------------------
+//
+// His ruling: "if its on the glass, and the record matches, id call it proof."
+// `suite_run` runs the world's own strokes and smoke, one after the other,
+// with the python the door runs the engine with; the suites stamp their own
+// proof and the head is read back off that stamp. Its refusals are struck by
+// name; the run itself against stand-in scripts where a python is on the PATH.
+func TestTheSuitesRunFromTheGlassAndTheHeadIsReadOffTheStamp(t *testing.T) {
+	tr := tenant.NewRegistry()
+	bare := t.TempDir()
+	if err := tr.Add("bare", bare); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("bare"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(bare, "NO-SUCH-SPINE.exe"))
+	glass := Caller{Name: "glass", Service: true}
+
+	noCore := Build(tr, Options{})
+	if _, err := noCore.Call(tr, "suite_run", map[string]any{}, glass); err == nil ||
+		!strings.Contains(err.Error(), "started without --manjuel") {
+		t.Fatalf("with no core command the tool must say so: %v", err)
+	}
+	reg := Build(tr, Options{CoreCmd: "python"})
+	if _, err := reg.Call(tr, "suite_run", map[string]any{}, glass); err == nil ||
+		!strings.Contains(err.Error(), "carries no tests/test_manjuel.py") {
+		t.Fatalf("a world without the suites must be refused by name: %v", err)
+	}
+	if _, err := reg.Call(tr, "suite_run", map[string]any{"set": "parity"}, glass); err == nil ||
+		!strings.Contains(err.Error(), `"parity" is none of them`) {
+		t.Fatalf("an unknown set must be refused by name: %v", err)
+	}
+	// A reader in the door's eyes, so the coder's loop can ask it without a hand.
+	if tool, ok := reg.Get("suite_run"); !ok || tool.Writes {
+		t.Fatal("suite_run must be declared a reader: it writes the suites' own stamps and nothing of the work")
+	}
+
+	if _, err := exec.LookPath("python"); err != nil {
+		t.Skip("no python on the PATH to run the stand-ins with")
+	}
+	// A world that carries the suites: stand-ins that stamp the way the real
+	// ones do -- `running` first, the tally after -- and print what they print.
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stamp := func(suite string, passed, total int, green bool, extra string) string {
+		return "import json, os, time\n" +
+			"p = os.path.join('tests', 'last_run.json')\n" +
+			"book = json.load(open(p)) if os.path.exists(p) else {}\n" +
+			"book['" + suite + "'] = {'state': 'running', 'at': time.time(), 'passed': None, 'total': None, 'green': False}\n" +
+			"json.dump(book, open(p, 'w'))\n" +
+			extra +
+			"book['" + suite + "'] = {'state': 'finished', 'at': time.time(), 'passed': " + fmt.Sprint(passed) +
+			", 'total': " + fmt.Sprint(total) + ", 'green': " + map[bool]string{true: "True", false: "False"}[green] + "}\n" +
+			"json.dump(book, open(p, 'w'))\n" +
+			"open(os.path.join('tests', '" + suite + ".ran'), 'w').write('ran')\n"
+	}
+	strokes := stamp("strokes", 12, 12, true, "") +
+		"print('    [PASS]  a probe')\n" +
+		"print('  12/12 strokes.  PROVEN.')\n"
+	smoke := stamp("smoke", 2, 3, false, "") +
+		"print('    [FAIL]  a check that went red    the reason')\n" +
+		"print('  2/3 checks.  RED')\n" +
+		"raise SystemExit(1)\n"
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(home, "tests", name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("test_manjuel.py", strokes)
+	write("smoke_cli.py", smoke)
+	if err := tr.Add("w", home); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := reg.Call(tr, "suite_run", map[string]any{"project": "w"}, glass)
+	if err != nil {
+		t.Fatalf("both suites must answer, exit codes and all: %v", err)
+	}
+	head := strings.SplitN(out, "\n", 2)[0]
+	if head != `SUITES both on "w" · strokes: 12/12 green · exit 0 · smoke: 2/3 RED · exit status 1` {
+		t.Fatalf("the head must be read off the stamp, suite by suite: %q", head)
+	}
+	for _, needle := range []string{"--- strokes (tests/test_manjuel.py) ---", "12/12 strokes.  PROVEN.",
+		"--- smoke (tests/smoke_cli.py) ---", "[FAIL]  a check that went red", "2/3 checks.  RED"} {
+		if !strings.Contains(out, needle) {
+			t.Fatalf("the body must carry each suite's failures and tally; lacks %q:\n%s", needle, out)
+		}
+	}
+	if strings.Contains(out, "[PASS]") {
+		t.Fatalf("a pass is a count, not a line in the answer:\n%s", out)
+	}
+	if n := strings.Count(out, "[FAIL]  a check that went red"); n != 1 {
+		t.Fatalf("a failure is said once, got %d times:\n%s", n, out)
+	}
+	// The order is the gate's: the strokes ran before the smoke.
+	if i, j := strings.Index(out, "--- strokes"), strings.Index(out, "--- smoke"); i < 0 || j < 0 || j < i {
+		t.Fatalf("the strokes must run before the smoke:\n%s", out)
+	}
+
+	// ONE SET RUNS ONE SUITE: `smoke` leaves the strokes untouched.
+	os.Remove(filepath.Join(home, "tests", "strokes.ran"))
+	os.Remove(filepath.Join(home, "tests", "smoke.ran"))
+	out, err = reg.Call(tr, "suite_run", map[string]any{"project": "w", "set": "Smoke"}, glass)
+	if err != nil || !strings.HasPrefix(out, `SUITES smoke on "w" · smoke: 2/3 RED · exit status 1`) {
+		t.Fatalf("the smoke set must run the smoke alone: %q %v", out, err)
+	}
+	if _, err := os.Stat(filepath.Join(home, "tests", "strokes.ran")); err == nil {
+		t.Fatal("the smoke set ran the strokes")
+	}
+
+	// A SUITE THAT NEVER FINISHED is said so, off its own stamp.
+	write("test_manjuel.py", "import json, os, time\n"+
+		"p = os.path.join('tests', 'last_run.json')\n"+
+		"book = json.load(open(p)) if os.path.exists(p) else {}\n"+
+		"book['strokes'] = {'state': 'running', 'at': time.time(), 'passed': None, 'total': None, 'green': False}\n"+
+		"json.dump(book, open(p, 'w'))\n"+
+		"raise SystemExit(2)\n")
+	out, err = reg.Call(tr, "suite_run", map[string]any{"project": "w", "set": "strokes"}, glass)
+	if err != nil || !strings.Contains(out, "strokes: DID NOT FINISH (the stamp still says running) · exit status 2") {
+		t.Fatalf("a crashed suite must be said off its stamp: %q %v", out, err)
+	}
+
+	// ONE AT A TIME, MACHINE-WIDE: a second call while one runs is refused.
+	write("test_manjuel.py", "import time\ntime.sleep(3)\nprint('  0/0 strokes.  PROVEN.')\n")
+	done := make(chan error, 1)
+	go func() {
+		_, err := reg.Call(tr, "suite_run", map[string]any{"project": "w", "set": "strokes"}, glass)
+		done <- err
+	}()
+	time.Sleep(700 * time.Millisecond)
+	if _, err := reg.Call(tr, "suite_run", map[string]any{"project": "w", "set": "strokes"}, glass); err == nil ||
+		!strings.Contains(err.Error(), "already running") {
+		t.Fatalf("a second suite while one runs must be refused by name: %v", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("the first run must still finish: %v", err)
 	}
 }

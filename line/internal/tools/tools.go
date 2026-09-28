@@ -1149,6 +1149,23 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		},
 	})
 
+	// THE SUITES, FROM THE GLASS (2026-09-28, his ruling: "if its on the
+	// glass, and the record matches, id call it proof"). The strokes and the
+	// smoke run in the world with the python the door runs the engine with,
+	// one after the other, and stamp their own proof -- tests/last_run.json
+	// and a line in run_history -- which the release gate reads. A READER in
+	// the door's eyes: it writes the suites' own stamps and nothing of the
+	// work, so the coder's loop can ask it without a hand (LAW_003 §3: the
+	// gate stands at the end, not inside the loop).
+	r.add(Tool{
+		Name: "suite_run", Writes: false, Tier: TierEngine,
+		Description: "run the estate's own suites in this world -- the strokes, the smoke, or both (default) -- one after the other with the python the door runs the engine with; the suites stamp their own proof (tests/last_run.json, run_history) and the head reads that stamp back, failures first",
+		Args:        []string{"set?", "project?"},
+		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
+			return toolSuiteRun(opts.CoreCmd, t, args)
+		},
+	})
+
 	r.add(Tool{
 		Name: "run_cancel", Writes: false, Tier: TierEngine,
 		Description: "interrupt the turn in flight; the sitting stays open",
@@ -1250,6 +1267,144 @@ func toolStandupRun(coreCmd string, t tenant.Tenant, args map[string]any) (strin
 		head += " · report " + report
 	}
 	return head + "\n\n" + strings.TrimSpace(combined), nil
+}
+
+// suiteTimeout bounds the suites together. The strokes take three to four
+// minutes on this machine and the smoke about one; the glass waits up to
+// thirty on a tool call (handlers.callWait), and this is that bound.
+const suiteTimeout = 30 * time.Minute
+
+// suiteScripts names each suite's script under tests/, and suiteSets which
+// run for a set, IN ORDER: the strokes before the smoke, the release gate's
+// own order (tests/release.py, `suites`).
+var suiteScripts = map[string]string{"strokes": "test_manjuel.py", "smoke": "smoke_cli.py"}
+var suiteSets = map[string][]string{
+	"strokes": {"strokes"},
+	"smoke":   {"smoke"},
+	"both":    {"strokes", "smoke"},
+}
+
+// suiteLock: ONE SUITE AT A TIME, MACHINE-WIDE. A stroke counts the browsers
+// alive on this computer, and two suites at once red it for each other (the
+// hand's mirrors, 2026-09-26); the suites are also the heaviest thing this
+// door starts. A second call while one runs is refused, not queued -- a
+// queue is a wait nobody asked for, and the glass is already waiting.
+var suiteLock sync.Mutex
+
+// toolSuiteRun runs the world's own suites the way his terminal does
+// (2026-09-28). Each suite stamps tests/last_run.json itself -- `running` at
+// the start so a crash cannot leave a green stamp, the tally at the end --
+// and appends its line to run_history; this tool adds nothing to that. The
+// head is read BACK OFF THE STAMP, not parsed out of the script's prose (LAW
+// 5: the stamp is the fact the release gate reads), and the body carries each
+// suite's failures first and its last lines, because a suite prints thousands
+// of lines and the red ones are the only ones anybody reads.
+func toolSuiteRun(coreCmd string, t tenant.Tenant, args map[string]any) (string, error) {
+	set := strings.ToLower(strings.TrimSpace(str(args, "set")))
+	if set == "" {
+		set = "both"
+	}
+	names, known := suiteSets[set]
+	if !known {
+		return "", fmt.Errorf("refused: the suites are strokes, smoke and both; %q is none of them", set)
+	}
+	fields := splitCommand(coreCmd)
+	if len(fields) == 0 {
+		return "", fmt.Errorf("refused: the door was started without --manjuel, so it has no python to run the suites with")
+	}
+	for _, n := range names {
+		script := filepath.Join(t.Home, "tests", suiteScripts[n])
+		if st, err := os.Stat(script); err != nil || st.IsDir() {
+			return "", fmt.Errorf("refused: %q carries no tests/%s -- the suites are the core's own, and this world is not it",
+				t.Name, suiteScripts[n])
+		}
+	}
+	if !suiteLock.TryLock() {
+		return "", fmt.Errorf("refused: a suite is already running on this computer; one at a time, or the browser-count stroke reds for both")
+	}
+	defer suiteLock.Unlock()
+	deadline := time.Now().Add(suiteTimeout)
+	heads := make([]string, 0, len(names))
+	var body strings.Builder
+	for _, n := range names {
+		left := time.Until(deadline)
+		if left <= 0 {
+			heads = append(heads, n+": not run, the bound was spent")
+			break
+		}
+		res := spawn(fields[0], []string{filepath.Join(t.Home, "tests", suiteScripts[n])},
+			spawnOpts{Dir: t.Home, Timeout: left})
+		if res.TimedOut {
+			return "", res.Err
+		}
+		exit := "exit 0"
+		if res.Err != nil {
+			exit = res.Err.Error()
+		}
+		heads = append(heads, n+": "+suiteStamp(t.Home, n)+" · "+exit)
+		fmt.Fprintf(&body, "\n--- %s (tests/%s) ---\n%s\n", n, suiteScripts[n],
+			suiteTail(strings.ReplaceAll(res.Combined, "\r\n", "\n")))
+	}
+	return fmt.Sprintf("SUITES %s on %q · %s", set, t.Name, strings.Join(heads, " · ")) + "\n" + body.String(), nil
+}
+
+// suiteStamp reads one suite's line off tests/last_run.json as the suite left
+// it: the counts and the verdict are the suite's own, never re-counted here.
+func suiteStamp(home, suite string) string {
+	b, err := os.ReadFile(filepath.Join(home, "tests", "last_run.json"))
+	if err != nil {
+		return "no stamp (tests/last_run.json: " + err.Error() + ")"
+	}
+	var book map[string]map[string]any
+	if err := json.Unmarshal(b, &book); err != nil {
+		return "no stamp (tests/last_run.json is not readable JSON)"
+	}
+	r, ok := book[suite]
+	if !ok {
+		return "no stamp for " + suite
+	}
+	if state, _ := r["state"].(string); state == "running" {
+		return "DID NOT FINISH (the stamp still says running)"
+	}
+	passed, _ := r["passed"].(float64)
+	total, _ := r["total"].(float64)
+	verdict := "RED"
+	if green, _ := r["green"].(bool); green {
+		verdict = "green"
+	}
+	return fmt.Sprintf("%d/%d %s", int(passed), int(total), verdict)
+}
+
+// suiteTail is what a reader needs of a suite's thousands of lines: every
+// failure, bounded, then the last lines with the tally.
+func suiteTail(out string) string {
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	var fails []string
+	for _, ln := range lines {
+		if strings.Contains(ln, "[FAIL]") {
+			fails = append(fails, strings.TrimRight(ln, " "))
+			if len(fails) >= 60 {
+				fails = append(fails, "  ... more failures; read tests/last_run.md")
+				break
+			}
+		}
+	}
+	// The tail is the tally and what stands around it: a pass is a count,
+	// not a line, and a failure is already above.
+	var tail []string
+	for _, ln := range lines {
+		if strings.Contains(ln, "[PASS]") || strings.Contains(ln, "[FAIL]") {
+			continue
+		}
+		tail = append(tail, ln)
+	}
+	if len(tail) > 6 {
+		tail = tail[len(tail)-6:]
+	}
+	if len(fails) == 0 {
+		return strings.Join(tail, "\n")
+	}
+	return strings.Join(fails, "\n") + "\n" + strings.Join(tail, "\n")
 }
 
 // renderRun reports the turn off the engine's OWN events -- elapsed, tools,

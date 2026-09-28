@@ -679,6 +679,18 @@ func runProve() int {
 		tools.Caller{Name: "glass", Service: true})
 	check("standup_run refuses a world that carries no tests/standup.py",
 		standupErr != nil && strings.Contains(standupErr.Error(), "carries no tests/standup.py"))
+	// THE SUITES FROM THE GLASS (2026-09-28): the same two refusals, and the
+	// tool is a reader in the door's eyes so the coder's loop can ask it.
+	text, isErr = callTool(map[string]any{
+		"name": "suite_run", "arguments": map[string]any{"project": "atlas"}})
+	check("suite_run says when the door has no python to run the suites with",
+		isErr && strings.Contains(text, "started without --manjuel"))
+	_, suiteErr := withCore.Call(reg2, "suite_run", map[string]any{"project": "atlas"},
+		tools.Caller{Name: "glass", Service: true})
+	suiteTool, suiteOK := withCore.Get("suite_run")
+	check("suite_run refuses a world that carries no suites, and is declared a reader",
+		suiteErr != nil && strings.Contains(suiteErr.Error(), "carries no tests/test_manjuel.py") &&
+			suiteOK && !suiteTool.Writes)
 
 	// --- N3 rack_plan + management -------------------------------------------
 	planRaw, planErr := loadFixture("rack_plan.json")

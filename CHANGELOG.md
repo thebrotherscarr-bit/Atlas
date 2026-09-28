@@ -12,6 +12,41 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Added — the suites run from the glass, and the head is read off their stamp (operator, 2026-09-28: "if its on the glass, and the record mathes, id call it proof"; by card, suite_run)
+
+The third piece of the code safety pass, and the check the coder's loop will steer on. Until now
+the strokes and the smoke ran only on his terminal, and a hand proved on a mirror; his ruling makes
+a run from the glass, whose record matches, proof.
+
+- `suite_run` (`set?` = strokes | smoke | both, the default; TierEngine): the door runs the world's
+  own `tests/test_manjuel.py` and `tests/smoke_cli.py` with the python it runs the engine with, ONE
+  AFTER THE OTHER in the release gate's order, bounded at thirty minutes together. The suites stamp
+  their own proof as they always have -- `tests/last_run.json` says `running` at the start so a
+  crash cannot leave a green stamp, the tally at the end, and a line in `run_history` -- and the
+  head is read BACK OFF THAT STAMP, never parsed from the script's prose: `SUITES both on
+  "<world>" · strokes: N/N green · exit 0 · smoke: N/N green · exit 0`, with a suite that never
+  finished said as `DID NOT FINISH (the stamp still says running)`. The body carries each suite's
+  `[FAIL]` lines first (bounded at sixty) and its last lines with the tally; a pass is a count, not
+  a line. ONE SUITE AT A TIME, MACHINE-WIDE (`suiteLock`, TryLock): a second call while one runs is
+  refused, not queued -- a stroke counts the browsers alive on this computer and two suites at once
+  red it for each other. Refuses by name: no core command; a world that carries no suite; a set not
+  one of the three. A READER in the door's eyes (`Writes: false`): it writes the suites' own stamps
+  and nothing of the work, so the coder's loop can ask it without a hand parking the call (LAW_003
+  §3: the gate stands at the end, not inside the loop).
+- Proved: `TestTheSuitesRunFromTheGlassAndTheHeadIsReadOffTheStamp` (the three refusals, the tool
+  declared a reader; then against stand-ins that stamp the way the real suites do: the head read
+  off the stamp suite by suite with each exit, the body carrying the failures once and the tallies
+  and no pass line, the strokes before the smoke, the smoke set leaving the strokes untouched, a
+  crashed suite said off its own stamp, a second call while one runs refused); two battery legs.
+  Reversals: R1 the set running one suite where it should run two -- 1 red; R2 the verdict left off the head -- 1; R3 the lock released before the run -- 1; R4 the failures dropped from the body -- 1.
+
+**RESTART REQUIRED:** the door carries this once rebuilt and restarted; **85 tools** by its own
+battery (84 before). **WHAT GOES RED IF THIS COMES UNPLUGGED:** the stroke, if a set stops running
+its suites in order (R1), the head stops reading the stamp (R2), the lock is struck (R3) or the
+failures leave the body (R4); the battery, if the door stops naming its missing python or refusing
+a world with no suites. NOT BUILT: the coder-on-the-tree flow that asks it (next by the card's
+order), and a Dashboard button.
+
 ### Added — a check's fail-edge may return the run to the work, bounded (operator, 2026-09-28: "create the bounded back-edge looping"; by card, the ceiling lives on the node returned to)
 
 LAW_003 was sealed 2026-09-17 and the flow engine still refused every cycle by name: the coder
