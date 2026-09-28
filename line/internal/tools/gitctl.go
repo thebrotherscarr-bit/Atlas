@@ -226,12 +226,15 @@ func walled(what string) string {
 // not expected to move under him. Every refusal below exists to keep that one
 // sentence true.
 //
-// `action` is list (default) | cut | send | remove.
+// `action` is list (default) | cut | send | remove. READ THROUGH actionOf, the
+// same reader the door judges the call by (2026-09-28): `list` is declared a
+// reading action, so it is neither held nor an edit to RBAC, and the two must
+// agree on which word they are looking at.
 func toolGitTag(t tenant.Tenant, args map[string]any) (string, error) {
 	if !isRepo(t) {
 		return notARepo, nil
 	}
-	action := strings.ToLower(strings.TrimSpace(str(args, "action")))
+	action := actionOf(args)
 	if action == "" {
 		action = "list"
 	}
@@ -807,12 +810,13 @@ func tagList(t tenant.Tenant) (string, error) {
 // a branch is a LINE OF WORK, main is THE MAIN LINE, creating one is OPENING
 // it and deleting one is CLOSING it.
 //
-// `action` is list (default) | new | switch | close.
+// `action` is list (default) | new | switch | close. Read through actionOf,
+// the door's own reader, for the reason toolGitTag gives.
 func toolGitBranch(t tenant.Tenant, args map[string]any) (string, error) {
 	if !isRepo(t) {
 		return notARepo, nil
 	}
-	action := strings.ToLower(strings.TrimSpace(str(args, "action")))
+	action := actionOf(args)
 	if action == "" {
 		action = "list"
 	}

@@ -12,6 +12,90 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Added — `auth_key_scope`: a live key's tenants move without the secret (operator, 2026-09-28: "then the key's scope"; by card, "a scope verb, then widen it")
+
+The council's key (`k-ae2e9481`, `manjuel-council`) was minted for `research` alone while RUNBOOK
+said research and atlas, so on the atlas tenant the door refused it `403` before RBAC was asked --
+and the only verb that could have changed that was `auth_key_create`: another key, and the
+plaintext rotated through `.env`. A scope is a fact about the key's record, not about the secret,
+so it moves without the plaintext ever existing again.
+
+- `auth.Scope(home, id, tenants, by)`: the list replaced whole on a LIVE key -- widen and narrow are
+  the same act -- never empty (a key that carries nothing is a revocation by another name; revoke
+  it), a revoked or unknown id refused by id, and an audit line `scope` with the list it set.
+- `auth_key_scope` (`id`, `tenants`, `key?`): possession re-proved like create and revoke (a live key
+  named); every tenant named must be one this door carries, refused by name otherwise -- a scope
+  onto a stranger is a permission read by nothing; it writes, so from any hand but the glass it
+  parks in the holds for the operator's approval, which runs exactly the parked call.
+- Proved: `TestAKeysScopeMovesWithoutTheSecret` (auth) -- the same plaintext verifies wider after the
+  move, `ScopeOK` carries what was given and nothing else, narrowing replaces the list whole, the
+  three refusals, and the audit holding create, scope, scope, revoke in order with what each set.
+  `TestAKeysScopeIsMovedByAProvedHandOntoCarriedGroundOrHeld` (tools) through `Call` with holds
+  armed -- no re-proof, a stranger tenant, an unknown id and no tenants each refused with nothing
+  moved; from a key the move is HELD and moves nothing until the glass approves the hold, which runs
+  it, and the same plaintext carries both grounds; the glass with a live key moves and narrows at
+  once. Three battery legs. Reversals on a scratch copy: R1 the re-proof struck -- 1 red; R2 the
+  audit struck -- 1 red; R3 a stranger accepted -- 1 red and the battery; R4 the verb declared
+  non-writing -- 1 red. Restored: green but the scratchpad's seven.
+- The core's `RUNBOOK.md` says the key was minted for research alone and how a scope moves.
+- DONE ON THE PLACED DOOR, on his word: `k-ae2e9481` widened to `research,atlas` (the store and the
+  audit line say so); before it, `muster` on atlas with the council's bearer was `403`; after it,
+  the roster, `tenant_rbac_check` ALLOWED as `steward`, and `git_tag list` answered -- the list,
+  not a hold. FOUND ON THE WAY, NOT BUILT: a call parked in the holds has its ARGUMENTS shown on
+  Version control (`hold_list`), so a re-proof `key` parked there would be displayed -- RULE 7. The
+  widening therefore rode the glass's own wire (the operator's hand, no hold) with the key in the
+  body over loopback. What the queue shows of a `key` argument is a ruling.
+
+**RESTART REQUIRED:** the door carries the verb once rebuilt and restarted (done 2026-09-28). **WHAT GOES RED IF THIS COMES
+UNPLUGGED:** the tools stroke, if the re-proof, the carried-tenant refusal or the writing declaration
+goes (R1, R3, R4); the auth stroke, if the move stops being audited (R2).
+
+### Fixed — a reading action of a writing tool is not held (operator, 2026-09-28: "take the held git_tag list next")
+
+`version-tag`'s read step was parked on 2026-09-26: with `--auth` on, the council's key asked
+`git_tag` for the LIST of marks and the hold queue parked it as `hold_1790443435789_1_git_tag`,
+because `Writes` is one flag for the whole tool and `git_tag` bundles `list` with `cut`, `send` and
+`remove` under one `action` argument. `git_branch` has the same shape (`list` beside `new`, `switch`,
+`close`). So under `--auth` the flow could not even read the marks through the council, and RBAC
+judged the list an `edit`.
+
+A writing tool now declares the actions that only read -- `Tool.Reads`; `git_tag` and `git_branch`
+declare `list`, which is also their default -- and `Tool.WritesFor(args)` is what this CALL does:
+the declaration narrowed by the action, the empty action being the tool's own (reading) default.
+`tools.Call` asks it once and both the hold queue and RBAC read that one answer: `git_tag list` is
+answered for any bearer and is a `read` to a role; every other action is parked for the operator's
+hand and is an `edit`, exactly as before. `actionOf` is the one reader of the word -- lower-cased,
+trimmed -- and both handlers read through it, so the door and the tool cannot judge two different
+words.
+
+- `tools.Tool.Reads`, `Tool.WritesFor`, `actionOf`; `Call` narrows RBAC's kind and the hold by the
+  call; `git_tag` and `git_branch` registered with `Reads: []string{"list"}`; `toolGitTag` and
+  `toolGitBranch` read the action through `actionOf`.
+- Proved: `TestAReadingActionIsDeclaredOnlyWhereItCanBeRead` -- a reading action is declared only on
+  a tool that writes and takes an action, as one lower-case word; the two that earned it keep
+  `list`; and `WritesFor` on the declaration alone (the default and the word read; `cut`, `send`,
+  `remove`, `new` and nonsense write; a tool without reading actions is what it says whatever the
+  action). `TestAReadingActionOfAWritingToolIsNotHeld` on a real repository with holds armed -- the
+  list answered in three spellings (none, `list`, ` LIST `) and `git_branch list` too, the cut and
+  the open parked with nothing landed, the glass never held, and a role that may not write (the
+  shipped `agent`) listing the marks and refused the cut by kind before any hold. One battery leg
+  (holds armed, no repository: the list reaches the tool and is refused as "not a repository" --
+  the tool speaking, not the queue -- while the cut is parked). Reversals on a scratch copy: R1
+  `git_tag` declares no reading action -- 2 red and the battery; R2 `WritesFor` ignores the action
+  -- 2 red; R3 the door reads the word raw -- 2 red; R4 the handler reads it its own way -- 1 red.
+  Restored: green but the scratchpad's seven "Filename too long" strokes, unchanged.
+- `docs/ARCHITECTURE.md` 4d says it; the core's `RUNBOOK.md` names which actions wait.
+
+NOT CHANGED, and named: under `--auth` the flow's `cut` and `send` steps are still parked -- that is
+RULE 6 working -- so `version-tag` cannot cut through the council; its read and check steps can now
+list. Whether a gate the operator crossed carries his hand to the next node's writes is a ruling,
+not a patch.
+
+**RESTART REQUIRED:** the door carries it once rebuilt and restarted. **WHAT GOES RED IF THIS COMES
+UNPLUGGED:** the two strokes and the battery leg, if `git_tag` stops declaring `list` (R1) or `Call`
+stops asking `WritesFor` (R2); the repository stroke, if the door and the handler stop reading the
+one word (R3, R4).
+
 ### Fixed — the RBAC role model: a role speaks in the kinds the door declares (operator, 2026-09-26: "kinds from the tool's own declaration")
 
 Found closing P0-13 and left as a design ruling: the shipped `DefaultPolicy` roles carried permissions

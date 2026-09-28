@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"atlas/line/internal/auth"
 	"atlas/line/internal/engine"
 	"atlas/line/internal/flow"
 	"atlas/line/internal/tenant"
@@ -1140,5 +1141,232 @@ func TestAShippedRoleAssignedToAKeyDecidesByWhatTheToolDeclares(t *testing.T) {
 	}
 	if _, err := ask("k-agent", "no_such_tool"); !errors.Is(err, ErrUnknownTool) {
 		t.Fatalf("a tool the door does not carry is refused by name, not judged: %v", err)
+	}
+}
+
+// --- a reading action of a writing tool (2026-09-28) ---------------------------
+
+// A READING ACTION IS DECLARED ONLY WHERE IT CAN BE READ. `Reads` narrows a
+// writing tool by its `action`; on a tool that does not write, or takes no
+// action, it would be a declaration connected to nothing. And the two tools
+// that earned it keep it.
+func TestAReadingActionIsDeclaredOnlyWhereItCanBeRead(t *testing.T) {
+	reg := Build(tenant.NewRegistry(), Options{})
+	declared := 0
+	for _, tool := range reg.All() {
+		if len(tool.Reads) == 0 {
+			continue
+		}
+		declared++
+		if !tool.Writes {
+			t.Errorf("%s declares reading actions and does not write", tool.Name)
+		}
+		if !hasArg(tool.Args, "action?") && !hasArg(tool.Args, "action") {
+			t.Errorf("%s declares reading actions and takes no action", tool.Name)
+		}
+		for _, a := range tool.Reads {
+			if a == "" || a != strings.ToLower(strings.TrimSpace(a)) {
+				t.Errorf("%s declares %q; a reading action is one lower-case word", tool.Name, a)
+			}
+		}
+	}
+	for _, name := range []string{"git_tag", "git_branch"} {
+		tool, ok := reg.Get(name)
+		if !ok || !hasArg(tool.Reads, "list") {
+			t.Errorf("%s no longer declares list as a reading action", name)
+		}
+	}
+	if declared == 0 {
+		t.Fatal("no tool declares a reading action; this stroke would be vacuous")
+	}
+	// WritesFor, on the declaration alone: the default and the declared word
+	// read; anything else writes; a tool with no reading actions is what it says.
+	tag, _ := reg.Get("git_tag")
+	for _, args := range []map[string]any{nil, {}, {"action": ""}, {"action": "list"}, {"action": " LIST "}} {
+		if tag.WritesFor(args) {
+			t.Errorf("git_tag %v must read", args)
+		}
+	}
+	for _, a := range []string{"cut", "send", "remove", "new", "nonsense"} {
+		if !tag.WritesFor(map[string]any{"action": a}) {
+			t.Errorf("git_tag %s must write", a)
+		}
+	}
+	commit, _ := reg.Get("git_commit")
+	if !commit.WritesFor(map[string]any{"action": "list"}) {
+		t.Error("a tool with no reading actions writes whatever the action says")
+	}
+	muster, _ := reg.Get("muster")
+	if muster.WritesFor(map[string]any{"action": "cut"}) {
+		t.Error("a reading tool reads whatever the action says")
+	}
+}
+
+// A READING ACTION OF A WRITING TOOL IS NOT HELD, AND IS A READ TO RBAC.
+// version-tag's read step was parked on 2026-09-26: `git_tag list` from the
+// council's key, held because Writes is one flag for the whole tool. Measured
+// here on a real repository with holds armed: the list answers in three
+// spellings, the cut and the open are parked and land nothing, the glass is
+// never held -- and a role that may not write lists the marks and is refused
+// the cut by kind, before any hold.
+func TestAReadingActionOfAWritingToolIsNotHeld(t *testing.T) {
+	tn := tempWorld(t)
+	t.Setenv("MANJUEL_GIT_REMOTE", "")
+	t.Setenv("CHAINKIT_GIT_REMOTE", "")
+	t.Setenv("ATLAS_BIN", filepath.Join(tn.Home, "NO-SUCH-SPINE.exe"))
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", tn.Home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	reg := Build(tr, Options{HoldWrites: true})
+	key := Caller{Name: "k-council"}
+
+	for _, args := range []map[string]any{{}, {"action": "list"}, {"action": " LIST "}} {
+		out, err := reg.Call(tr, "git_tag", args, key)
+		if err != nil {
+			t.Fatalf("git_tag %v errored: %v", args, err)
+		}
+		if strings.HasPrefix(out, "HELD:") {
+			t.Fatalf("git_tag %v was held: %s", args, out)
+		}
+		if !strings.Contains(out, `"tags"`) {
+			t.Fatalf("git_tag %v did not list the marks: %s", args, out)
+		}
+	}
+	out, err := reg.Call(tr, "git_branch", map[string]any{"action": "list"}, key)
+	if err != nil || strings.HasPrefix(out, "HELD:") || !strings.Contains(out, `"branches"`) {
+		t.Fatalf("git_branch list must answer, not park: %q %v", out, err)
+	}
+
+	// The writing actions are parked as before, and nothing landed.
+	out, err = reg.Call(tr, "git_tag", map[string]any{"action": "cut", "name": "v0.1.5", "message": "m"}, key)
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("git_tag cut from a key must be held: %q %v", out, err)
+	}
+	out, err = reg.Call(tr, "git_branch", map[string]any{"action": "new", "name": "spur"}, key)
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("git_branch new from a key must be held: %q %v", out, err)
+	}
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/tags/v0.1.5"); err == nil {
+		t.Fatal("the held cut landed")
+	}
+	if _, err := gitRun(tn, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/heads/spur"); err == nil {
+		t.Fatal("the held open landed")
+	}
+	// The glass is never held, either way.
+	out, err = reg.Call(tr, "git_tag", map[string]any{"action": "list"}, Caller{Name: "glass", Service: true})
+	if err != nil || !strings.Contains(out, `"tags"`) {
+		t.Fatalf("the glass lists: %q %v", out, err)
+	}
+
+	// AND THE KIND FOLLOWS THE ACTION. A role that may not write (the shipped
+	// agent) lists the marks, and is refused the cut by kind before any hold.
+	if err := os.WriteFile(filepath.Join(tn.Home, "rbac.json"),
+		[]byte(`{"assign": {"k-agent": "agent"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tr2 := tenant.NewRegistry()
+	if err := tr2.Add("t", tn.Home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr2.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	reg2 := Build(tr2, Options{HoldWrites: true})
+	agent := Caller{Name: "k-agent"}
+	out, err = reg2.Call(tr2, "git_tag", map[string]any{"action": "list"}, agent)
+	if err != nil || !strings.Contains(out, `"tags"`) {
+		t.Fatalf("agent may list the marks: %q %v", out, err)
+	}
+	_, err = reg2.Call(tr2, "git_tag", map[string]any{"action": "cut", "name": "v0.1.5", "message": "m"}, agent)
+	if err == nil || !strings.Contains(err.Error(), `role "agent" denies edit (git_tag writes)`) {
+		t.Fatalf("agent's cut is refused by kind, before the hold: %v", err)
+	}
+}
+
+// --- a key's scope (2026-09-28) -----------------------------------------------
+
+// A KEY'S SCOPE IS MOVED BY A PROVED HAND, ONTO CARRIED GROUND, OR HELD. The
+// verb re-proves possession like create and revoke, refuses a tenant the door
+// does not carry by name, refuses an unknown id, and from any hand but the
+// glass parks in the holds -- where the operator's approval runs exactly the
+// call that was parked, and the same plaintext verifies wider afterwards.
+func TestAKeysScopeIsMovedByAProvedHandOntoCarriedGroundOrHeld(t *testing.T) {
+	home, other := t.TempDir(), t.TempDir()
+	key, rec, err := auth.Create(home, "council", []string{"t"}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := tenant.NewRegistry()
+	for name, h := range map[string]string{"t": home, "u": other} {
+		if err := tr.Add(name, h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(home, "NO-SUCH-SPINE.exe"))
+	reg := Build(tr, Options{HoldWrites: true})
+	glass := Caller{Name: "glass", Service: true}
+	scope := func(c Caller, args map[string]any) (string, error) {
+		return reg.Call(tr, "auth_key_scope", args, c)
+	}
+
+	// The refusals, as the glass: no re-proof, a stranger tenant, an unknown id.
+	if _, err := scope(glass, map[string]any{"id": rec.ID, "tenants": "t,u"}); err == nil ||
+		!strings.Contains(err.Error(), "live key") {
+		t.Fatalf("a move with no live key named is refused (re-proof): %v", err)
+	}
+	if _, err := scope(glass, map[string]any{"id": rec.ID, "tenants": "t,stranger", "key": key}); err == nil ||
+		!strings.Contains(err.Error(), `"stranger" is not a carried tenant`) {
+		t.Fatalf("a tenant the door does not carry is refused by name: %v", err)
+	}
+	if _, err := scope(glass, map[string]any{"id": "k-00000000", "tenants": "t,u", "key": key}); err == nil ||
+		!strings.Contains(err.Error(), `no live key "k-00000000"`) {
+		t.Fatalf("an unknown id is refused by id: %v", err)
+	}
+	if _, err := scope(glass, map[string]any{"id": rec.ID, "key": key}); err == nil ||
+		!strings.Contains(err.Error(), "needs the tenants") {
+		t.Fatalf("no tenants named is refused: %v", err)
+	}
+	if got, _ := auth.Verify(home, key); strings.Join(got.Tenants, ",") != "t" {
+		t.Fatalf("a refused move must move nothing: %+v", got)
+	}
+
+	// From a key, it parks; the approval runs exactly the parked call.
+	out, err := scope(Caller{Name: rec.ID}, map[string]any{"id": rec.ID, "tenants": "t,u", "key": key})
+	if err != nil || !strings.HasPrefix(out, "HELD:") {
+		t.Fatalf("a move from a key must be held for the operator: %q %v", out, err)
+	}
+	if got, _ := auth.Verify(home, key); strings.Join(got.Tenants, ",") != "t" {
+		t.Fatalf("a held move must move nothing yet: %+v", got)
+	}
+	var id string
+	for h := range reg.held {
+		id = h
+	}
+	out, err = reg.Call(tr, "hold_answer", map[string]any{"id": id, "decision": "approve"}, glass)
+	if err != nil || !strings.Contains(out, "Approved") || !strings.Contains(out, "SCOPED "+rec.ID) {
+		t.Fatalf("the approved hold must run the move: %q %v", out, err)
+	}
+	got, err := auth.Verify(home, key)
+	if err != nil || strings.Join(got.Tenants, ",") != "t,u" {
+		t.Fatalf("the same plaintext must carry both grounds now: %+v %v", got, err)
+	}
+	// And the door's own gate reads it: the widened credential carries u.
+	if !auth.ScopeOK(append([]string{"t"}, got.Tenants...), "u") {
+		t.Fatal("the widened key does not carry the second ground")
+	}
+	// As the glass, with re-proof, it moves at once and narrows the same way.
+	out, err = scope(glass, map[string]any{"id": rec.ID, "tenants": "u", "key": key})
+	if err != nil || !strings.HasPrefix(out, "SCOPED") {
+		t.Fatalf("the glass with a live key moves the scope directly: %q %v", out, err)
+	}
+	if got, _ := auth.Verify(home, key); strings.Join(got.Tenants, ",") != "u" {
+		t.Fatalf("narrowing replaces the list whole: %+v", got)
 	}
 }

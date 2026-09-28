@@ -235,6 +235,40 @@ func Revoke(home, id, by string) error {
 	return fmt.Errorf("refused: no live key %q", id)
 }
 
+// Scope sets which tenants a LIVE key carries (2026-09-28), and audits it. The
+// council's key was minted for `research` alone while the record said research
+// and atlas, and the only way to move it was to mint another and rotate the
+// secret through .env. A scope is a fact about the key's record, not about the
+// secret, so it moves without the plaintext ever existing again. The list is
+// replaced whole -- widen and narrow are the same act -- and it is never empty:
+// a key that carries nothing is a revocation wearing another name.
+func Scope(home, id string, tenants []string, by string) (Key, error) {
+	var zero Key
+	if len(tenants) == 0 {
+		return zero, fmt.Errorf("refused: a key carries at least one tenant -- to carry none, revoke it")
+	}
+	s, err := load(home)
+	if err != nil {
+		return zero, err
+	}
+	for i, k := range s.Keys {
+		if k.ID != id || k.Revoked != "" {
+			continue
+		}
+		s.Keys[i].Tenants = append([]string{}, tenants...)
+		if err := save(home, s); err != nil {
+			return zero, err
+		}
+		if err := audit(home, "scope", id, stringsJoin(tenants), by); err != nil {
+			return zero, err
+		}
+		rec := s.Keys[i]
+		rec.Hash, rec.Salt = "", ""
+		return rec, nil
+	}
+	return zero, fmt.Errorf("refused: no live key %q", id)
+}
+
 // ScopeOK reports whether a key's tenants carry the requested project.
 // "*" carries every tenant (the operator's key).
 func ScopeOK(tenants []string, request string) bool {

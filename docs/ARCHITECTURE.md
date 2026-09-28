@@ -146,6 +146,10 @@ Per-tenant role-based access control:
   (`Writes: true`). A name beats the wildcard, the wildcard beats a kind; a deny
   on any carried kind denies, an allow needs every carried kind; the roles a
   role implies are asked after it (2026-09-26)
+- A writing tool may declare the actions of its `action` argument that only
+  read (`Reads`: `git_tag` and `git_branch` declare `list`, which is also
+  their default). A call naming one is a reader to RBAC and to the hold queue;
+  every other action is held and is an `edit` (2026-09-28)
 - `tenant_rbac_assign` / `tenant_rbac_check` MCP tools
 - Open mode when no assignments (backward compatible)
 - `can_approve:false` remains structural — RBAC never grants it

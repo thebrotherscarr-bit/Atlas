@@ -633,6 +633,26 @@ func runProve() int {
 	check("a shipped role decides by the tool's declaration: agent reads, and is denied a writer by kind",
 		rbacOK, rbacDet)
 
+	// A READING ACTION OF A WRITING TOOL IS NOT HELD (2026-09-28). `git_tag
+	// list` from the council's key was parked on 2026-09-26 because Writes is
+	// one flag for the whole tool. With holds armed, the list reaches the tool
+	// itself -- here it answers "not a repository", which is the tool speaking
+	// and not the queue -- while the cut is still parked before the tool.
+	armed := tools.Build(reg2, tools.Options{AtlasBin: "atlas", HoldWrites: true})
+	listOut, listErr := armed.Call(reg2, "git_tag",
+		map[string]any{"project": "atlas", "action": "list"}, tools.Caller{Name: "k-agent"})
+	cutOut, cutErr := armed.Call(reg2, "git_tag",
+		map[string]any{"project": "atlas", "action": "cut", "name": "v0.0.1", "message": "x"},
+		tools.Caller{Name: "k-agent"})
+	heldOK := listErr == nil && strings.HasPrefix(listOut, "Refused: this world is not a repository") &&
+		cutErr == nil && strings.HasPrefix(cutOut, "HELD:")
+	heldDet := ""
+	if !heldOK {
+		heldDet = fmt.Sprintf("list=%q/%v cut=%q/%v", listOut, listErr, cutOut, cutErr)
+	}
+	check("a reading action of a writing tool is not held: git_tag list answers, git_tag cut is parked",
+		heldOK, heldDet)
+
 	// --- N3 rack_plan + management -------------------------------------------
 	planRaw, planErr := loadFixture("rack_plan.json")
 	if planErr != nil {
@@ -1196,6 +1216,32 @@ func runProve() int {
 			"project": "authhome", "id": kid, "key": minted}})
 	check("auth_key_revoke folds with re-proof",
 		!isErr && strings.Contains(text, "REVOKED"))
+	// A KEY'S SCOPE MOVES WITHOUT THE SECRET (2026-09-28): the first key, minted
+	// for authhome alone, is widened onto a carried ground with re-proof, and
+	// refused a stranger by name.
+	text, isErr = callTool(map[string]any{
+		"name": "auth_key_list", "arguments": map[string]any{"project": "authhome"}})
+	opID := ""
+	for _, f := range strings.Fields(text) {
+		if strings.HasPrefix(f, "k-") {
+			opID = strings.Trim(f, " \n.,")
+			break
+		}
+	}
+	text, isErr = callTool(map[string]any{
+		"name": "auth_key_scope", "arguments": map[string]any{
+			"project": "authhome", "id": opID, "tenants": "authhome,atlas", "key": minted}})
+	check("auth_key_scope widens a live key onto carried ground with re-proof",
+		!isErr && strings.Contains(text, "SCOPED "+opID) && strings.Contains(text, "[authhome,atlas]"))
+	text, isErr = callTool(map[string]any{
+		"name": "auth_verify", "arguments": map[string]any{"project": "authhome", "key": minted}})
+	check("the same plaintext carries both grounds after the move",
+		!isErr && strings.Contains(text, "tenants [authhome,atlas]"))
+	text, isErr = callTool(map[string]any{
+		"name": "auth_key_scope", "arguments": map[string]any{
+			"project": "authhome", "id": opID, "tenants": "authhome,stranger", "key": minted}})
+	check("auth_key_scope refuses a tenant the door does not carry, by name",
+		isErr && strings.Contains(text, `"stranger" is not a carried tenant`))
 	text, isErr = callTool(map[string]any{
 		"name": "tenant_trust_list", "arguments": map[string]any{"project": "authhome"}})
 	check("tenant_trust_list reads recorded delegations",

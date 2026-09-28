@@ -115,10 +115,47 @@ type Tool struct {
 	Name        string
 	Description string
 	Writes      bool
+	// Reads names the ACTIONS of a writing tool that only read (2026-09-28).
+	// `git_tag` and `git_branch` bundle their verbs under an `action`
+	// argument, and `list` was held with `cut` because Writes is one flag for
+	// the whole tool: version-tag's read step, the council's key asking for
+	// the marks, was parked on 2026-09-26. A call naming one of these -- or
+	// naming no action, which is the tool's own default and must read -- is
+	// judged as a reader by the holds and by RBAC (WritesFor). Meaningful only
+	// with Writes: true and an `action?` argument, which
+	// TestAReadingActionIsDeclaredOnlyWhereItCanBeRead holds every declaration
+	// to; TestAReadingActionOfAWritingToolIsNotHeld measures it on a repository.
+	Reads []string
 	// Tier is what this tool needs beyond a directory. Zero value is core.
 	Tier Tier
 	Args []string
 	Fn   Fn
+}
+
+// actionOf is THE reader of a call's `action`: lower-cased and trimmed, the one
+// way every handler reads it, so the door and the handler never judge two
+// different words.
+func actionOf(args map[string]any) string {
+	return strings.ToLower(strings.TrimSpace(str(args, "action")))
+}
+
+// WritesFor is whether THIS CALL writes: the tool's declaration, narrowed by
+// the action when the tool declares reading ones. The empty action is the
+// tool's default, and a tool declaring Reads makes its default a reading one.
+func (t Tool) WritesFor(args map[string]any) bool {
+	if !t.Writes || len(t.Reads) == 0 {
+		return t.Writes
+	}
+	a := actionOf(args)
+	if a == "" {
+		return false
+	}
+	for _, r := range t.Reads {
+		if a == r {
+			return false
+		}
+	}
+	return true
 }
 
 type Registry struct {
@@ -200,16 +237,20 @@ func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, 
 	// passed in silence. `actor` in the args is a label and decides nothing.
 	// THE TOOL'S OWN DECLARATION RIDES WITH ITS NAME (2026-09-26): a role that
 	// names neither the tool nor `*` is asked about its KIND, and the kind is
-	// `t.Writes` read as edit or read -- never a word guessed from the name.
+	// the declaration read as edit or read -- never a word guessed from the
+	// name. WHAT THIS CALL DOES is that declaration narrowed by the action
+	// (2026-09-28): `git_tag list` reads, whatever the tool as a whole declares,
+	// and the holds and RBAC both read the one answer.
+	writes := t.WritesFor(args)
 	if !caller.Service {
-		if allowed, role, reason := tn.CheckRBAC(caller.Name, name, t.Writes); !allowed {
+		if allowed, role, reason := tn.CheckRBAC(caller.Name, name, writes); !allowed {
 			return "", fmt.Errorf("rbac: caller %q (role %q) denied tool %q: %s", caller.Name, role, name, reason)
 		}
 	}
 	// A WRITING CALL FROM A HAND THAT IS NOT HIS WAITS. Armed only when the
 	// door can actually tell them apart (--auth); inert and honest about it
 	// otherwise, because a gate that silently passes everyone is believed.
-	if r.holdWrites && t.Writes && !caller.Service && !heldExempt[name] {
+	if r.holdWrites && writes && !caller.Service && !heldExempt[name] {
 		return heldAnswer(r.park(tn, t, args, caller)), nil
 	}
 	args[CallerKey] = caller
@@ -442,7 +483,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	})
 
 	r.add(Tool{
-		Name: "git_branch", Writes: true,
+		Name: "git_branch", Writes: true, Reads: []string{"list"},
 		Description: "the lines of work: list them (which one you are on, which is the main line, which have been sent), or open, switch to, or close one",
 		Args:        []string{"action?", "name?", "project?"},
 		Fn:          toolGitBranch,
@@ -463,7 +504,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	})
 
 	r.add(Tool{
-		Name: "git_tag", Writes: true,
+		Name: "git_tag", Writes: true, Reads: []string{"list"},
 		Description: "the marks a version is cut at: list them with what GitHub has, cut one at a commit whose declared version it must equal, send one to GitHub by name, or remove one that never left this machine",
 		Args:        []string{"action?", "name?", "message?", "at?", "project?"},
 		Fn:          toolGitTag,
@@ -844,6 +885,14 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Description: "fold a key: flagged, kept for audit (N6)",
 		Args:        []string{"id", "key?", "project?"},
 		Fn:          toolAuthRevoke,
+	})
+	r.add(Tool{
+		Name: "auth_key_scope", Writes: true,
+		Description: "set which carried tenants a live key carries, the list replaced whole; possession re-proved like create and revoke, and the move audited (N6)",
+		Args:        []string{"id", "tenants", "key?", "project?"},
+		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
+			return toolAuthScope(reg, t, args)
+		},
 	})
 	r.add(Tool{
 		Name: "auth_verify", Writes: false,
@@ -2325,6 +2374,41 @@ func toolAuthRevoke(t tenant.Tenant, args map[string]any) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("REVOKED %s on %q — folded, kept for audit", strings.TrimSpace(id), t.Name), nil
+}
+
+// toolAuthScope moves which tenants a live key carries (2026-09-28). The
+// council's key was minted for `research` alone while the record said research
+// and atlas, and there was no verb for that but minting another and rotating
+// the secret. Same re-proof as create and revoke (a live key named, like sudo);
+// every tenant named must be one this door carries, refused by name otherwise
+// -- strangers get nothing, and a scope onto a stranger is a permission read by
+// nothing. It writes, so from any hand but the glass it parks in the holds.
+func toolAuthScope(reg *tenant.Registry, t tenant.Tenant, args map[string]any) (string, error) {
+	id, _ := args["id"].(string)
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", fmt.Errorf("auth_key_scope needs an id — see auth_key_list")
+	}
+	tenants := authTenants(args)
+	if len(tenants) == 0 {
+		return "", fmt.Errorf("auth_key_scope needs the tenants the key is to carry, e.g. research,atlas")
+	}
+	for _, name := range tenants {
+		if !reg.Has(name) {
+			return "", fmt.Errorf("refused: %q is not a carried tenant -- a key carries only grounds this door carries", name)
+		}
+	}
+	if err := authExisting(t, args); err != nil {
+		return "", err
+	}
+	askLock.Lock()
+	defer askLock.Unlock()
+	rec, err := auth.Scope(t.Home, id, tenants, "mcp")
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("SCOPED %s %q on %q — it carries [%s] now; the move is in the audit line",
+		rec.ID, rec.Name, t.Name, strings.Join(rec.Tenants, ",")), nil
 }
 
 func toolAuthVerify(t tenant.Tenant, args map[string]any) (string, error) {
