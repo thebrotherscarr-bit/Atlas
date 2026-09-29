@@ -1486,6 +1486,58 @@ func loopSpec(loops int) Spec {
 		}}
 }
 
+// feedEngine records what each `run` turn is handed as its FEED beside its
+// objective, so a stroke can hold the carried pass to the channel it rides.
+type feedEngine struct {
+	stubEngine
+	turns int
+	asked []string
+	feeds []string
+}
+
+func (f *feedEngine) Turn(_ context.Context, objective, feed, _ string) (string, error) {
+	f.turns++
+	f.asked = append(f.asked, objective)
+	f.feeds = append(f.feeds, feed)
+	if f.turns >= 2 {
+		return fmt.Sprintf("attempt %d %s RAN: fine", f.turns, play.ToolVerdictHead), nil
+	}
+	return fmt.Sprintf("attempt %d %s FAILED: not yet", f.turns, play.ToolVerdictHead), nil
+}
+
+// The operator, 2026-09-29: "carry the failed pass without the door's name".
+// The fifth firing of coder-tree measured why a question cannot carry it: a
+// sent-back pass quotes the door's own reply, and the council reads a tool's
+// name in the OBJECTIVE as a request for that tool, shutting the Coder's
+// window on every retry. So the words stay the words, and the pass rides as
+// the turn's feed -- the council's own second channel, shown to every seat
+// and routed on by none.
+func TestTheFailedPassRidesAsTheFeedNeverInTheObjective(t *testing.T) {
+	home := t.TempDir()
+	spec := loopSpec(2)
+	spec.Nodes[1].Question = "do it" // the words name no {{fail_attempt}}
+	eng := &feedEngine{}
+	res, err := Run(home, eng, spec, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Verdict != VerdictPaused || res.PausedNode != "land" {
+		t.Fatalf("the loop must reach the gate on the second pass: %s at %q", res.Verdict, res.PausedNode)
+	}
+	if len(eng.feeds) != 2 || eng.feeds[0] != "" {
+		t.Fatalf("a first pass is handed no feed, and there were two passes: %q", eng.feeds)
+	}
+	if !strings.HasPrefix(eng.feeds[1], "pass 1 of `attempt` was sent back by `verdict`: fail: expected contains \"RAN:\"") ||
+		!strings.Contains(eng.feeds[1], "what `attempt` answered on that pass:\nattempt 1 ") {
+		t.Fatalf("the retry's feed must carry the first pass's failure and its answer: %q", eng.feeds[1])
+	}
+	for i, obj := range eng.asked {
+		if obj != "do it" {
+			t.Fatalf("the objective must stay the words alone on pass %d: %q", i+1, obj)
+		}
+	}
+}
+
 // recordOf renders a run's node and loop lines as one line, for a golden.
 func recordOf(t *testing.T, home, run string) string {
 	t.Helper()

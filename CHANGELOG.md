@@ -12,6 +12,23 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Changed — a run node's turn is handed the failed pass as its feed (operator, 2026-09-29: "carry the failed pass without the door's name")
+
+- `flow/run.go`, `execNode` "run": `eng.Turn(ctx, objective, feed, method)` had carried "" for the
+  feed; it now carries `fail_<node>` -- why the last pass was sent back and what the checked node
+  answered, bounded (loopVars, `carried`) -- which `councilEngine.Turn` forwards to the council as
+  the turn's source material. Seeded only for a node that declares `loops` and empty until a pass
+  was sent back, so a first pass and a node that never returns hand over nothing; a question may
+  still name `{{fail_attempt}}`. WHY: the fifth firing of the core's coder-tree measured that a
+  sent-back pass quotes a door's own reply, and the council reads a tool's name in the OBJECTIVE
+  as a request for that tool, so a question carrying the pass shut the Coder's window on every
+  retry and v4 carried nothing. The feed is the council's second channel: shown to every seat,
+  routed on by none.
+- Stroked: `TestTheFailedPassRidesAsTheFeedNeverInTheObjective` (a first pass fed nothing; the
+  retry's feed carrying the failure and the first answer; the objective the words alone on both);
+  the loop stroke unchanged. Reversal R13 (the feed handed as "" again): red. The flow package
+  green, `gofmt` and `go vet` clean. Battery: PROVEN, 142 legs, 85 tools, from the built binary.
+
 ### Added — the suites run from the glass, and the head is read off their stamp (operator, 2026-09-28: "if its on the glass, and the record mathes, id call it proof"; by card, suite_run)
 
 The third piece of the code safety pass, and the check the coder's loop will steer on. Until now

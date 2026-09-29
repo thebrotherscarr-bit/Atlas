@@ -620,7 +620,20 @@ func execNode(ctx context.Context, eng Engine, nd Node, vars map[string]string,
 		if err != nil {
 			return "", false, "fail", err
 		}
-		out, err := eng.Turn(ctx, obj, "", nd.Method)
+		// THE FAILED PASS RIDES AS THE FEED, NEVER IN THE OBJECTIVE (2026-09-29,
+		// the operator: "carry the failed pass without the door's name"). The
+		// fifth firing of coder-tree measured why a question cannot carry it:
+		// a sent-back pass quotes the door's own reply ("ground_edit said:
+		// Refused ..."), and the council reads a tool's name in the OBJECTIVE
+		// as a request for that tool -- so the Coder's window shut on every
+		// retry, and v4 carried nothing, each pass a fresh roll. The feed is
+		// the council's own second channel: source material every seat is
+		// shown, never the words the arithmetic routes on. `fail_<node>` is
+		// seeded for a node that declares loops and is empty until a pass was
+		// sent back (loopVars), so a first pass and a node that never returns
+		// hand over nothing. A question may still name `{{fail_attempt}}`; the
+		// feed carries it either way.
+		out, err := eng.Turn(ctx, obj, vars["fail_"+nd.Name], nd.Method)
 		if err != nil {
 			return "", false, "fail", err
 		}
