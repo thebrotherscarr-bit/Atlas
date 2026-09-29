@@ -282,3 +282,51 @@ func TestTheGlassSendsItsServiceWireAndOnlyWhenItHasOne(t *testing.T) {
 		}
 	}
 }
+
+// THE WHAT'S-LEFT PAGE IS FIVE THINGS THAT MUST AGREE (2026-09-29, his word:
+// "write a page on the webapp"): a line in the panel, a case in the router, a
+// script the page loads BEFORE the router that calls it, a glyph for the line,
+// and the one document the page reads. Any one of them missing is a link that
+// goes nowhere or a page that draws nothing, and the binary builds either way.
+func TestTheWhatsLeftPageIsWired(t *testing.T) {
+	read := func(path string) string {
+		t.Helper()
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	index := read("../static/index.html")
+	app := read("../static/js/app.js")
+	left := read("../static/js/left.js")
+	icons := read("../static/css/icons.css")
+
+	for _, c := range []struct{ in, want, why string }{
+		{index, `<a href="/left" class="nav-link" data-page="left">`,
+			"the panel has no line for What's left"},
+		{index, `<script src="/js/left.js"></script>`,
+			"index.html does not load the page's script"},
+		{app, `case 'left': await Left.render(el); break;`,
+			"the router has no case for the page, so /left answers Page not found"},
+		{icons, `.nav-link[data-page="left"]`,
+			"the panel line has no glyph"},
+		{left, `DOC: 'WHATS_LEFT.md'`,
+			"the page no longer names the document it reads"},
+		{left, `App.tool('records', { name: this.DOC })`,
+			"the page no longer reads its document through the door's records tool"},
+		{left, `faults.push(`,
+			"the page no longer names a line it cannot number"},
+	} {
+		if !strings.Contains(c.in, c.want) {
+			t.Fatalf("%s -- wanted %s", c.why, c.want)
+		}
+	}
+
+	// app.js calls Left.render, and a classic script's const is not there until
+	// its file has run: left.js loads first or the page throws on arrival.
+	if l, a := strings.Index(index, "/js/left.js"), strings.Index(index, "/js/app.js"); l > a {
+		t.Fatal("index.html loads js/left.js after js/app.js -- the router would " +
+			"call Left before it exists")
+	}
+}

@@ -12,6 +12,37 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### What's left: everything still open, on one page of the glass (operator, 2026-09-29: "write a page on the webapp")
+
+His order, in his words: "a page with any leftover tasks, checklists, seams ... any blockers or
+gates, or decisions ... problems or bugs, needs to be in one area where we can see what is
+actually left".
+
+- **`webapp/static/js/left.js` (new):** the page. It reads ONE document, `WHATS_LEFT.md` at the
+  root of the ground, through the door's `records` tool -- the same read Records makes -- and
+  keeps no copy. A tile for each lettered section with the count of its open lines (A, what
+  stops the release, in red; B, what waits on him, in yellow), a card for each section, one row
+  for each line: its number, what it is, the words, and where it came from. A find box over
+  every row; a section with no row showing is put away with them. "Read it again" reads it again.
+- **Every number is counted from the lines drawn.** The document carries no tally of its own.
+- **A line the page cannot name is said in red at the top:** a list line under a lettered
+  section with no number, a number used twice, a number under the wrong letter.
+- **`webapp/static/index.html`:** the menu line, second under Work, and the script, loaded before
+  `app.js`. **`webapp/static/js/app.js`:** the router's case. **`webapp/static/css/icons.css`:**
+  the glyph, on the same grid and stroke as the rest.
+- **Nothing in the door moved.** `records` already serves every root `.md` of a ground.
+
+**Proved.** `server.TestTheWhatsLeftPageIsWired`, and four reversals red (the router's case
+removed; the script gone from index.html; the page reading another document; the menu line
+removed). `go test ./...` green on a scratch copy of `webapp`, `gofmt -l` and `go vet` clean.
+The page's reader run on the real list under node: ten sections, 80 open lines, no fault. Drawn
+in the app's browser pane against his running glass with its own styles: 80 rows, 7 tiles, the
+find box answering `router` with A1, B10, C1, C2, C5, C9, E3.
+
+**Restart required** for the webapp: the page is `go:embed`ed.
+
+**What goes red if unplugged:** the stroke above; and on the page, the red card at its top.
+
 ## [v0.1.9] — 2026-09-29 11:53
 
 ### Changed — a run node's turn is handed the failed pass as its feed (operator, 2026-09-29: "carry the failed pass without the door's name")
