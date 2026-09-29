@@ -12,6 +12,8 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.1.9] — 2026-09-29 11:53
+
 ### Changed — a run node's turn is handed the failed pass as its feed (operator, 2026-09-29: "carry the failed pass without the door's name")
 
 - `flow/run.go`, `execNode` "run": `eng.Turn(ctx, objective, feed, method)` had carried "" for the
