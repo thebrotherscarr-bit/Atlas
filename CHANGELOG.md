@@ -12,6 +12,44 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.1.9] — 2026-09-29 15:15
+
+### The flow verifier knows the bounded return, and a word it does not know writes nothing (operator, 2026-09-29: "do the list top to bottom")
+
+**Found on the way to the mark.** `python tests/prove.py --check` said "20 held - 14 absent -
+1 broke": `cut_flow_vectors`, "fixture drifted from the contract / drift: refusals". It had been
+red since 2026-09-28 (`325888c`), when the bounded return landed: `tests/fixtures/flow_vectors.json`
+gained five refusal vectors by hand, the Go strokes that read it passed, and the script that is
+the fixture's ORACLE was never taught them -- its `topo()` knew no `loops` at all.
+
+- **`tools/cut_flow_vectors.py`:** the oracle learns the return, in the runner's own shape
+  (`flow.go`'s `loopsOf` and `lawfulReturns`). `loops` is 0 to 5 and never on an eval or a gate;
+  an eval's fail-edge into a node that declares `loops` is a RETURN and leaves Kahn's count; a
+  check returns once; a return goes back; the body it goes around holds no gate and does work;
+  a declared ceiling is reached by something. `vectors()` carries the five the fixture holds.
+- **A lawful return is proved NOT refused.** Every refusal vector only asserts that a spec is
+  refused; an oracle that refused everything would pass them all. `--verify` now also walks
+  work, a check and the check's way back, and wants the order `w, c`.
+- **A word it does not know writes nothing.** Anything that was not `--verify` used to CUT.
+  THE HAND DID EXACTLY THAT TODAY: it ran the script with `--check`, prove.py's own word, and
+  the fixture was rewritten from the script's seven vectors, the five gone. Nothing was saved in
+  between; the file was put back byte for byte from the last save (`git show HEAD:`), and the
+  diff against it reads nothing. `--cut` and no word at all still cut; anything else is refused
+  with the usage and exit 2.
+
+**Proved.** `--verify`: PROVEN. A cut now reproduces the saved fixture byte for byte (7,185
+bytes), asked of the module without writing. Reversals on a scratch copy, red: a ceiling
+nothing returns to let through; a gate inside the return let through; the return not known
+(the lawful return refused: "want exactly one start, got 0"); a vector renamed (drift). NOT
+RED, and why: `loops` on a check let through -- that spec is also refused for re-doing no work,
+so the rule is a better sentence and not a separate wall. `python tests/prove.py --check`:
+**21 held - 14 absent - 0 broke**.
+
+**What goes red if unplugged:** prove's `cut_flow_vectors` leg.
+
+**Found, not built:** eighteen other `tools/cut_*_vectors.py` end on the same line and cut on
+any word that is not `--verify` (the core's WHAT'S LEFT, C32).
+
 ### What's left: everything still open, on one page of the glass (operator, 2026-09-29: "write a page on the webapp")
 
 His order, in his words: "a page with any leftover tasks, checklists, seams ... any blockers or
@@ -42,8 +80,6 @@ find box answering `router` with A1, B10, C1, C2, C5, C9, E3.
 **Restart required** for the webapp: the page is `go:embed`ed.
 
 **What goes red if unplugged:** the stroke above; and on the page, the red card at its top.
-
-## [v0.1.9] — 2026-09-29 11:53
 
 ### Changed — a run node's turn is handed the failed pass as its feed (operator, 2026-09-29: "carry the failed pass without the door's name")
 

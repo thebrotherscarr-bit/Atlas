@@ -15,6 +15,12 @@ The flow v1 contract (the oracle; the Go flow package must honor it):
                   eval/gate nodes; everything else with when:fail refuses
   validation    : unique names, known kinds, refs resolve, no cycles,
                   exactly one start, all nodes reachable from the start
+  the return    : LAW_003, 2026-09-28. A node that does work may declare
+                  `loops` (0 to 5); an eval's fail-edge INTO such a node is a
+                  RETURN, not a forward edge, and leaves Kahn's count. One
+                  return per check; it goes BACK; the body it goes around
+                  holds no gate and does work; a declared ceiling is reached
+                  by something; `loops` never sits on an eval or a gate
   order         : Kahn over name-sorted ready sets (deterministic)
   branches      : eval pass/fail (exact trim+casefold) and gate
                   continue/stop steer which out-edges fire; parallelism is
@@ -43,6 +49,22 @@ FLOW = os.path.join(FIX, "flow_vectors.json")
 NAME_RE = r"^[a-z0-9][a-z0-9_-]{0,63}$"
 RUN_RE = r"^f-\d{8}-\d{6}-[0-9a-f]{8}$"
 KINDS = ["ask", "prompt", "seat", "memory", "eval", "gate", "run"]
+MAX_LOOPS = 5          # flow.go MaxLoops
+
+
+def reach(start, forward, up):
+    """Every node reachable from `start` over the forward edges -- walked
+    backwards when `up` -- the start itself not included (flow.go's reach)."""
+    out, queue = set(), [start]
+    while queue:
+        cur = queue.pop(0)
+        for frm, to in forward:
+            nxt = to if (not up and frm == cur) else (frm if (up and to == cur) else None)
+            if nxt is None or nxt in out or nxt == start:
+                continue
+            out.add(nxt)
+            queue.append(nxt)
+    return out
 
 
 def topo(nodes, edges):
@@ -52,22 +74,41 @@ def topo(nodes, edges):
     if len(names) == 0:
         raise ValueError("empty flow")
     kinds = {n["name"]: n["kind"] for n in nodes}
+    loops = {}
     for n in nodes:
         if n["kind"] not in KINDS:
             raise ValueError("unknown kind: " + n["kind"])
         if n["kind"] == "run" and not (n.get("question") or "").strip():
             raise ValueError("run node with no objective")
+        k = n.get("loops") or 0
+        if not isinstance(k, int) or k < 0 or k > MAX_LOOPS:
+            raise ValueError("loops out of range: %r" % (k,))
+        if k > 0 and n["kind"] in ("eval", "gate"):
+            raise ValueError("loops on a check or a gate: a loop re-does WORK")
+        loops[n["name"]] = k
     incoming = {n: 0 for n in names}
     adj = {n: [] for n in names}
+    returning = {}          # check -> the node it returns to
+    forward = []
     for e in edges:
         if e["from"] not in incoming or e["to"] not in incoming:
             raise ValueError("edge refs unknown node")
+        # THE RETURN (LAW_003). A check's fail-edge into a node that declares
+        # `loops` leaves Kahn's count and is judged below; with no ceiling on
+        # the node it is the cycle it always was.
+        if (e.get("when", "always") == "fail" and kinds[e["from"]] == "eval"
+                and loops[e["to"]] > 0):
+            if e["from"] in returning:
+                raise ValueError("a check returns once")
+            returning[e["from"]] = e["to"]
+            continue
         if e.get("when", "always") == "fail" and kinds[e["from"]] not in ("eval", "gate"):
             raise ValueError("fail-edge only from eval/gate")
         if e.get("when", "always") not in ("always", "pass", "fail"):
             raise ValueError("bad when: " + str(e.get("when")))
         incoming[e["to"]] += 1
         adj[e["from"]].append(e)
+        forward.append((e["from"], e["to"]))
     starts = sorted(n for n in names if incoming[n] == 0)
     if len(starts) != 1:
         raise ValueError("want exactly one start, got %d" % len(starts))
@@ -84,6 +125,21 @@ def topo(nodes, edges):
         ready.sort()
     if len(order) != len(names):
         raise ValueError("cycle or unreachable node")
+    pos = {n: i for i, n in enumerate(order)}
+    reached = set()
+    for chk in sorted(returning):
+        to = returning[chk]
+        if pos[to] >= pos[chk]:
+            raise ValueError("a return that does not go back")
+        body = {to, chk} | (reach(to, forward, False) & reach(chk, forward, True))
+        if any(kinds[b] == "gate" for b in body):
+            raise ValueError("gate inside the return")
+        if not any(kinds[b] not in ("eval", "gate") for b in body):
+            raise ValueError("the return re-does no work")
+        reached.add(to)
+    for n in names:
+        if loops[n] > 0 and n not in reached:
+            raise ValueError("a ceiling nothing returns to")
     return order
 
 
@@ -169,6 +225,13 @@ def vectors():
     branch = spec([ask("a"), ev("e", "a", "yes"), ask("b"), ask("c")],
                   [E("a", "e"), E("e", "b", "pass"), E("e", "c", "fail")])
     gated = spec([ask("a"), gate("g"), ask("b")], [E("a", "g"), E("g", "b")])
+    # THE RETURN'S VECTORS (LAW_003, 2026-09-28): a node that does work, a
+    # check on it that matches by containment, and the check's fail-edge back.
+    work = lambda n, k=0: dict({"name": n, "kind": "run", "question": "do"},
+                               **({"loops": k} if k else {}))
+    chk = lambda n, ref: {"name": n, "kind": "eval", "node": ref,
+                          "expected": "RAN:", "match": "contains"}
+    back = [E("w", "c"), E("c", "w", "fail")]
     return {
         "name_re": NAME_RE,
         "run_re": RUN_RE,
@@ -205,8 +268,34 @@ def vectors():
              "spec": spec([ask("a")], [E("a", "ghost")])},
             {"why": "run node with no objective",
              "spec": spec([{"name": "a", "kind": "run"}], [])},
+            {"why": "back-edge with no ceiling (LAW_003: the cycle it always was)",
+             "spec": spec([work("w"), chk("c", "w")], back)},
+            {"why": "ceiling above MaxLoops",
+             "spec": spec([work("w", 6), chk("c", "w")], back)},
+            {"why": "ceiling nothing returns to",
+             "spec": spec([work("w", 2), chk("c", "w")], [E("w", "c")])},
+            {"why": "gate inside the loop",
+             "spec": spec([work("w", 2), {"name": "g", "kind": "gate", "title": "t"},
+                           chk("c", "w")],
+                          [E("w", "g"), E("g", "c", "pass"), E("c", "w", "fail")])},
+            {"why": "loops on a check",
+             "spec": spec([ask("a"),
+                           {"name": "c1", "kind": "eval", "node": "a",
+                            "expected": "x", "loops": 1},
+                           {"name": "c2", "kind": "eval", "node": "a", "expected": "y"}],
+                          [E("a", "c1"), E("c1", "c2", "pass"), E("c2", "c1", "fail")])},
         ],
     }
+
+
+def lawful_return():
+    """A return the law allows, for the verifier to prove the oracle does not
+    refuse everything that loops: work, a check, and the check's way back."""
+    return spec([{"name": "w", "kind": "run", "question": "do", "loops": 2},
+                 {"name": "c", "kind": "eval", "node": "w",
+                  "expected": "RAN:", "match": "contains"}],
+                [{"from": "w", "to": "c", "when": "always"},
+                 {"from": "c", "to": "w", "when": "fail"}])
 
 
 def write_bytes(path, data):
@@ -250,6 +339,14 @@ def verify():
             print("    [FAIL]  refusal hole: %s" % r["why"])
         except ValueError:
             pass
+    try:
+        lawful = lawful_return()
+        if topo(lawful["nodes"], lawful["edges"]) != ["w", "c"]:
+            ok = False
+            print("    [FAIL]  a lawful return is ordered wrongly")
+    except ValueError as ex:
+        ok = False
+        print("    [FAIL]  a lawful return is refused: %s" % ex)
     for b in want["budget_cases"]:
         if over(b["elapsed_ms"], b["budget_s"]) != b["over"]:
             ok = False
@@ -266,4 +363,16 @@ def verify():
 
 
 if __name__ == "__main__":
+    # A WORD THIS DOES NOT KNOW WRITES NOTHING (2026-09-29). Anything that was
+    # not `--verify` used to CUT, so `--check` -- prove.py's own word, typed by
+    # a hand that meant "verify" -- rewrote the fixture from this file's
+    # vectors and dropped the five the fixture had gained by hand.
+    known = [a for a in sys.argv[1:] if a in ("--verify", "--cut")]
+    if len(known) != len(sys.argv[1:]):
+        print("usage: cut_flow_vectors.py            cut the fixture\n"
+              "       cut_flow_vectors.py --cut      the same\n"
+              "       cut_flow_vectors.py --verify   prove it, writing nothing\n"
+              "refused: %r is not one of those; nothing was written"
+              % [a for a in sys.argv[1:] if a not in known])
+        sys.exit(2)
     sys.exit(verify() if "--verify" in sys.argv else cut())
