@@ -12,7 +12,7 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-## [v0.1.9] — 2026-09-29 15:15
+## [v0.1.9] — 2026-09-29 15:15 (tag on b1059a1)
 
 ### The flow verifier knows the bounded return, and a word it does not know writes nothing (operator, 2026-09-29: "do the list top to bottom")
 
