@@ -12,6 +12,21 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### `seed_catalog.py --verify` checks only (2026-09-30, the core's WHAT'S LEFT C35)
+
+It said "check only" and created `data/master.db` when the file was absent, seeding it before it
+looked -- so a verify on a fresh clone wrote, and prove.py runs it on every proof. A verify with
+no database says so and exits 1 with nothing written; `--verify --reset` is refused; the counts a
+verify reports are read, not seeded (`tally`). The seed itself is unchanged.
+
+**Proved.** On a scratch copy: verify with the database present changes no byte; without it,
+"absent", exit 1, no `data/`; `--verify --reset` refused, exit 2; the plain seed still seeds. THE
+WIRE: `tools/cut_words.py --verify` grew a leg that runs the script in a bare copy and wants
+exactly that -- with the old script back it goes red ("exit 0; WROTE data/"). On the ground the
+leg passes and `seed_catalog.py --verify` answers VERIFY OK with `data/master.db` untouched.
+
+**What goes red if unplugged:** that leg of `cut_words --verify`, here and on GitHub's push.
+
 ### The glass's batch: nine lines of the list, one rebuild (operator, 2026-09-29: "do the list top to bottom")
 
 WHAT'S LEFT C17, C23, C25, C26, C27, C28, C29, D4 and D5 -- all in the glass but for the TUI's

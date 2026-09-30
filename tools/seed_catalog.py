@@ -2,8 +2,12 @@
 """seed_catalog.py -- create/verify atlas\\data\\master.db from THE_CATALOG.
 
 Idempotent: rows key on `ref`; re-runs insert nothing new. --verify checks
-row counts, disposition vocabulary, and the journal_sync schema. Stdlib only;
-runs inside atlas\\.venv per CHARTER section 6.
+row counts, disposition vocabulary, and the journal_sync schema -- AND ONLY
+CHECKS (2026-09-30, the core's WHAT'S LEFT C35): until then it created the
+file when it was absent and seeded it before it looked, so a "verify" on a
+fresh clone wrote data/master.db, and tests/prove.py runs it on every proof.
+A verify with no database says so and writes nothing. Stdlib only; runs
+inside atlas\\.venv per CHARTER section 6.
 """
 import argparse
 import sqlite3
@@ -184,6 +188,18 @@ def seed(conn: sqlite3.Connection) -> dict:
     }
 
 
+def tally(conn: sqlite3.Connection) -> dict:
+    """The three counts the seed reports, read without writing a row."""
+    cur = conn.cursor()
+    out = {}
+    for name in ("rulings", "catalog", "agents"):
+        try:
+            out[name] = cur.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
+        except sqlite3.OperationalError:
+            out[name] = 0  # the table is missing; verify() names it
+    return out
+
+
 def verify(conn: sqlite3.Connection) -> list:
     problems = []
     cur = conn.cursor()
@@ -240,12 +256,20 @@ def main() -> int:
         "--reset", action="store_true",
         help="drop tables then reseed (P0 scratch only)")
     args = ap.parse_args()
-    DB.parent.mkdir(parents=True, exist_ok=True)
+    if args.verify and args.reset:
+        print("refused: --verify checks only, and --reset writes", file=sys.stderr)
+        return 2
+    if args.verify and not DB.exists():
+        print(f"VERIFY FAIL: {DB} is absent -- the seed has not run here; nothing written",
+              file=sys.stderr)
+        return 1
+    if not args.verify:
+        DB.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB)
     try:
         if args.reset:
             reset(conn)
-        counts = seed(conn)
+        counts = tally(conn) if args.verify else seed(conn)
         problems = verify(conn)
         print(
             f"master.db: rulings={counts['rulings']} catalog={counts['catalog']}"

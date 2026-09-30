@@ -140,12 +140,45 @@ def verify():
             ok = False
         before = after
     print()
+    # CHECK-ONLY MEANS CHECK-ONLY (2026-09-30, the core's WHAT'S LEFT C35).
+    # seed_catalog.py parses its words with argparse, so it is not one of the
+    # cutters above -- but its --verify created data/master.db when the file
+    # was absent and seeded it before it looked. Run in a bare copy, a verify
+    # must say the database is absent, exit 1, and leave no data/ behind.
+    ok = check_only_checks_only() and ok
+    print()
     if ok:
-        print("  PROVEN. %d cutters, and none of them cuts on a word it does not know."
-              % len(names))
+        print("  PROVEN. %d cutters, and none of them cuts on a word it does not know;"
+              " seed_catalog --verify writes nothing." % len(names))
         return 0
-    print("  A cutter would write on a word it does not know.")
+    print("  A cutter would write on a word it does not know, or a check-only mode wrote.")
     return 1
+
+
+def check_only_checks_only():
+    import shutil
+    import tempfile
+    src = os.path.join(TOOLS, "seed_catalog.py")
+    if not os.path.exists(src):
+        print("    [FAIL]  seed_catalog.py is not beside this file")
+        return False
+    root = tempfile.mkdtemp(prefix="cut_words_c35_")
+    try:
+        os.mkdir(os.path.join(root, "tools"))
+        shutil.copy(src, os.path.join(root, "tools", "seed_catalog.py"))
+        p = subprocess.run([sys.executable, os.path.join(root, "tools", "seed_catalog.py"), "--verify"],
+                           cwd=root, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT, timeout=120)
+        said = p.stdout.decode("utf-8", "replace")
+        wrote = os.path.exists(os.path.join(root, "data"))
+        if p.returncode == 1 and "absent" in said and not wrote:
+            print("    [PASS]  seed_catalog.py --verify  with no database: said absent, exit 1, wrote nothing")
+            return True
+        print("    [FAIL]  seed_catalog.py --verify  with no database: exit %d%s"
+              % (p.returncode, "; WROTE data/" if wrote else ""))
+        return False
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":
