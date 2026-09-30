@@ -53,7 +53,8 @@ const Palette = {
     if (Run.engineOpen) {
       engine.push({
         label: 'Close the sitting',
-        note: 'pays its toll and reaps the engine · sitting ' + (Run.sitting || '?'),
+        note: (Run.runs ? 'pays its toll and reaps the engine' : 'reaps the engine; no turn ran, so no toll is owed')
+          + ' · sitting ' + (Run.sitting || '?'),
         run: () => { go('/')(); setTimeout(() => Home.closeSitting(), 60); },
       });
       engine.push({

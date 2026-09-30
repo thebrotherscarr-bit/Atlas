@@ -94,8 +94,13 @@ const App = {
     const prim = document.getElementById('side-primary');
     if (!prim) return;
     prim.textContent = Run.engineOpen ? 'Close the sitting' : 'Boot an engine';
+    // THE TOLL IS OWED ONLY WHEN A TURN RAN (2026-09-29, WHAT'S LEFT C28): the
+    // core pays one unattended "if runs happened" (serve.py), and three places
+    // here said closing always pays it. The door counts the runs; this reads
+    // the count.
     prim.title = Run.engineOpen
-      ? 'pays its toll and reaps the engine · sitting ' + (Run.sitting || '?')
+      ? (Run.runs ? 'pays its toll and reaps the engine' : 'reaps the engine; no turn ran, so no toll is owed')
+        + ' · sitting ' + (Run.sitting || '?')
       : 'opens a sitting on ' + (Run.world || 'this world');
   },
 
@@ -187,12 +192,34 @@ const App = {
       document.getElementById('version').textContent = h.version;
       document.getElementById('operator-status').textContent = 'active';
       document.getElementById('status-dot').className = 'status-dot green';
+      this.paintCovenant();
     } catch {
       document.getElementById('operator-status').textContent = 'offline';
       document.getElementById('status-dot').className = 'status-dot red';
     }
     clearTimeout(this._health);
     this._health = document.hidden ? null : setTimeout(() => this.loadHealth(), 5000);
+  },
+
+  // THE COVENANT IS READ OFF THE RECORD, NEVER TYPED HERE (2026-09-29, WHAT'S
+  // LEFT C29). The sidebar carried the house covenant as a literal, one of the
+  // 59 copies the door stopped minting from on 2026-09-25; the operator's own
+  // declaration says it, and us_to_vc mints a credential from that declaration
+  // in exactly that namespace. Read once, as a background read; a door that
+  // cannot serve it leaves the line saying so rather than a number from
+  // memory, and the next health tick asks again.
+  async paintCovenant() {
+    const el = document.getElementById('covenant');
+    if (!el || this._covenantRead) return;
+    this._covenantRead = true;
+    try {
+      const vc = JSON.parse(await this.tool('us_to_vc', { path: 'agents/operator.us', project: 'atlas' }, true));
+      const c = (vc.credentialSubject || {}).covenant || '';
+      el.textContent = c ? 'covenant: ' + c : 'covenant: none declared in the record';
+    } catch (e) {
+      this._covenantRead = false;
+      el.textContent = 'covenant: not read (the door did not answer)';
+    }
   },
 
   onEvent(e) {
@@ -682,22 +709,50 @@ const App = {
     }
   },
 
-  async addEval(traceId) {
-    const name = prompt('Eval name:');
-    if (!name) return;
-    const score = parseFloat(prompt('Score (0-1):') || '0');
-    let threshold = 0.5;
-    try {
-      const s = await API.getSetting('eval_threshold');
-      if (s.value) threshold = parseFloat(s.value);
-    } catch {}
-    const passed = score >= threshold;
-    const detail = prompt('Detail (optional):') || '';
-    try {
-      await API.addEval({ id: 'e-' + Date.now(), trace_id: traceId, name, score, passed, detail });
-      toast('Eval added');
-      this.router();
-    } catch (e) { toast(e.message, 'error'); }
+  // THE EVAL SCORER ASKS IN THE PAGE (2026-09-29): its three prompt()s became
+  // one form in the modal, for the reason invokeTool gives below.
+  addEval(traceId) {
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modal-content');
+    content.innerHTML = `
+      <h3 style="margin-bottom:12px">Score trace <code>${escHtml(traceId)}</code></h3>
+      <form id="eval-form">
+        <div class="form-group"><div class="form-label">Eval name</div>
+          <input class="input" id="eval-name" autocomplete="off"></div>
+        <div class="form-group"><div class="form-label">Score (0-1)</div>
+          <input class="input" id="eval-score" type="number" min="0" max="1" step="0.01" value="0"></div>
+        <div class="form-group"><div class="form-label">Detail (optional)</div>
+          <input class="input" id="eval-detail" autocomplete="off"></div>
+        <div class="flex-between mt-16">
+          <span class="muted" id="eval-note"></span>
+          <span class="flex" style="gap:8px">
+            <button class="btn" type="button" id="eval-close">Close</button>
+            <button class="btn btn-primary" type="submit">Add the eval</button>
+          </span>
+        </div>
+      </form>`;
+    modal.style.display = 'flex';
+    document.getElementById('eval-close').onclick = () => this.closeModal();
+    document.getElementById('eval-name').focus();
+    document.getElementById('eval-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('eval-name').value.trim();
+      if (!name) { document.getElementById('eval-note').textContent = 'Name it first.'; return; }
+      const score = parseFloat(document.getElementById('eval-score').value || '0');
+      const detail = document.getElementById('eval-detail').value || '';
+      let threshold = 0.5;
+      try {
+        const s = await API.getSetting('eval_threshold');
+        if (s.value) threshold = parseFloat(s.value);
+      } catch {}
+      const passed = score >= threshold;
+      try {
+        await API.addEval({ id: 'e-' + Date.now(), trace_id: traceId, name, score, passed, detail });
+        this.closeModal();
+        toast('Eval added');
+        this.router();
+      } catch (err) { toast(err.message, 'error'); }
+    };
   },
 
   // === TOOLS ===
@@ -706,6 +761,7 @@ const App = {
     try {
       const data = await API.tools();
       const tools = data.tools || [];
+      this._tools = tools;
       el.innerHTML = `
         <div class="page-header">
           <div>
@@ -736,15 +792,53 @@ const App = {
     }
   },
 
-  async invokeTool(name) {
-    const argsStr = prompt(`Arguments for ${name} (JSON):`, '{}');
-    if (!argsStr) return;
-    let args;
-    try { args = JSON.parse(argsStr); } catch { toast('Invalid JSON', 'error'); return; }
+  // THE TOOLS PAGE ASKS IN THE PAGE, NOT IN A POP-UP (2026-09-29, WHAT'S LEFT
+  // C26). This collected the arguments with a native prompt(), which the
+  // desktop app's browser pane dismisses unseen -- so Call did nothing there
+  // -- and which this glass's own rule forbids everywhere else (the spec's
+  // §4.7: no prompt() anywhere; chat.js, prompts.js say the same). The modal
+  // this page already owns takes the arguments as a form: the tool's declared
+  // arguments listed over the box so nobody has to remember them, JSON in,
+  // and the answer painted into the same modal with a way to call again.
+  invokeTool(name, raw) {
+    const tool = (this._tools || []).find(t => t.name === name) || {};
+    const props = Object.keys((tool.inputSchema && tool.inputSchema.properties) || {});
+    const req = (tool.inputSchema && tool.inputSchema.required) || [];
     const modal = document.getElementById('modal');
     const content = document.getElementById('modal-content');
-    content.innerHTML = `<div class="loading">Calling ${escHtml(name)}...</div>`;
+    content.innerHTML = `
+      <h3 style="margin-bottom:12px">Call <code>${escHtml(name)}</code></h3>
+      <div class="muted" style="margin-bottom:8px">${escHtml(tool.description || '')}</div>
+      <form id="tool-call-form">
+        <div class="form-group">
+          <div class="form-label">Arguments (JSON)${props.length
+            ? ' — ' + props.map(p => escHtml(p) + (req.indexOf(p) >= 0 ? '' : '?')).join(', ') : ''}</div>
+          <textarea class="textarea" id="tool-call-args" rows="4" spellcheck="false">${escHtml(raw || '{}')}</textarea>
+        </div>
+        <div class="flex-between mt-16">
+          <span class="muted" id="tool-call-note"></span>
+          <span class="flex" style="gap:8px">
+            <button class="btn" type="button" id="tool-call-close">Close</button>
+            <button class="btn btn-primary" type="submit">Call it</button>
+          </span>
+        </div>
+      </form>`;
     modal.style.display = 'flex';
+    document.getElementById('tool-call-close').onclick = () => this.closeModal();
+    const box = document.getElementById('tool-call-args');
+    box.focus();
+    document.getElementById('tool-call-form').onsubmit = (e) => {
+      e.preventDefault();
+      let args;
+      try { args = JSON.parse(box.value || '{}'); }
+      catch { document.getElementById('tool-call-note').textContent = 'That is not JSON.'; return; }
+      this.callTool(name, args, box.value);
+    };
+  },
+
+  async callTool(name, args, raw) {
+    const content = document.getElementById('modal-content');
+    content.innerHTML = `<div class="loading">Calling ${escHtml(name)}...</div>`;
     try {
       const result = await API.callTool(name, args);
       content.innerHTML = `
@@ -753,12 +847,17 @@ const App = {
         <div class="form-group"><div class="form-label">Hash</div><span class="hash">${escHtml(result.hash || '')}</span></div>
         <div class="flex-between mt-16">
           <span style="font-size:12px;color:var(--text-3)">Trace: ${escHtml(result.trace_id || '')} — ${result.duration_ms || 0}ms</span>
-          <button class="btn" onclick="App.closeModal()">Close</button>
-        </div>
-      `;
+          <span class="flex" style="gap:8px">
+            <button class="btn" id="tool-call-again">Call again</button>
+            <button class="btn" id="tool-call-done">Close</button>
+          </span>
+        </div>`;
+      document.getElementById('tool-call-again').onclick = () => this.invokeTool(name, raw);
+      document.getElementById('tool-call-done').onclick = () => this.closeModal();
     } catch (e) {
       content.innerHTML = `<div class="empty"><div class="empty-icon">!</div><div class="empty-text">${escHtml(e.message)}</div></div>
-        <button class="btn mt-16" onclick="App.closeModal()">Close</button>`;
+        <button class="btn mt-16" id="tool-call-done">Close</button>`;
+      document.getElementById('tool-call-done').onclick = () => this.closeModal();
     }
   },
 

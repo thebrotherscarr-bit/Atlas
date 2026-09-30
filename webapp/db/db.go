@@ -458,12 +458,18 @@ func (d *DB) GetAgents() []Agent {
 	return out
 }
 
+// GetAgent hands back a COPY (2026-09-29). It returned &d.agents[i] -- a
+// pointer into the store's own slice -- and the caller read it after the lock
+// was gone, while UpsertAgent may overwrite that element or grow the slice out
+// from under it: a torn read, or a stale one. GetTrace already copies for the
+// same reason.
 func (d *DB) GetAgent(id string) *Agent {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for i := range d.agents {
 		if d.agents[i].ID == id {
-			return &d.agents[i]
+			a := d.agents[i]
+			return &a
 		}
 	}
 	return nil

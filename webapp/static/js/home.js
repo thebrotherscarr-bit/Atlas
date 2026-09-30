@@ -216,8 +216,18 @@ const Home = {
       const idle = !Run.running && idleS >= 300;
       const n = Run.runs || 0;
       const ran = n === 1 ? '1 run' : n + ' runs';
+      // AND WHAT THE IDLE COSTS, SAID WHERE IT IS COUNTED (2026-09-29). The
+      // core closes a sitting nobody has used for thirty minutes between
+      // turns, and this line said "idle 14m" without saying what happens at
+      // thirty. The minutes left are the core's ceiling less the idle
+      // measured here.
+      const idleM = Math.floor(idleS / 60);
+      const left = Home.IDLE_CLOSE_MIN - idleM;
       el.textContent = 'open ' + txt + ' · ' + ran
-        + (idle ? ' — idle ' + Math.floor(idleS / 60) + 'm' : '');
+        + (idle ? ' — idle ' + idleM + 'm; the engine closes itself at '
+                  + Home.IDLE_CLOSE_MIN + 'm idle'
+                  + (left > 0 ? ' (' + left + 'm left)' : ' (any moment now)')
+                : '');
       el.className = idle ? 'eng-idle' : '';
     };
     paint();
@@ -249,6 +259,12 @@ const Home = {
   // The last few exchanges of the SHARED thread. Chat renders all of it;
   // this renders the tail. One array, so the two views cannot disagree.
   TAIL: 6,
+
+  // serve.py's IDLE_CLOSE, in minutes: the core closes a sitting nobody has
+  // used for this long between turns. Named here so the idle line can say what
+  // the idle costs. The wire does not carry the number, so this is a copy of
+  // the core's constant and is said to be one.
+  IDLE_CLOSE_MIN: 30,
 
   thread() {
     const box = document.getElementById('home-thread');
@@ -482,10 +498,18 @@ const Home = {
       box.innerHTML = '<div class="hero-verdict off">No engine</div>' +
         '<div class="hero-says">Nothing you type below will run until one is ' +
         'open on <b>' + escHtml(Run.world || 'this world') + '</b>. Booting ' +
-        'starts a sitting; closing pays its toll.</div>' +
+        'starts a sitting; closing writes its end and pays the toll if a turn ran.</div>' +
         '<div class="hero-foot"><span class="brief-src">run/state</span></div>';
-      bar.innerHTML = '<button class="btn btn-primary" id="eng-boot">Boot an engine</button>';
+      // THE LIVE CHECK STANDS BESIDE THE BOOT (2026-09-29, WHAT'S LEFT D5):
+      // only with no engine open, because the standup opens a sitting of its
+      // own and the door refuses it otherwise -- that refusal, like every
+      // other, is shown in its own words.
+      bar.innerHTML = '<button class="btn btn-primary" id="eng-boot">Boot an engine</button>' +
+        '<button class="btn" id="eng-standup" title="tests/standup.py, the morning set: nine cases ' +
+        'through the real council on the real rack, two to nine minutes; it opens and tolls a ' +
+        'sitting of its own">Run the live check</button>';
       document.getElementById('eng-boot').onclick = () => this.boot();
+      document.getElementById('eng-standup').onclick = () => this.standup();
       return;
     }
 
@@ -603,7 +627,7 @@ const Home = {
   // left open is exactly what makes the next open refuse, and a killed engine
   // is what leaves one open.
   async closeSitting() {
-    this.busy(true, 'closing the sitting (the toll is paid, `ended` is written)...');
+    this.busy(true, 'closing the sitting (`ended` is written; the toll is paid if a turn ran)...');
     try {
       this.bootLine(await App.tool('env_close', {}) + '\n', true);
     } catch (e) {
@@ -613,6 +637,27 @@ const Home = {
     this.busy(false);
     this.paintEngine();
     this.paint();
+  },
+
+  // THE LIVE CHECK, FROM THE DASHBOARD (2026-09-29, WHAT'S LEFT D5). The door
+  // has run tests/standup.py on his word since 2026-09-28 (standup_run); the
+  // glass offered no button, so the one proof the release gate wants live was
+  // the one thing still typed at a terminal. The tool's first line is the
+  // tally; the whole report lands in logs/ and its line in run_history, which
+  // the deck above reads back -- nothing is counted here.
+  async standup() {
+    this.busy(true, 'running the live check (tests/standup.py, the morning set: nine cases ' +
+      'through the real council; two to nine minutes on this card)...');
+    try {
+      const said = await App.tool('standup_run', { set: 'morning' });
+      this.bootLine((said || '').split('\n')[0] + '\n', true);
+      this.bootLine('the whole report is in logs/ (Records); the deck above reads its line ' +
+        'from tests/run_history.jsonl\n', true);
+    } catch (e) {
+      this.bootLine('REFUSED: ' + e.message + '\n', true);
+    }
+    this.busy(false);
+    await this.read();
   },
 
   // The boot, in the order the REPL does it. Each step shows its own words,

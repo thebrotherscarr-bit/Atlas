@@ -93,7 +93,10 @@
       <div class="sidebar-footer">
         <div class="status-dot" id="status-dot"></div>
         <span id="operator-status">connecting...</span>
-        <div class="covenant">covenant: 1512741580b7239b</div>
+        <!-- READ OFF THE RECORD (2026-09-29): app.js paints the covenant the
+             operator's own declaration carries, through the door; it is not
+             typed here. -->
+        <div class="covenant" id="covenant">covenant: reading the record...</div>
         <!-- THE LOCK (2026-09-21): who is signed in, and the button that locks
              the dashboard again. Hidden until lock.js knows who it is. -->
         <div id="lock-line" hidden style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:var(--t-sm);color:var(--text-2)">

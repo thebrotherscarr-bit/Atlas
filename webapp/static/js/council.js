@@ -68,7 +68,14 @@ const Run = {
   async check() {
     this.restore();
     try {
-      const r = await fetch(API.base + '/council/state').then(x => x.json());
+      // A DOOR THAT ANSWERED WITH A REFUSAL IS NOT A WORLD WITH NO ENGINE
+      // (2026-09-29). The glass proxies this read and answers 502 with a JSON
+      // body when the door does not answer; that body parsed cleanly, `open`
+      // was simply absent, and the hero said "No engine" -- boot one -- over
+      // a door that was down. Anything but 200 is the door silent.
+      const x = await fetch(API.base + '/council/state');
+      if (!x.ok) throw new Error('the door did not answer (' + x.status + ')');
+      const r = await x.json();
       this.engineOpen = !!r.open;
       this.world = r.world || '';
       this.sitting = r.sitting || '';
@@ -271,11 +278,15 @@ const Run = {
     });
   },
 
+  // ENDED THE WAY EVERY TURN ENDS (2026-09-29). This said 'done', and the two
+  // pages that hold the conversation -- Home and Chat -- listen for 'end', so
+  // a watched turn's bubble stayed marked live after its delivery had landed.
+  // One word for one fact.
   endWatched() {
     if (!this.turn || this.turn.ended) return;
     this.turn.ended = Date.now();
     this.keep();
-    this.emit('done');
+    this.emit('end');
   },
 
   // Drops the READER, not the run. A closed glass does not cancel the

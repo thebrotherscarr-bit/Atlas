@@ -14,8 +14,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	_ "embed"
+
+	"atlas/line/internal/vc"
 )
 
 // THE VERSION FILE IS THE AUTHORITY, HERE TOO (2026-09-12). This command had
@@ -315,7 +318,7 @@ complete -c atlas-tui -l help -d 'Show help'
 
 func interactiveMode(home string) {
 	fmt.Print(clear)
-	drawHeader()
+	drawHeader(home)
 
 	scanner := bufio.NewReader(os.Stdin)
 	for {
@@ -361,12 +364,39 @@ func interactiveMode(home string) {
 	}
 }
 
-func drawHeader() {
-	fmt.Printf("%s%s╔══════════════════════════════════════════════════════════════╗%s\n", bgBlue, bold, reset)
-	fmt.Printf("%s%s║  ATLAS CLI — Resource-based command structure               ║%s\n", bgBlue, bold, reset)
-	fmt.Printf("%s%s║  atlas <resource> <action> [flags]                         ║%s\n", bgBlue, bold, reset)
-	fmt.Printf("%s%s║  covenant: 1512741580b7239b  ·  operator holds the gate   ║%s\n", bgBlue, bold, reset)
-	fmt.Printf("%s%s╚══════════════════════════════════════════════════════════════╝%s\n", bgBlue, bold, reset)
+// banner is the header interactive mode draws, as lines of one width.
+//
+// THE COVENANT IS READ OFF THE RECORD, NEVER TYPED HERE (2026-09-29, the
+// core's WHAT'S LEFT C29). This carried the house covenant as a literal, one
+// of the 59 copies the door stopped minting from on 2026-09-25 (vc.IssuerFor).
+// The ground this command was pointed at declares it, in the operator's own
+// declaration; a ground that declares none is said so, rather than a number
+// from memory.
+func banner(home string) []string {
+	cov := vc.CovenantOf(home)
+	if cov == "" {
+		cov = "none declared"
+	}
+	const width = 62
+	pad := func(s string) string {
+		if n := utf8.RuneCountInString(s); n < width {
+			s += strings.Repeat(" ", width-n)
+		}
+		return "║" + s + "║"
+	}
+	return []string{
+		"╔" + strings.Repeat("═", width) + "╗",
+		pad("  ATLAS CLI — Resource-based command structure"),
+		pad("  atlas <resource> <action> [flags]"),
+		pad("  covenant: " + cov + "  ·  operator holds the gate"),
+		"╚" + strings.Repeat("═", width) + "╝",
+	}
+}
+
+func drawHeader(home string) {
+	for _, l := range banner(home) {
+		fmt.Printf("%s%s%s%s\n", bgBlue, bold, l, reset)
+	}
 }
 
 // === Resource commands ===

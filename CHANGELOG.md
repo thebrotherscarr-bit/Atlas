@@ -12,6 +12,72 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The glass's batch: nine lines of the list, one rebuild (operator, 2026-09-29: "do the list top to bottom")
+
+WHAT'S LEFT C17, C23, C25, C26, C27, C28, C29, D4 and D5 -- all in the glass but for the TUI's
+half of C29. Nothing in the door moved.
+
+- **The idle line says what idle costs (C17).** The hero's clock said "idle 14m" and not that
+  the core closes a sitting nobody has used for thirty minutes between turns (serve.py's
+  IDLE_CLOSE); it says so now, with the minutes left. The thirty is `Home.IDLE_CLOSE_MIN`, a
+  copy of the core's constant named as one -- the wire does not carry it.
+- **`Run.check` tells a silent door from a world with no engine (C23).** The glass answers 502
+  with a JSON body when the door does not answer; the body parsed, `open` was absent, and the
+  hero said "No engine" -- boot one -- over a door that was down. Anything but 200 is the door
+  silent. **And the store hands back a copy (C23):** `db.GetAgent` returned a pointer into its
+  own slice, read after the lock was gone while `UpsertAgent` may overwrite that element or
+  grow the slice under it; `GetTrace` already copied for the same reason.
+- **A paused run is found after a reload (C25).** It lived only in the tab's memory; the pause
+  sits in `flows/runs.jsonl` for as long as he likes (the spec's §4.9). The runs list is read
+  from the record on arrival -- every flow's, with none open -- and each PAUSED run is one click
+  from its waterfall (`flow_status`) and its two buttons again.
+- **The Tools page asks in the page (C26).** Call collected its arguments with a native
+  `prompt()`, which the desktop app's pane dismisses unseen and which the spec's §4.7 forbids
+  anywhere. The modal the page already owns takes the arguments as a form -- the tool's declared
+  arguments listed over the box -- and paints the answer with a way to call again. The eval
+  scorer's three `prompt()`s went the same way. No page opens a browser pop-up now.
+- **A watched turn ends the way every turn ends (C27).** `endWatched` said 'done'; Home and Chat
+  listen for 'end', so a turn started in another window kept its bubble marked live after its
+  delivery had landed.
+- **Closing says when no toll is owed (C28).** Three places said closing "pays its toll"; the
+  core pays one only if a turn ran. The door counts the runs; the glass reads the count.
+- **The covenant is read off the record (C29).** The sidebar and the TUI's banner carried the
+  house covenant as a literal -- the last two of the 59 copies the door stopped minting from on
+  2026-09-25. `vc.CovenantOf(home)` reads it off the operator's own declaration
+  (`agents/operator.us`); the TUI's `banner` prints it or says "none declared", in lines of one
+  width; the sidebar reads it through the door (`us_to_vc` on that declaration) and says when the
+  door did not answer.
+- **The builder has a box for loops (D4):** on the five kinds that do work, never on an eval or
+  a gate, which the engine refuses by name; typed as a number so the door does not refuse the
+  whole save. A looping flow no longer has to be written as JSON by hand.
+- **The Dashboard runs the live check (D5):** a button beside Boot, offered only with no engine
+  open because the standup opens a sitting of its own; the tally lands in the boot report and
+  the deck reads its line back from `tests/run_history.jsonl`.
+
+**Proved.** Ten strokes: `db.TestGetAgentHandsBackACopyAndNotTheStoresOwnMemory` (a caller's
+write must not reach the store; an upsert must not move under a reader's copy);
+`vc.TestTheCovenantIsReadOffTheOperatorsOwnDeclaration`;
+`atlas-tui.TestTheBannerReadsTheCovenantOffTheRecord` (one width, no literal in main.go); and
+in `server/glass_test.go` the pages' own source held to each promise the way the What's-left
+stroke does -- `TestNoPageOpensABrowserPopUp` over every script, and one stroke each for C23's
+read, C27, C17 with D5, C28, C29's sidebar, and D4 with C25. Fourteen reversals on a scratch
+copy, red by name: the store's own memory handed out; the 502 read as no engine; 'done'; a
+prompt() back; the literal back in the sidebar and in the banner; the sidebar's read never
+made; the covenant read off the wrong declaration; the idle line silent on the close; the
+button gone; the toll words back; the loops box gone from `run`; loops offered on a gate; the
+runs not read on arrival. `go vet` and `gofmt` clean, `node --check` on every script touched;
+on the ground `python tests/prove.py --check` **22 held - 14 absent - 0 broke**.
+
+**RESTART REQUIRED, AND DONE:** the glass rebuilt from the ground and placed on his standing
+word (pid 27136, the 0.1.9 build of 2026-09-29, stopped by pid and path; the build placed
+hashing as built; pid 111424, 2026-09-30 07:29:38, "service wire held"). Live after it, in the pane: the sidebar's covenant read through the door; "Run the live check" beside Boot; the hero saying when the toll is owed; the Tools page's Call for `muster` asked in the modal and answered inside it; the Workflows page reading 4,045 characters of runs on arrival -- no run was paused in the record, so the card had nothing to list -- and the loops box on `coder`'s work steps and not on its check or its gate.
+
+**What goes red if unplugged:** the ten strokes, here and on GitHub's push.
+
+**Not built, and why (D6, a merge button):** `merge` is a forbidden verb on this door by
+construction (the first lines of `internal/tools/tools.go`), so a merge button needs his
+ruling before it needs code; it is put to him on the list (B16).
+
 ### The door's batch: a flow's turn is sent unattended, `run_start` takes a head, and the two streams that had kept an old fault (operator, 2026-09-29: "do the list top to bottom")
 
 Three lines of the core's WHAT'S LEFT, all in THE LINE: C14's other half, C18 and C24.

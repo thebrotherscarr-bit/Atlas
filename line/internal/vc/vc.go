@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -170,6 +171,25 @@ func IssuerFor(block map[string]any) (string, error) {
 		return "", fmt.Errorf("the record declares no covenant, so no issuer can be minted in its namespace")
 	}
 	return fmt.Sprintf("did:atlas:%s:operator", covenant), nil
+}
+
+// CovenantOf is the covenant the record at `home` declares, read off the
+// operator's own declaration (agents/operator.us): the one that says who holds
+// the gate. A ground that carries none, or whose declaration names none,
+// answers "" -- and whatever prints it says so rather than a number from
+// memory. The TUI's banner and the glass's sidebar carried this hash as a
+// literal until 2026-09-29, the last two of the 59 copies IssuerFor names.
+func CovenantOf(home string) string {
+	data, err := os.ReadFile(filepath.Join(home, "agents", "operator.us"))
+	if err != nil {
+		return ""
+	}
+	block, _, err := ParseUS(string(data))
+	if err != nil {
+		return ""
+	}
+	c, _ := block["covenant"].(string)
+	return strings.TrimSpace(c)
 }
 
 // FromFile reads a .us file and converts it to a VC. An empty issuerDID

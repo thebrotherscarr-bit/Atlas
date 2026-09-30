@@ -48,12 +48,18 @@ const Workflows = {
   // way every time, and retrying until the check agrees is laundering, not
   // reliability. A field the engine will refuse is a field the glass must not
   // offer.
+  //
+  // `loops` THE SAME WAY (2026-09-29, WHAT'S LEFT D4): the bounded return of
+  // 2026-09-28 (flow.go, LAW_003) is declared on the node that does the WORK
+  // -- how many times a check's fail edge may send the run back to it, 0 to 5
+  // -- and the engine refuses it on an eval or a gate by name. Until now a
+  // looping flow had to be written as JSON by hand.
   KINDS: {
-    ask:    { label: 'ask',    blurb: 'one voice, straight to a model',          fields: ['voice', 'question', 'retries'] },
-    run:    { label: 'run',    blurb: 'the whole council — law gate, Router, tools', fields: ['question', 'retries'] },
-    seat:   { label: 'seat',   blurb: 'one named seat, its own prompt',          fields: ['seat', 'question', 'voice', 'method', 'retries'] },
-    prompt: { label: 'prompt', blurb: 'a saved prompt, by name and version',     fields: ['prompt', 'version', 'voice', 'retries'] },
-    memory: { label: 'memory', blurb: 'recall with citations',                   fields: ['voice', 'question', 'retries'] },
+    ask:    { label: 'ask',    blurb: 'one voice, straight to a model',          fields: ['voice', 'question', 'retries', 'loops'] },
+    run:    { label: 'run',    blurb: 'the whole council — law gate, Router, tools', fields: ['question', 'retries', 'loops'] },
+    seat:   { label: 'seat',   blurb: 'one named seat, its own prompt',          fields: ['seat', 'question', 'voice', 'method', 'retries', 'loops'] },
+    prompt: { label: 'prompt', blurb: 'a saved prompt, by name and version',     fields: ['prompt', 'version', 'voice', 'retries', 'loops'] },
+    memory: { label: 'memory', blurb: 'recall with citations',                   fields: ['voice', 'question', 'retries', 'loops'] },
     eval:   { label: 'eval',   blurb: 'check another node — this is what steers', fields: ['node', 'match', 'expected'] },
     gate:   { label: 'gate',   blurb: 'stop and wait for a hand',                fields: ['title'] },
   },
@@ -70,7 +76,7 @@ const Workflows = {
   // string outright, so a box left as text does not degrade -- the whole save
   // is rejected at the door. `version` was special-cased inline for exactly
   // this reason; naming the set means the next number field cannot forget.
-  NUMERIC: { version: true, retries: true },
+  NUMERIC: { version: true, retries: true, loops: true },
 
   async render(el) {
     el.innerHTML = `
@@ -95,6 +101,9 @@ const Workflows = {
     el.querySelector('#wf-start').onclick = () => this.start();
     el.querySelector('#wf-new').onkeydown = (e) => { if (e.key === 'Enter') this.start(); };
     await this.list();
+    // Every flow's runs on arrival, so a run waiting at a gate is found before
+    // any flow is opened (C25).
+    await this.runs();
   },
 
   // ---- the flows ---------------------------------------------------------
@@ -274,6 +283,7 @@ const Workflows = {
     if (f === 'version') return '0 = latest';
     if (f === 'method') return 'optional';
     if (f === 'retries') return 'blank or 0 = try once. Retries answer an ERROR — no engine, a dead socket — never a FAIL';
+    if (f === 'loops') return 'blank or 0 = never returned to. Up to 5: how many times a check\'s fail edge may send the run back here to do the work again';
     return '';
   },
 
@@ -494,18 +504,52 @@ const Workflows = {
   },
 
   // ---- what already ran --------------------------------------------------
-
+  //
+  // AND WHAT IS STILL WAITING (2026-09-29, WHAT'S LEFT C25). A PAUSED run lived
+  // only in this tab's memory: reload the page and the two buttons that move it
+  // were gone, though the pause itself sits in flows/runs.jsonl for as long as
+  // he likes (the spec's §4.9). The runs list is read from the record, so the
+  // paused ones are found there, and each is one click from its waterfall and
+  // its two buttons again. With no flow open, every flow's runs are listed.
   async runs() {
     const box = document.getElementById('wf-runs');
-    if (!box || !this.spec) return;
+    if (!box) return;
     try {
-      const r = await API.listRuns(this.spec.name);
+      const r = await API.listRuns(this.spec ? this.spec.name : '');
       const text = (r.runs || '').trim();
-      box.innerHTML = text
+      const paused = text.split('\n')
+        .map(l => l.match(/^\s*(f-\S+) · flow (\S+) · PAUSED · (.*)$/))
+        .filter(Boolean)
+        .map(m => ({ run: m[1], flow: m[2], when: m[3] }));
+      const waiting = paused.length ? `<div class="card"><div class="card-title">Waiting on you
+          <span class="badge badge-yellow">${paused.length}</span></div>
+          <div class="muted mb-16">Stopped at a gate and read back from the record — a reload
+            forgets nothing. Open one to see its waterfall and move it.</div>
+          ${paused.map(p => `<div class="wf-row"><div class="wf-row-main"><span class="wf-name">${esc(p.flow)}</span>
+            <span class="hash">${esc(p.run)}</span> <span class="muted">${esc(p.when)}</span></div>
+            <button class="btn btn-sm" data-paused="${esc(p.run)}">Open it</button></div>`).join('')}
+        </div>` : '';
+      box.innerHTML = waiting + (text && !/no runs yet/i.test(text)
         ? `<div class="card card-quiet"><div class="card-title">Earlier runs</div>
              <pre class="wf-pre">${esc(text)}</pre></div>`
-        : '';
+        : '');
+      box.querySelectorAll('[data-paused]').forEach(b => {
+        b.onclick = () => this.reopen(b.getAttribute('data-paused'));
+      });
     } catch (e) { box.innerHTML = ''; }
+  },
+
+  // A paused run picked up again: its waterfall from flow_status, and the same
+  // two buttons paint() offers a run this tab fired. Nothing moves until one
+  // of them is pressed.
+  async reopen(run) {
+    try {
+      const r = await API.flowStatus(run);
+      this.run = run; this.verdict = 'PAUSED';
+      this.paint(r.status || '');
+      const box = document.getElementById('wf-run');
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) { toast('The run could not be read: ' + e.message); }
   },
 };
 
