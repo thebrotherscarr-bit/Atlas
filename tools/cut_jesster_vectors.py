@@ -200,4 +200,6 @@ def main():
 
 
 if __name__ == "__main__":
+    from cut_words import word
+    word(sys.argv[1:], __file__)
     raise SystemExit(main())

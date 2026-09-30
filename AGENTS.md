@@ -26,7 +26,7 @@ python tests\prove.py --live            # + the legs needing :8090 and Ollama
 ```
 
 THE BALL gathers every prover atlas has — the Rust spine, both Go modules,
-the two shipped batteries, **twenty-seven** golden verifiers (this file used
+the two shipped batteries, **twenty-eight** golden verifiers (this file used
 to name four), the six workflows and the E2E suite. Read `tests/PROVING.md`
 for the map.
 

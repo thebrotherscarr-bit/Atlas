@@ -37,7 +37,7 @@ python tests\prove.py --live     # + the legs needing :8090 and Ollama
 ```
 
 THE BALL runs all eight provers atlas has: the Rust spine, both Go modules,
-the two shipped batteries inside the binaries, twenty-seven golden
+the two shipped batteries inside the binaries, twenty-eight golden
 verifiers, the six workflows and the E2E suite. It answers PASS, FAIL, or
 **ABSENT** — a leg whose dependency this ground does not hold, printed with
 the path that would answer it, never counted as a pass. Only FAIL exits red.

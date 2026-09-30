@@ -12,6 +12,53 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Every cutter asks its word before it acts: a word it does not know writes nothing (operator, 2026-09-29: "do the list top to bottom")
+
+The flow cutter learned this at v0.1.9, on the day the hand cut its fixture with `--check`. THE
+COUNT IN THAT ENTRY WAS SHORT. It said eighteen others ended on the same line. There were
+TWENTY-FOUR others with the fault: eighteen on the one line, `cut_mesh_vectors` on two branches,
+`cut_canon_vectors`, `cut_jesster_vectors` and `cut_us_vectors` through a `main()` that read the
+word itself -- and two that are not named `cut_*_vectors.py` at all, `cut_chain_verdicts.py` and
+`fold_agents.py`, found by reading every script in `tools/`.
+
+- **`tools/cut_words.py` (new):** the words a cutter knows, in one place. `word(argv, script)`
+  answers `--verify` or `--cut` (said, or nothing said). For anything else it prints the usage
+  and exits 2, having written nothing.
+- **Twenty-five scripts ask it,** as the first act of their `__main__` block. The flow cutter's
+  own guard of v0.1.9 is the shared one now; what it refuses, and how it says so, did not move.
+- **Run with `--verify`, `cut_words.py` is the proof, and a leg of THE BALL** by the rule
+  prove.py already had (every file in `tools/` that answers `--verify`). WHICH SCRIPTS IT ASKS
+  IS A RULE, NOT A LIST AND NOT A NAME: every script beside it that takes its word off
+  `sys.argv` and knows `--verify`. Each one's `__main__` block is READ first, and a script that
+  does not ask is failed and NOT RUN -- running it with a strange word is the fault itself. The
+  rest are run with a word nobody knows and must exit 2 with every file under `tests/fixtures`
+  and `agents` byte for byte as it was.
+- **Not touched, and why:** `seed_catalog.py` parses its words with argparse, which refuses an
+  unknown one itself; `check_trade_parity.py`, `cut_fixtures.py` and `lint_us.py` have no second
+  mode to mistake.
+- **`AGENTS.md`, `CONTRIBUTING.md`, `tests/PROVING.md`:** twenty-eight verifiers where they said
+  twenty-seven; PROVING says what a cutter's words are, and its standing line carries the date
+  and the command it was measured with.
+
+**Proved.** On a scratch copy, then on the ground, byte for byte the same files:
+`python tools/cut_words.py --verify`: PROVEN, 25 cutters. Reversals on a scratch copy, red by
+name: `fold_agents` no longer asking; `cut_chain_verdicts` importing the word and never asking
+it; a vectors cutter reading its word the old way (each failed "does not ask `word` before it
+acts; not run"); `word` letting a strange word through (25 failed); a cutter that refuses by
+the book and writes into `agents` first, and one that writes into `tests/fixtures` first (each
+failed "exit 2; MOVED:" with the file named). AND THE RULE ITSELF: with the scripts picked by
+name again, a `fold_agents` that does not ask went unseen and the proof passed at 23 -- which
+is why they are picked by what they do. `python tests/prove.py --check`, on the ground:
+**22 held - 14 absent - 0 broke** (21 before: the new leg). No caller hands a cutter any other
+word: `prove.ps1` and prove.py say `--verify`, and nothing in `.github/` calls one.
+
+**What goes red if unplugged:** prove's `cut_words` leg, here and on GitHub's push.
+
+**Found, not built:** `seed_catalog.py --verify` is described as "check only" and is not. It
+never reads the flag: it creates `data/master.db` when that is absent and seeds it before it
+checks (the seed adds nothing twice). prove.py runs it on every proof (the core's WHAT'S LEFT,
+C35).
+
 ## [v0.1.9] — 2026-09-29 15:15 (tag on b1059a1)
 
 ### The flow verifier knows the bounded return, and a word it does not know writes nothing (operator, 2026-09-29: "do the list top to bottom")

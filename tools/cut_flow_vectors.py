@@ -367,12 +367,6 @@ if __name__ == "__main__":
     # not `--verify` used to CUT, so `--check` -- prove.py's own word, typed by
     # a hand that meant "verify" -- rewrote the fixture from this file's
     # vectors and dropped the five the fixture had gained by hand.
-    known = [a for a in sys.argv[1:] if a in ("--verify", "--cut")]
-    if len(known) != len(sys.argv[1:]):
-        print("usage: cut_flow_vectors.py            cut the fixture\n"
-              "       cut_flow_vectors.py --cut      the same\n"
-              "       cut_flow_vectors.py --verify   prove it, writing nothing\n"
-              "refused: %r is not one of those; nothing was written"
-              % [a for a in sys.argv[1:] if a not in known])
-        sys.exit(2)
-    sys.exit(verify() if "--verify" in sys.argv else cut())
+    # The same refusal is every cutter's since that evening: tools/cut_words.py.
+    from cut_words import word
+    sys.exit(verify() if word(sys.argv[1:], __file__) == "--verify" else cut())

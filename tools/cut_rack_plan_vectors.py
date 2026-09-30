@@ -134,4 +134,5 @@ def verify():
 
 
 if __name__ == "__main__":
-    sys.exit(verify() if "--verify" in sys.argv else cut())
+    from cut_words import word
+    sys.exit(verify() if word(sys.argv[1:], __file__) == "--verify" else cut())

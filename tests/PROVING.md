@@ -72,7 +72,7 @@ on. ADR-006 item 6.
 | 3 | **LINE** — `go build`/`go test` in `line/` | THE LINE: 15 packages with provers | ~5s | `target/debug/atlas` for the door battery |
 | 4 | **GLASS** — `go build`/`go test` in `webapp/` | the face: 1 package with a prover | ~2s | — |
 | 5 | **BATTERY** — `atlas-mcp --prove` | 125 strokes over temp grounds and loopback — the shipped battery inside the binary | ~2s | — |
-| 6 | **GOLDENS** — 27 × `--verify` | law 2: every vector re-cut and compared against the pinned fixture | ~4s | 14 of them want an oracle not in this ground |
+| 6 | **GOLDENS** — 28 × `--verify` | law 2: every vector re-cut and compared against the pinned fixture; and that no cutter cuts on a word it does not know | ~6s | 14 of them want an oracle not in this ground |
 | 7 | **WORKFLOWS** — 6 × `wf_*.py` | the seat journeys end to end through the live door | minutes | `:8090` answering |
 | 8 | **E2E** — `test_suite.py` | 84 scenarios in 12 categories | minutes | `:8090` + Ollama on `:11434` |
 
@@ -82,13 +82,24 @@ over a real loopback socket against a temp book: phone-form writes, the
 badge going red on a flipped byte, a wrong path refused. It is the reason
 leg 3 needs `cargo build -p atlas` first.
 
+**A cutter's words (2026-09-29).** A cutter answers `--verify`, `--cut`, or no word at all,
+which cuts. Any other word is refused with the usage and exit 2, and nothing is written. Until
+that day every one of them CUT on a word it did not know -- a typo, `--check` -- and a cut is a
+write to a tracked fixture. `tools/cut_words.py` holds the words. Run with `--verify` it is one
+of the goldens: it takes every script in `tools/` that reads its word off `sys.argv` and knows
+`--verify`, fails WITHOUT RUNNING any whose `__main__` block does not ask `word` first, and runs
+the rest with a word nobody knows. A new cutter asks the same way, or that leg goes red.
+
 ---
 
 ## Where atlas stands right now
 
 ```
-22 held · 15 absent · 0 broke
+22 held · 14 absent · 0 broke        python tests/prove.py --check, 2026-09-29
 ```
+
+That is the fast run, which leaves out the spine and the battery. The whole ball, at the last
+full run recorded here, stood at 22 held · 15 absent · 0 broke, one verifier fewer than today.
 
 **Nothing is broken.** Every absence is one of two kinds:
 
