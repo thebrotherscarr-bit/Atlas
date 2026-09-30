@@ -388,7 +388,7 @@ semantics. This is the whole reconciliation, in one table:
 | THE LINE tool | the wire | what it buys |
 |---|---|---|
 | `env_open {project}` | spawn `manjuel.py --headless --ground worlds\<w>`, wait for `opened` | that one event carries sitting, session, git stamp, `rack_ok`, pipeline, pipelines, seats — the Environments page needs no second call |
-| `run_start {project, objective, feed?, method?}` | `{"cmd":"objective", ...}`; the run id and transcript path come off the `run` event | `transcript.name_for` is known before stage 1, which is exactly what P0-5 requires |
+| `run_start {project, objective, feed?, method?, voice?, voices?}` | `{"cmd":"objective", ...}`, with `model` and `voices` when a head is named (2026-09-29); a flow's `run` node sends the same row with `"unattended": true`, so the core skips a failing seat instead of asking; the run id and transcript path come off the `run` event | `transcript.name_for` is known before stage 1, which is exactly what P0-5 requires |
 | `run_answer {project, text}` | `{"cmd":"answer"}` | **the gate, on the wire.** Landing a memory, paying an attended toll and confirming a commit are all `input()` sites; none resolves without this call |
 | `run_cancel {project}` | `{"cmd":"cancel"}` | mid-run this is `interrupt_main` (the REPL's Ctrl-C); at a pending question it is Ctrl-C at that prompt |
 | `run_events {project}` | the event stream, SSE over the existing `--http` | the events are already JSON objects, one per line; SSE is a re-frame, not a translation |

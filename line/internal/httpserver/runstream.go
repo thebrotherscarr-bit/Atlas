@@ -202,12 +202,25 @@ func (s *Server) handleRunListen(w http.ResponseWriter, r *http.Request) {
 
 	frames := make(chan engine.Event, 64)
 	done := make(chan struct{})
+	gone := r.Context().Done()
 	var said string
 	var callErr error
 	go func() {
 		defer close(done)
 		defer close(frames)
-		said, callErr = tools.ListenStream(tn, seconds, func(ev engine.Event) { frames <- ev })
+		// A BROWSER THAT HAS LEFT IS NOT WAITED FOR HERE EITHER (2026-09-29).
+		// This sink kept the bare send /run/stream gave up on 2026-09-15:
+		// sixty-four events of room and nobody reading once the tab had
+		// closed, so the sixty-fifth stopped the engine's reader mid-capture
+		// and the world's run lock was held for good. An event that would
+		// wait on a reader who has gone is dropped instead.
+		sink := func(ev engine.Event) {
+			select {
+			case frames <- ev:
+			case <-gone:
+			}
+		}
+		said, callErr = tools.ListenStream(tn, seconds, sink)
 	}()
 
 	emit := func(kind string, data any) {
@@ -217,7 +230,6 @@ func (s *Server) handleRunListen(w http.ResponseWriter, r *http.Request) {
 	}
 	emit("stream_open", map[string]any{"world": tn.Name, "listening": true})
 
-	gone := r.Context().Done()
 	for {
 		select {
 		case ev, ok := <-frames:

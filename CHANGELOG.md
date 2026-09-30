@@ -12,6 +12,64 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The door's batch: a flow's turn is sent unattended, `run_start` takes a head, and the two streams that had kept an old fault (operator, 2026-09-29: "do the list top to bottom")
+
+Three lines of the core's WHAT'S LEFT, all in THE LINE: C14's other half, C18 and C24.
+
+- **A flow's turn is sent unattended (C14).** `engine.RunUnattended` is a second entry point
+  beside `Run`, and it alone puts `"unattended": true` on the wire (serve.py, protocol 1). The
+  council's `Turn` -- a flow's `run` node -- uses it; `run_start` and the glass's stream, his
+  own turns, say nothing. On that word the core no longer asks "retry / skip / abort?" when a
+  seat marked `On Fail: prompt` fails: it skips the seat, the prompt's own default, and writes
+  that it did (the core's CHANGELOG, 2026-09-29). Until this the door sent every turn as though
+  his hand were on the keyboard, so a flow stopped at that question, `Turn` refused it -- a
+  flow cannot answer -- and the run died on a seat's first failure. Any OTHER question still
+  stops the turn and is refused in words: that gate is his (RULE 6).
+- **`run_start` takes a head (C18).** `voice?` runs every seat on one model for the turn and
+  `voices?` names a model per seat over it -- flow_run's two words, read by flow_run's reader
+  (`seatVoices`, which `flowVoices` and the new `runHead` both call), so a head that flow_run
+  would refuse is refused here in run_start's own name, and before the engine is looked for.
+  No head named sends nothing: the ground's declared targets, the wire as it was.
+- **`/run/listen` does not stall behind a browser that left (C24).** Its sink was the bare
+  send `/run/stream` gave up on 2026-09-15: sixty-four events of room and nobody reading once
+  the tab had closed, so the sixty-fifth stopped the engine's reader mid-capture and the world's
+  run lock was held for good. An event that would wait on a reader who has gone is dropped.
+- **`/chat/stream` has one writer, and none once the browser has gone (C24).** The token
+  callback ran on the send's goroutine and wrote each token to the socket itself: two
+  goroutines on one ResponseWriter, and -- once the browser had gone and the handler had
+  returned -- writes to a ResponseWriter net/http had taken back. Tokens are handed to the
+  handler's goroutine, which owns the socket, as `/run/stream` hands over the engine's events.
+  The send still finishes, whole and witnessed, with nobody watching.
+- **`tests/PROVING.md`, `docs/SPEC_CONTROL_CENTER.md`:** what of `runstream.go` is covered now
+  and what is not; the reconciliation table's `run_start` row carries the head and the word.
+
+**Proved.** Strokes on the far end of the pipe: this test binary run again as a child that
+speaks serve.py's wire and hands every row back (`tools/council_test.go`; the engine's and
+httpserver's stubs extended). `TestAnUnattendedTurnSaysSoOnTheWireAndAnAttendedOneSaysNothing`
+(engine); `TestAFlowsTurnIsSentUnattendedAndHisOwnIsNot` and
+`TestRunStartTakesAHeadTheWayFlowRunDoes` (tools); `TestACaptureOutlivesTheBrowserThatStartedIt`
+and `TestTheChatStreamHasOneWriterAndNoneOnceTheBrowserHasGone` (httpserver; the second against a
+loopback stand-in for the rack and a socket that counts the writes made after the handler
+returned). Eight reversals on a scratch copy, red by name: the flow's turn sent as though he
+were at the prompt; the word never put on the wire, seen from the engine and from the door;
+run_start reading its head and dropping it; its refusal speaking in flow_run's name; the head
+gone from its arguments; `/run/listen`'s sink waiting on a browser that has gone (red after the
+twenty seconds the stroke allows); `/chat/stream`'s tokens written by the send's own goroutine.
+On the scratch copy `go test ./...` green but for the six `git_tag` strokes this machine's
+scratch folder cannot run, and the battery PROVEN, 142 legs, 85 tools; on the ground `python
+tests/prove.py --check` **22 held - 14 absent - 0 broke**, `gofmt` and `go vet` clean.
+
+**RESTART REQUIRED, AND DONE:** the door rebuilt from the ground and placed on his standing word
+of the evening (pid 276, the 08:55 build, stopped by pid and path; the new build hashing as
+built; pid 106660, 18:30:28). Live after it: sitting 306 opened from the glass, one
+`run_start` with `voices: {Steward: llama3.2:latest}` delivered in 6.4 s, closed with its toll.
+
+**What goes red if unplugged:** the five strokes above, here and on GitHub's push; and a flow
+whose seat fails, which stops at the question again.
+
+**Not built, and where it went:** C23 names the glass's code (`webapp/db`'s `GetAgent`,
+`council.js`'s `Run.check`), not the door's; it is the glass's batch.
+
 ### Every cutter asks its word before it acts: a word it does not know writes nothing (operator, 2026-09-29: "do the list top to bottom")
 
 The flow cutter learned this at v0.1.9, on the day the hand cut its fixture with `--check`. THE

@@ -378,10 +378,11 @@ func TestHealthNamesTheServerAndWhetherTheGateIsOn(t *testing.T) {
 
 const stubEngineEnv = "ATLAS_STUB_ENGINE"
 
-// TestStubEngineProcess is not a stroke. It is the engine the stroke below
-// spawns: this test binary run again as a child, speaking serve.py's wire. An
-// objective "tokens N" speaks N token events and then its delivery. Run any
-// other way, it skips.
+// TestStubEngineProcess is not a stroke. It is the engine the strokes here and
+// in streams_test.go spawn: this test binary run again as a child, speaking
+// serve.py's wire. An objective "tokens N" speaks N token events and then its
+// delivery; a listen of N seconds speaks N progress lines and then `heard`. Run
+// any other way, it skips.
 func TestStubEngineProcess(t *testing.T) {
 	if os.Getenv(stubEngineEnv) != "1" {
 		t.Skip("the stub engine runs only as the child of a stroke that spawns it")
@@ -411,6 +412,13 @@ func TestStubEngineProcess(t *testing.T) {
 				}
 			}
 			say(map[string]any{"event": "delivery", "text": text})
+		case "listen":
+			// A capture of `seconds` progress lines, then what was heard.
+			n, _ := row["seconds"].(float64)
+			for i := 0; i < int(n); i++ {
+				say(map[string]any{"event": "text", "text": "listening"})
+			}
+			say(map[string]any{"event": "heard", "text": "the words"})
 		}
 	}
 	os.Exit(0)

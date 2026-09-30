@@ -546,8 +546,6 @@ func (e *Engine) pump(sink func(Event)) (Result, error) {
 	return r, fmt.Errorf("the engine stopped speaking without finishing the turn%s", e.stderrTail())
 }
 
-// Run sends one objective and reads until the turn ends or the engine asks a
-// question. One run at a time per world.
 // Head is which model, or models, one turn runs on. The zero value is the
 // ground's own declared targets, which is the ordinary case and sends nothing
 // over the wire.
@@ -569,7 +567,30 @@ type Head struct {
 // Named reports whether this head asks for anything at all.
 func (h Head) Named() bool { return h.Model != "" || len(h.Voices) > 0 }
 
+// Run sends one objective and reads until the turn ends or the engine asks a
+// question. One run at a time per world. This is a turn HIS HAND IS AT: the
+// glass's send box, run_start, the REPL's prompt by another door.
 func (e *Engine) Run(objective, feed, method string, head Head, sink func(Event)) (Result, error) {
+	return e.run(objective, feed, method, head, false, sink)
+}
+
+// RunUnattended is Run for a turn NOBODY IS AT THE PROMPT FOR (2026-09-29): a
+// flow's `run` node, fired by a runner that cannot answer. The wire says so
+// (`"unattended": true`, serve.py), and the core does not ask such a turn
+// "retry / skip / abort?" when a seat marked `On Fail: prompt` fails: it takes
+// the prompt's own default, skips the seat, and writes that it did. Until this
+// existed the door sent every turn as though his hand were on the keyboard,
+// so a flow's turn stopped at that question, councilEngine.Turn refused it (a
+// flow cannot answer: RULE 6), and the run died on a seat's first failure.
+//
+// A SECOND ENTRY POINT AND NOT A SIXTH PARAMETER: a caller whose turn is
+// attended says nothing and cannot say otherwise by accident, and the one
+// caller whose turn is not names it in the call, where a reader sees it.
+func (e *Engine) RunUnattended(objective, feed, method string, head Head, sink func(Event)) (Result, error) {
+	return e.run(objective, feed, method, head, true, sink)
+}
+
+func (e *Engine) run(objective, feed, method string, head Head, unattended bool, sink func(Event)) (Result, error) {
 	e.runMu.Lock()
 	defer e.runMu.Unlock()
 	if e.closed.Load() {
@@ -598,6 +619,11 @@ func (e *Engine) Run(objective, feed, method string, head Head, sink func(Event)
 	}
 	if len(head.Voices) > 0 {
 		row["voices"] = head.Voices
+	}
+	// Said only when it is so: the core counts the literal `true` and nothing
+	// else, and an attended turn is on exactly the wire it was on before.
+	if unattended {
+		row["unattended"] = true
 	}
 	if err := e.send(row); err != nil {
 		return Result{}, err

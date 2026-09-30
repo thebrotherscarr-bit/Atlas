@@ -332,6 +332,13 @@ func TestStubEngineProcess(t *testing.T) {
 			if row["text"] == "die" {
 				os.Exit(3)
 			}
+			if row["text"] == "echo-row" {
+				// The row as the door sent it, handed back as the delivery,
+				// so a stroke can read what actually crossed the wire.
+				b, _ := json.Marshal(row)
+				say(map[string]any{"event": "delivery", "text": string(b)})
+				continue
+			}
 			say(map[string]any{"event": "delivery", "text": row["text"]})
 		}
 	}
@@ -374,6 +381,46 @@ func TestAnEngineThatDiesIsNotHandedBack(t *testing.T) {
 	}
 	if _, ok := r.Get(ground); ok {
 		t.Fatal("the registry handed back an engine whose process is gone")
+	}
+}
+
+// NOBODY IS AT THE PROMPT, AND THE WIRE SAYS SO (2026-09-29). RunUnattended is
+// the one way a turn is sent as unattended and Run never says it: the core
+// counts the literal `true` and nothing else, and on that word alone skips the
+// question it would have asked. The stub hands back the row as it arrived.
+func TestAnUnattendedTurnSaysSoOnTheWireAndAnAttendedOneSaysNothing(t *testing.T) {
+	e, err := Open("w", t.TempDir(), stubEngine(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = e.Close() })
+	row := func(res Result, err error) map[string]any {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if json.Unmarshal([]byte(res.Final.Str("text")), &m) != nil {
+			t.Fatalf("the stub did not hand the row back: %q", res.Final.Str("text"))
+		}
+		return m
+	}
+	un := row(e.RunUnattended("echo-row", "", "", Head{}, nil))
+	if un["unattended"] != true {
+		t.Fatalf("an unattended turn did not say so on the wire: %v", un)
+	}
+	at := row(e.Run("echo-row", "", "", Head{}, nil))
+	if _, said := at["unattended"]; said {
+		t.Fatalf("an attended turn carried the word: %v", at)
+	}
+	// And everything else a turn carries rides the unattended one the same.
+	un = row(e.RunUnattended("echo-row", "f", "m", Head{Model: "a:latest",
+		Voices: map[string]string{"Steward": "b:latest"}}, nil))
+	if un["model"] != "a:latest" || un["feed"] != "f" || un["method"] != "m" || un["unattended"] != true {
+		t.Fatalf("the unattended turn dropped part of what it was handed: %v", un)
+	}
+	if v, _ := un["voices"].(map[string]any); v["Steward"] != "b:latest" {
+		t.Fatalf("the unattended turn dropped the seat map: %v", un)
 	}
 }
 

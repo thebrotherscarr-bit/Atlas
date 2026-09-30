@@ -1100,18 +1100,26 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 
 	r.add(Tool{
 		Name: "run_start", Writes: true, Tier: TierEngine,
-		Description: "run one objective through the council; the delivery with what actually ran",
-		Args:        []string{"objective", "project?", "feed?", "method?"},
+		Description: "run one objective through the council; the delivery with what actually ran. `voice` runs every seat on one model for this turn and `voices` names a model per seat over it (flow_run's two words); the declared targets are put back when the turn ends",
+		Args:        []string{"objective", "project?", "feed?", "method?", "voice?", "voices?"},
 		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
 			objective := strings.TrimSpace(str(args, "objective"))
 			if objective == "" {
 				return "", fmt.Errorf("run_start needs an objective")
 			}
+			// THE HEAD IS NAMED AT THE FIRE, HERE AS AT flow_run (2026-09-29):
+			// the same two words, read by the same reader. Judged before the
+			// engine is looked for, so a head that cannot be read is refused
+			// whether or not anything is standing to run it.
+			head, err := runHead(args)
+			if err != nil {
+				return "", err
+			}
 			e, ok := engines.Get(t.Home)
 			if !ok {
 				return "", fmt.Errorf("no engine is open on %q -- env_open first", t.Name)
 			}
-			res, err := e.Run(objective, str(args, "feed"), str(args, "method"), engine.Head{}, nil)
+			res, err := e.Run(objective, str(args, "feed"), str(args, "method"), head, nil)
 			if err != nil {
 				return "", err
 			}
@@ -2171,6 +2179,24 @@ func toolFlowList(t tenant.Tenant, _ map[string]any) (string, error) {
 // seat and silently varied none would get a parity of a model against itself,
 // and both columns would look honest.
 func flowVoices(args map[string]any) (map[string]string, error) {
+	return seatVoices(args, "flow voices")
+}
+
+// runHead reads the head off a run_start call (2026-09-29): `voice`, every seat
+// on one model for the turn, and `voices`, a model per seat over it -- flow_run's
+// two words, through flow_run's reader, refused in run_start's own name.
+func runHead(args map[string]any) (engine.Head, error) {
+	voices, err := seatVoices(args, "run_start voices")
+	if err != nil {
+		return engine.Head{}, err
+	}
+	voice, _ := args["voice"].(string)
+	return engine.Head{Model: strings.TrimSpace(voice), Voices: voices}, nil
+}
+
+// seatVoices is THE reader of a per-seat head, for every tool that fires a
+// turn; `what` names the caller in a refusal so the words say which call.
+func seatVoices(args map[string]any, what string) (map[string]string, error) {
 	v, present := args["voices"]
 	if !present || v == nil {
 		return nil, nil
@@ -2184,24 +2210,24 @@ func flowVoices(args map[string]any) (map[string]string, error) {
 			return nil, nil
 		}
 		if err := json.Unmarshal([]byte(t), &doc); err != nil {
-			return nil, fmt.Errorf("flow voices must be a JSON object of "+
-				"seat -> model: %s", err)
+			return nil, fmt.Errorf("%s must be a JSON object of "+
+				"seat -> model: %s", what, err)
 		}
 	default:
-		return nil, fmt.Errorf("flow voices must be a JSON object of seat -> "+
+		return nil, fmt.Errorf("%s must be a JSON object of seat -> "+
 			"model, or one as a string; got %T -- refused rather than run with "+
-			"a head nobody named", v)
+			"a head nobody named", what, v)
 	}
 	out := map[string]string{}
 	for seat, val := range doc {
 		sv, ok := val.(string)
 		if !ok {
-			return nil, fmt.Errorf("flow voices: seat %q names %T, not a model "+
-				"tag -- refused rather than guessed at", seat, val)
+			return nil, fmt.Errorf("%s: seat %q names %T, not a model "+
+				"tag -- refused rather than guessed at", what, seat, val)
 		}
 		if strings.TrimSpace(sv) == "" {
-			return nil, fmt.Errorf("flow voices: seat %q names no model -- "+
-				"refused rather than run on nothing", seat)
+			return nil, fmt.Errorf("%s: seat %q names no model -- "+
+				"refused rather than run on nothing", what, seat)
 		}
 		out[seat] = strings.TrimSpace(sv)
 	}
@@ -2373,10 +2399,16 @@ func (c councilEngine) Turn(ctx context.Context, objective, feed, method string)
 	// AND THE TURN RUNS UNDER THE HAND (2026-09-28): if the gate before this
 	// node declared grants, the council's calls to those tools run instead of
 	// parking, for this turn and no longer.
+	//
+	// AND NOBODY IS AT THE PROMPT (2026-09-29). The turn is sent unattended,
+	// so a seat that fails is skipped by the core -- the question's own
+	// default -- instead of asked about; a flow cannot answer, and until this
+	// the run died at the first "retry / skip / abort?". Any OTHER question
+	// still stops the turn and is refused just below: that gate is his.
 	var res engine.Result
 	err := c.underHand(func() error {
 		var rerr error
-		res, rerr = e.Run(objective, feed, method,
+		res, rerr = e.RunUnattended(objective, feed, method,
 			engine.Head{Model: c.head.Voice, Voices: c.head.Voices}, nil)
 		return rerr
 	})

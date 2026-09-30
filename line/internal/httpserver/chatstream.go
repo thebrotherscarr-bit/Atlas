@@ -51,26 +51,56 @@ func (s *Server) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev, string(b))
 		flusher.Flush()
 	}
-	notify := r.Context().Done()
+	// THE SOCKET HAS ONE WRITER (2026-09-29). The token callback runs on the
+	// send's goroutine and used to write each token to the socket itself: two
+	// goroutines on one ResponseWriter, and -- once the browser had gone and
+	// this handler had returned -- writes to a ResponseWriter net/http had
+	// already taken back. Tokens are handed to THIS goroutine, which owns the
+	// socket, the way /run/stream hands over the engine's events; a token that
+	// would wait on a browser that has left is dropped, because there is no
+	// one to show it to. The send itself keeps its own counsel: whole or
+	// nothing, witnessed or not, whether anyone is watching.
+	gone := r.Context().Done()
+	tokens := make(chan string, 256)
 	done := make(chan struct{})
 	var out string
 	var callErr error
 	go func() {
 		defer close(done)
+		defer close(tokens)
 		out, callErr = tools.ChatSendStream(s.tools, tn, args, func(tok string) {
-			emit("token", map[string]any{"token": tok})
+			select {
+			case tokens <- tok:
+			case <-gone:
+			}
 		})
 	}()
-	select {
-	case <-done:
-	case <-notify:
-		// The browser went away mid-turn: the send keeps its own
-		// counsel (whole or nothing, witnessed or not).
-		return
+	for {
+		select {
+		case tok, ok := <-tokens:
+			if !ok {
+				tokens = nil
+				continue
+			}
+			emit("token", map[string]any{"token": tok})
+		case <-done:
+			// Guarded: tokens is nil once drained and closed, and ranging a
+			// nil channel blocks forever (runstream.go learned it first).
+			if tokens != nil {
+				for tok := range tokens {
+					emit("token", map[string]any{"token": tok})
+				}
+			}
+			if callErr != nil {
+				emit("refused", map[string]any{"error": callErr.Error()})
+				return
+			}
+			emit("done", map[string]any{"text": out})
+			return
+		case <-gone:
+			// The browser went away mid-turn: the send keeps its own
+			// counsel (whole or nothing, witnessed or not).
+			return
+		}
 	}
-	if callErr != nil {
-		emit("refused", map[string]any{"error": callErr.Error()})
-		return
-	}
-	emit("done", map[string]any{"text": out})
 }

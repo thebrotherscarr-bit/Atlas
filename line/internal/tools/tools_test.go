@@ -10,10 +10,10 @@
 // HERMETIC BY LAW 5: every stroke builds its own ground in t.TempDir(). Nothing
 // reads the estate's real record, nothing writes, nothing reaches a network.
 //
-// runstream.go is NOT covered here and that is deliberate: RunStream, Answer-
-// Stream and ListenStream all require a live engine on an open sitting, which is
-// not a thing a hermetic stroke can stand up. It is named in tests/PROVING.md as
-// still uncovered rather than papered over with a mock that would prove the mock.
+// What the door SENDS an engine is covered in council_test.go (2026-09-29) by a
+// stand-in at the far end of the pipe that hands every row back; what an engine
+// DOES with it is not covered here and cannot be -- that needs a live engine on
+// an open sitting, and a mock of the council would prove the mock.
 package tools
 
 import (

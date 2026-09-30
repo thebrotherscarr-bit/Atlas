@@ -169,9 +169,15 @@ best-covered package in THE LINE with **34 strokes**:
 Every one is hermetic: its own ground in `t.TempDir()`, nothing touching the
 record, no network.
 
-**`runstream.go` is still uncovered, deliberately.** `RunStream`, `AnswerStream`
-and `ListenStream` all need a live engine on an open sitting, which is not a
-thing a hermetic stroke can stand up. A mock there would prove the mock.
+**`runstream.go`: what the door SENDS is covered; what an engine does with it
+is not (2026-09-29).** `RunStream`, `AnswerStream` and `ListenStream` need a
+live engine on an open sitting, which a hermetic stroke cannot stand up, and a
+mock of the council would prove the mock. What a stroke CAN stand up is the far
+end of the pipe: the test binary run again as a child that speaks serve.py's
+wire and hands every row back (`tools/council_test.go`, and the stubs in
+`engine` and `httpserver`). Those strokes prove the row the door puts on the
+wire -- the head, and whether anybody is at the prompt -- and that a stream
+outlives the browser that started it.
 
 **THE LINE (8, as the list stood 2026-09-10):**
 
