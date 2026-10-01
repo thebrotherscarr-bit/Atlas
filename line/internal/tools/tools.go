@@ -550,7 +550,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 
 	r.add(Tool{
 		Name: "git_branch", Writes: true, Reads: []string{"list"},
-		Description: "the lines of work: list them (which one you are on, which is the main line, which have been sent), or open, switch to, or close one",
+		Description: "the lines of work: list them (which one you are on, which is the main line, which have been sent), or open, switch to, land (onto the main line, fast-forward only, from the main line, over saved work), or close one",
 		Args:        []string{"action?", "name?", "project?"},
 		Fn:          toolGitBranch,
 	})

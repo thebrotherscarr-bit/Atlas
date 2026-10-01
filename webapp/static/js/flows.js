@@ -369,8 +369,17 @@ const Flows = {
       if (b.current) tags.push('you are here');
       if (b.main) tags.push('the main line');
       tags.push(b.sent ? 'on GitHub' : 'only on this machine');
+      // LAND (his ruling 2026-09-30, B16): a button he presses himself, like
+      // Save and Send. Offered for a line that is not the main line, when
+      // the main line is the one you stand on; the door refuses the rest by
+      // name (fast-forward only, over saved work).
+      const onMain = (d.branches || []).some(x => x.current && x.main);
+      const land = (!b.main && onMain)
+        ? `<button class="btn btn-sm" data-line="land" data-w="${escHtml(w)}" data-n="${escHtml(b.name)}" title="Land this line onto the main line, fast-forward only">Land onto main</button>`
+        : '';
       const act = b.current ? ''
         : `<button class="btn btn-sm" data-line="switch" data-w="${escHtml(w)}" data-n="${escHtml(b.name)}">Move here</button>`
+        + land
         + `<button class="btn btn-sm" data-line="close" data-w="${escHtml(w)}" data-n="${escHtml(b.name)}">Finish with it</button>`;
       return `<tr><td style="padding-right:12px;white-space:nowrap"><b>${escHtml(b.name)}</b></td>`
         + `<td class="muted" style="padding-right:12px">${escHtml(tags.join(' · '))}</td>`

@@ -12,6 +12,28 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### `land`: a line of work landed onto the main line from Version control (2026-10-01; his ruling of 2026-09-30, the core's WHAT'S LEFT B16)
+
+The table carries no `merge` by its founding law and never will; landing a line of work was his
+terminal's. `git_branch` gains the action `land`, narrow on purpose: fast-forward only (the main
+line has not moved since the line began), from the main line (you stand on it), over saved work
+(the tree is clean); a line that does not exist, the main line onto itself, and a join with two
+parents are each refused by name, and the last names whose act it is ("your terminal's, not this
+button's"). Landing does not close the line -- `close` is its own act and refuses unmerged work
+by itself. The Lines-of-work box on Version control offers "Land onto main" for a line that is
+not the main line, only when the main line is the one you stand on.
+
+**Proved.** `TestLandingALineIsAFastForwardOntoTheMainLine` (refused from the line itself, the
+main line onto itself, an absent line, a dirty tree; then landed, main at the line's head, the
+line still there) and `TestLandingRefusesWhenTheMainLineHasMovedOn` (refused, main unmoved);
+`TestVersionControlOffersLandingALineOntoMain` reads the page's source for the button, its gate
+and the absence of any forbidden verb. `go test ./internal/tools/` and the glass's packages green
+on a scratch copy; the door and the glass rebuilt from it and PLACED on his allowance at 08:58 --
+the door pid 108440, the glass pid 35444, both hashing as built, the live check 9/9 through them.
+
+**What goes red if unplugged:** the three tests; the door's refusal of an unknown action, which
+names `land` now.
+
 ### `seed_catalog.py --verify` checks only (2026-09-30, the core's WHAT'S LEFT C35)
 
 It said "check only" and created `data/master.db` when the file was absent, seeding it before it

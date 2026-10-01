@@ -330,6 +330,62 @@ func TestSwitchingRefusesOverUnsavedWork(t *testing.T) {
 	}
 }
 
+// LANDING IS A FAST-FORWARD ONTO THE MAIN LINE, FROM THE MAIN LINE, OVER
+// SAVED WORK (his ruling 2026-09-30, B16). Everything else is refused by name.
+func TestLandingALineIsAFastForwardOntoTheMainLine(t *testing.T) {
+	tn := tempWorld(t)
+	call(t, toolGitBranch, tn, map[string]any{"action": "new", "name": "spur"})
+	write(t, tn.Home, "landed.txt", "work on the spur\n")
+	call(t, toolGitCommit, tn, map[string]any{"message": "work on the spur"})
+	spurHead, _ := gitRun(tn, 10e9, "rev-parse", "spur")
+
+	out := call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "spur"})
+	mustContain(t, out, "standing on", "landing from the spur itself must refuse")
+
+	call(t, toolGitBranch, tn, map[string]any{"action": "switch", "name": "main"})
+	out = call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "main"})
+	mustContain(t, out, "not landed onto itself", "the main line is not landed onto itself")
+	out = call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "no-such-line"})
+	mustContain(t, out, "no line named", "an absent line must be named in the refusal")
+
+	write(t, tn.Home, "in-hand.txt", "unsaved\n")
+	out = call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "spur"})
+	mustContain(t, out, "unsaved work", "landing over a dirty tree must refuse")
+	if err := os.Remove(filepath.Join(tn.Home, "in-hand.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	out = call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "spur"})
+	mustContain(t, out, "Landed", "a clean fast-forward must land")
+	mustContain(t, out, "still exists", "landing does not close the line")
+	mainHead, _ := gitRun(tn, 10e9, "rev-parse", "main")
+	if strings.TrimSpace(mainHead) != strings.TrimSpace(spurHead) {
+		t.Fatalf("main did not move to the spur's head: %q vs %q", mainHead, spurHead)
+	}
+	if _, err := gitRun(tn, 10e9, "rev-parse", "--verify", "spur"); err != nil {
+		t.Fatal("the landed line was closed behind his back")
+	}
+}
+
+func TestLandingRefusesWhenTheMainLineHasMovedOn(t *testing.T) {
+	tn := tempWorld(t)
+	call(t, toolGitBranch, tn, map[string]any{"action": "new", "name": "spur"})
+	write(t, tn.Home, "spur.txt", "spur\n")
+	call(t, toolGitCommit, tn, map[string]any{"message": "on the spur"})
+	call(t, toolGitBranch, tn, map[string]any{"action": "switch", "name": "main"})
+	write(t, tn.Home, "main.txt", "main moved on\n")
+	call(t, toolGitCommit, tn, map[string]any{"message": "main moved on"})
+	before, _ := gitRun(tn, 10e9, "rev-parse", "main")
+
+	out := call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "spur"})
+	mustContain(t, out, "cannot land as a fast-forward", "a join with two parents is refused")
+	mustContain(t, out, "terminal", "the refusal must say whose act the join is")
+	after, _ := gitRun(tn, 10e9, "rev-parse", "main")
+	if before != after {
+		t.Fatal("the refused landing moved the main line")
+	}
+}
+
 func TestAnUnknownBranchActionIsRefusedByName(t *testing.T) {
 	tn := tempWorld(t)
 	out := call(t, toolGitBranch, tn, map[string]any{"action": "rebase", "name": "main"})

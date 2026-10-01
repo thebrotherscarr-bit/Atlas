@@ -851,6 +851,48 @@ func toolGitBranch(t tenant.Tenant, args map[string]any) (string, error) {
 		}
 		return fmt.Sprintf("You are now on %q.", name), nil
 
+	case "land":
+		// LANDING A LINE OF WORK ONTO THE MAIN LINE (his ruling 2026-09-30,
+		// WHAT'S LEFT B16). The table carries no `merge` by its founding law
+		// and never will; `land` is the act under the estate's own name,
+		// and it is a button he presses himself, like Save and Send. Narrow
+		// on purpose: fast-forward only (the main line has not moved since
+		// the line began), from the main line (you stand on it), over saved
+		// work (the tree is clean). A join with two parents is his
+		// terminal's, as it was. The line is not closed by landing; `close`
+		// is its own act and refuses unmerged work by itself.
+		if refusal := badBranchName(name); refusal != "" {
+			return refusal, nil
+		}
+		mainName := mainLine(t)
+		cur, _ := currentBranch(t)
+		if name == mainName {
+			return "Refused: the main line is not landed onto itself.", nil
+		}
+		if cur != mainName {
+			return fmt.Sprintf("Refused: you are standing on %q. Move to %q first (switch), "+
+				"then land %q onto it.", cur, mainName, name), nil
+		}
+		if dirty(t) {
+			return "Refused: there is unsaved work here. Save it first; a landing over " +
+				"unsaved work confuses both lines.", nil
+		}
+		if _, err := gitRun(t, 30*time.Second, "rev-parse", "--verify", name); err != nil {
+			return fmt.Sprintf("Refused: there is no line named %q here.", name), nil
+		}
+		out, err := gitRun(t, 60*time.Second, "merge", "--ff-only", name)
+		if err != nil {
+			if strings.Contains(strings.ToLower(out), "not possible to fast-forward") {
+				return fmt.Sprintf("Refused: %q cannot land as a fast-forward -- %q has moved "+
+					"past where that line began. A join with two parents is your "+
+					"terminal's, not this button's.", name, mainName), nil
+			}
+			return "Refused: that line could not be landed -- " + firstLine(out), nil
+		}
+		return fmt.Sprintf("Landed %q onto %q, fast-forward. The line still exists: close it "+
+			"when you are done with it, and send %q to publish the landing.",
+			name, mainName, mainName), nil
+
 	case "close", "delete":
 		if refusal := badBranchName(name); refusal != "" {
 			return refusal, nil
@@ -875,7 +917,7 @@ func toolGitBranch(t tenant.Tenant, args map[string]any) (string, error) {
 		return fmt.Sprintf("Closed %q. Its work is already on another line.", name), nil
 	}
 	return fmt.Sprintf("Refused: %q is not something this does. It lists, opens "+
-		"(new), moves to (switch), or closes (close) a line of work.", action), nil
+		"(new), moves to (switch), lands (land), or closes (close) a line of work.", action), nil
 }
 
 func branchList(t tenant.Tenant) (string, error) {

@@ -166,6 +166,23 @@ func TestClosingSaysWhenNoTollIsOwed(t *testing.T) {
 }
 
 // THE BUILDER OFFERS LOOPS (D4) AND FINDS A PAUSED RUN AFTER A RELOAD (C25).
+// LANDING IS A BUTTON HE PRESSES HIMSELF (his ruling 2026-09-30, B16): the
+// Lines-of-work box offers "Land onto main" for a line that is not the main
+// line, only when the main line is the one you stand on, and it calls the
+// door's `land` -- never a verb the table does not carry.
+func TestVersionControlOffersLandingALineOntoMain(t *testing.T) {
+	fl := page(t, "js/flows.js")
+	if !strings.Contains(fl, `data-line="land"`) {
+		t.Fatal("the Lines-of-work box offers no Land button")
+	}
+	if !strings.Contains(fl, "const onMain =") || !strings.Contains(fl, "(!b.main && onMain)") {
+		t.Fatal("Land is not gated on standing on the main line and the line not being it")
+	}
+	if strings.Contains(fl, `action: 'merge'`) || strings.Contains(fl, `data-line="merge"`) {
+		t.Fatal("the glass must not ask the door for a verb the table does not carry")
+	}
+}
+
 func TestTheBuilderOffersLoopsAndFindsAPausedRunAfterAReload(t *testing.T) {
 	wf := page(t, "js/workflows.js")
 	for _, kind := range []string{"ask:", "run:", "seat:", "prompt:", "memory:"} {
