@@ -1022,6 +1022,54 @@ func TestRBACJudgesTheTransportNotTheArgs(t *testing.T) {
 	}
 }
 
+// THE CHAIN VERDICT COMES FROM THE PYTHON SPINE (2026-10-01, his ruling: the
+// verdict in Python first, proved against the goldens, then the Rust folded).
+// verify_chain on a golden master reads INTACT in the line the Rust printed;
+// a file that is not a chain reads TAMPER and the call errs with its words.
+func TestVerifyChainReadsAGoldenThroughThePythonSpine(t *testing.T) {
+	script := findChainVerifier("")
+	if script == "" {
+		t.Fatal("tools/chain_verify.py is not beside this test: the walk from the working directory must find the repository's tools/")
+	}
+	golden := filepath.Join(filepath.Dir(filepath.Dir(script)), "tests", "fixtures", "chains", "agents_seatlog.jsonl")
+	body, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, "golden.jsonl"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "not_a_chain.txt"), []byte("this is not a ledger\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	reg := Build(tr, Options{})
+	out, err := reg.Call(tr, "verify_chain", map[string]any{"project": "t", "path": "golden.jsonl"}, Caller{Name: "prove"})
+	if err != nil {
+		t.Fatalf("a golden master must verify: %v (%s)", err, out)
+	}
+	if !strings.Contains(out, "verdict=INTACT entries=2 flips=[] broke_at=None appendable=true") {
+		t.Fatalf("the Python spine's line is not the spine's shape: %q", out)
+	}
+	out, err = reg.Call(tr, "verify_chain", map[string]any{"project": "t", "path": "not_a_chain.txt"}, Caller{Name: "prove"})
+	if err == nil {
+		t.Fatalf("a file that is not a chain must not verify: %q", out)
+	}
+	if !strings.Contains(out, "verdict=TAMPER") || !strings.Contains(out, "broke_at=Some(0)") {
+		t.Fatalf("the refusal must carry the verdict's own words, not a bare status: %q / %v", out, err)
+	}
+	if tl, ok := reg.Get("verify_chain"); !ok || strings.Contains(tl.Description, "Rust") {
+		t.Fatal("verify_chain still says it runs via the Rust spine, or is gone")
+	}
+}
+
 // P0-14 (2026-09-25): a forbidden verb is never free.
 func TestAForbiddenVerbIsNeverFree(t *testing.T) {
 	if ForbiddenWord("git_commit") != "commit" || ForbiddenWord("commitment") != "" ||

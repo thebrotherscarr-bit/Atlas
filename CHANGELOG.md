@@ -12,6 +12,63 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The chain verdict in Python, and `verify_chain` rewired to it: the first half of the fold (2026-10-01; his ruling of the same morning, the core's WHAT'S LEFT B14)
+
+B14 read "retire the unused Rust". Measured before anything moved, the Rust was not unused: it was
+the door's spine for one tool, `verify_chain` (the chain verdict EMPTY | INTACT | FLIP | TAMPER),
+and the canon that `cargo test` proves over the 21 golden-master chains -- and that spine is
+itself a byte-faithful mirror of a Python oracle outside this ground. His ruling: the verdict in
+Python first, proved against the goldens, then the Rust folded to an attic. This is the first half.
+
+`tools/chain_verify.py` (stdlib only; reads a chain, writes nothing) is the verdict written from
+the Rust in the ground, line for line: an entry's hashed view (ts, kind, n, payload, prev, actor,
+body_v, where present); its hash sha256(prev + canon(view)) under the entry's own `body_v` (1 the
+board shape, 2 the links shape, 3 JCS -- UTF-16 key order, no whitespace, floats and out-of-range
+integers refused; 3 when unstamped); the weld following each entry's STORED hash; a broken weld
+TAMPER at its index; a hash that does not recompute while the weld holds a named FLIP with the
+chain still appendable; an empty file EMPTY. One place the Rust and the oracle part, and the
+oracle is followed: a chain whose rows carry no `hash` at all is SKIPPED with the reason, not
+TAMPER at entry 1 -- the goldens say skipped. Its words: `chain verify <path>` (the one line the
+Rust printed, so no caller reads anything new; exit 0 while appendable), `--json <path>` (the
+oracle's dict), `--goldens` (every chain and injection in `tests/fixtures/canon/chain_verdicts.json`
+re-verdicted here and compared).
+
+The door's `verify_chain` now spawns that script through the one spawn contract -- the engine's
+own interpreter (the first word of the core command when it is a python, else `python`), bounded
+at 30 s, the words kept whole on error -- and finds it the way `findAtlas` walked for the binary:
+up from the door's own executable, from the working directory, and from the tenant's home (whose
+`atlas/` holds the repository when the tenant is the core ground), never on faith from a flag. No
+tool in the door's table shells the Rust binary any longer (`atlas-door`, a separate binary, still
+does, for `atlas trade`). `TestAToolsOwnWordsSurviveItsError` no longer skips when the spine is
+not built: there is nothing to build.
+
+**Proved, on the ground.** `--goldens`: 29 of 29 verdicts match (21 chains, 8 injections). The
+canon over `tests/fixtures/canon/vectors.json`: 356 of 356 (250 outputs byte-equal, 106 refused
+where the vector refuses). Against the Rust CLI's own line over the 21 goldens: 18 identical, the
+other 3 SKIPPED here where the oracle recorded them skipped, 0 differ.
+`TestVerifyChainReadsAGoldenThroughThePythonSpine`: a golden verifies INTACT in the spine's shape;
+a file that is not a chain errs with `verdict=TAMPER ... broke_at=Some(0)` in its own words; the
+tool's description no longer says Rust. `tests/prove.py` gains the leg `chain_verify (python
+spine)`, never ABSENT (the goldens are committed): 23 held, 14 absent, 0 broke. The verifier is not
+a cutter -- it takes no cutter's word and writes nothing -- so `cut_words` leaves it alone.
+
+**What goes red if unplugged:** the Go test, the proof's new leg, and `verify_chain` itself,
+which errs by name when the script is not beside the door.
+
+**Left behind by the rewire, named and not fixed (2026-10-02, read before the fold was begun):** the
+door's `--atlas-bin` flag, `Options.AtlasBin` and `findAtlas` are read by nothing now -- declared,
+correct, and loose; and `tests/e2e/_start_mcp.ps1` still refuses to start the door unless the Rust is
+built, for a tool that no longer needs it. Both travel with the fold if it is ruled; if the Rust stays
+they are harmless. The comment on `TierSpine` and the CLI reference's line for `verify_chain`, which
+said "Rust", are corrected.
+
+**The second half is a decision, not a build.** Reading what the fold touches found what the first
+measurement missed: `line/cmd/atlas-door` -- the D2 trade-ops page, the Go cutover of the Python
+`door.py` (docs/rollback/D2_DOOR.md) -- reads and writes through `atlas trade`, the Rust `store`
+crate, and every atlas release ships `atlas.exe` and `atlas-door.exe`. With the verdict in Python
+nothing in the tool server needs the Rust; those two shipped products do. Put to him 2026-10-02;
+nothing is folded.
+
 ### `land`: a line of work landed onto the main line from Version control (2026-10-01; his ruling of 2026-09-30, the core's WHAT'S LEFT B16)
 
 The table carries no `merge` by its founding law and never will; landing a line of work was his

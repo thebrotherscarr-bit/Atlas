@@ -303,14 +303,9 @@ func TestARefusingToolIsIsErrorAndNotAnRpcError(t *testing.T) {
 // verify_chain is the tool that exposed it: it captures the Rust spine's
 // CombinedOutput INTO `out`, so the diagnosis was in hand and thrown away.
 //
-// This stroke needs the spine built, and SAYS SO rather than passing quietly
-// when it is absent -- ABSENT is not a pass (tests/PROVING.md).
+// Since 2026-10-01 the spine verify_chain shells is tools/chain_verify.py, in
+// the repository, so this stroke always runs -- nothing to build first.
 func TestAToolsOwnWordsSurviveItsError(t *testing.T) {
-	if !spineBuilt() {
-		t.Skip("ABSENT: the Rust spine is not built -- run `cargo build -p atlas`. " +
-			"Not a pass: this stroke proves what a caller is told when a tool " +
-			"that writes output exits non-zero.")
-	}
 	s, home := newTestServer(t)
 
 	// A real file that is emphatically not a chain. The spine will read it,

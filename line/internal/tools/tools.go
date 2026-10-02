@@ -92,8 +92,8 @@ const (
 	// a reason of its own, against ANY tenant on ANY machine — no engine
 	// wired, no Rust binary built, no manjuel layout present.
 	TierCore Tier = iota
-	// TierSpine shells the Rust binary. May refuse when it is unbuilt, but
-	// must name the binary and how to build it.
+	// TierSpine shells the chain verifier: python tools/chain_verify.py (the Rust
+	// binary until 2026-10-01). May refuse when it is absent, but must name it.
 	TierSpine
 	// TierEngine needs a Manjuel process wired with --manjuel. May refuse
 	// when it is unwired, but must name the missing flag.
@@ -290,6 +290,56 @@ type Options struct {
 	HoldWrites bool
 }
 
+// findChainVerifier resolves tools/chain_verify.py, the chain's verifier
+// (2026-10-01). The walk findAtlas makes for the binary, made for the script:
+// up from the door's own executable (<repo>/line/atlas-mcp.exe sits one level
+// under <repo>/tools/), from the working directory, and from the tenant's
+// home -- whose atlas/ folder holds the repository when the tenant is the
+// core ground. Empty when nothing is found, so the refusal names the file.
+func findChainVerifier(home string) string {
+	rel := filepath.Join("tools", "chain_verify.py")
+	roots := []string{}
+	if exe, err := os.Executable(); err == nil {
+		roots = append(roots, filepath.Dir(exe))
+	}
+	if wd, err := os.Getwd(); err == nil {
+		roots = append(roots, wd)
+	}
+	roots = append(roots, home)
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		dir := root
+		for i := 0; i < 5; i++ {
+			for _, c := range []string{filepath.Join(dir, rel), filepath.Join(dir, "atlas", rel)} {
+				if st, err := os.Stat(c); err == nil && !st.IsDir() {
+					if abs, err := filepath.Abs(c); err == nil {
+						return abs
+					}
+					return c
+				}
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+	return ""
+}
+
+// pythonWord is the interpreter the door already trusts: the first word of
+// the core command (`python C:/.../manjuel.py`) when it is a python, else
+// `python` on PATH -- the engine runs on the same.
+func pythonWord(coreCmd string) string {
+	if f := strings.Fields(coreCmd); len(f) > 0 && strings.Contains(strings.ToLower(filepath.Base(f[0])), "python") {
+		return f[0]
+	}
+	return "python"
+}
+
 // findAtlas resolves the Rust spine. In order: an explicit path that is not
 // the placeholder, then ATLAS_BIN, then PATH, then the built tree walked up
 // from the tenant's own home AND from the process working directory — which
@@ -440,30 +490,30 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 
 	r.add(Tool{
 		Name: "verify_chain", Writes: false, Tier: TierSpine,
-		Description: "chain verdict via the Rust spine: EMPTY|INTACT|FLIP|TAMPER",
+		Description: "chain verdict via tools/chain_verify.py, the Python spine: EMPTY|INTACT|FLIP|TAMPER (SKIPPED where rows carry no hash)",
 		Args:        []string{"path", "project?"},
 		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
 			path := str(args, "path")
 			if path == "" {
 				return "", fmt.Errorf("verify_chain needs a path")
 			}
-			// RESOLVED HERE, not taken on faith from the flag. `--atlas-bin`
-			// defaults to the bare word "atlas", and on any machine where the
-			// Rust spine has been built but not installed on PATH -- which is
-			// every fresh clone -- exec fails with `"atlas": not found in
-			// %PATH%` and verify_chain is dead on arrival. atlas-door already
-			// walked the built tree for it; atlas-mcp never did, so the same
-			// estate answered differently depending on which door you came
-			// through. findAtlas() is that walk, moved to the one place that
-			// actually shells the binary so every caller gets it.
-			bin := findAtlas(opts.AtlasBin, t.Home)
-			// Through the one spawn contract (ADR-006 item 5). This seam had NO
-			// TIMEOUT — a wedged Rust binary hung the tool call, and through it
-			// the door, forever. ESTATE LAW 7 is bounded everything; it is bounded
-			// now, and the spine's own words still come back whole because a
-			// refusal that names only its exit status is the thing ADR-006 item 1
-			// was written to stop.
-			res := spawn(bin, []string{"chain", "verify", path},
+			// THE SPINE IS PYTHON NOW (2026-10-01, his ruling of the same
+			// morning: the verdict in Python first, proved against the 21
+			// goldens and 8 injections, then the Rust folded). The Rust was a
+			// byte-faithful mirror of a Python oracle outside this ground;
+			// tools/chain_verify.py is that walk written in the ground, and
+			// it follows the oracle where the Rust parted from it (rows with
+			// no hash: SKIPPED, not TAMPER). The script is found beside the
+			// repository the way the binary was walked for -- never taken on
+			// faith from a flag -- and the line it prints is the shape the
+			// Rust printed, so no caller reads anything new. Through the one
+			// spawn contract, bounded (ESTATE LAW 7), the words kept whole.
+			script := findChainVerifier(t.Home)
+			if script == "" {
+				return "", fmt.Errorf("verify_chain: tools/chain_verify.py is not beside this door; " +
+					"the chain's verifier lives in the atlas repository (tools/), since 2026-10-01")
+			}
+			res := spawn(pythonWord(opts.CoreCmd), []string{script, "chain", "verify", path},
 				spawnOpts{Dir: t.Home, Timeout: 30 * time.Second})
 			return res.Combined, res.Err
 		},

@@ -264,6 +264,23 @@ def leg_goldens():
     return out
 
 
+def leg_chain_verify():
+    """THE CHAIN VERDICT, IN PYTHON (2026-10-01, his ruling: the verdict in
+    Python first, proved against the goldens, then the Rust folded). The
+    verifier is not a cutter -- it writes nothing and takes no cutter's word
+    -- so it is not in leg_goldens' list; this is its own leg: every chain
+    and injection in tests/fixtures/canon/chain_verdicts.json re-verdicted by
+    tools/chain_verify.py and compared. The goldens are committed, so this
+    leg is never ABSENT: it holds or it broke."""
+    t = time.time()
+    code, text = run([sys.executable, os.path.join(TOOLS, "chain_verify.py"), "--goldens"], timeout=300)
+    secs = time.time() - t
+    last = text.strip().splitlines()[-1] if text.strip() else ""
+    if code == 0:
+        return [Leg("GOLDENS", "chain_verify (python spine)", PASS, last, "", secs)]
+    return [Leg("GOLDENS", "chain_verify (python spine)", FAIL, tail(text), "", secs)]
+
+
 def mcp_online():
     import urllib.request
     try:
@@ -364,6 +381,7 @@ def main():
     if not args.check:
         legs += leg_mcp()
     legs += leg_goldens()
+    legs += leg_chain_verify()
     legs += leg_workflows(args.live)
     legs += leg_e2e(args.live)
 

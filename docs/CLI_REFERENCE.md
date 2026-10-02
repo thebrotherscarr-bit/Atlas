@@ -213,7 +213,7 @@ Tools available (30+):
 - `read_plan` — HLD/LLD/road documents
 - `remember` — sole write tool, staged for operator
 - `state_matrix` — state = fold(record) index
-- `verify_chain` — chain verdict via Rust spine
+- `verify_chain` — chain verdict via tools/chain_verify.py (the Python spine)
 - `rack_list` — live tier ladder
 - `rack_ask` — routed ask to the rack
 - `rack_open` — expanded context bundle
