@@ -58,16 +58,16 @@ which errs by name when the script is not beside the door.
 **Left behind by the rewire, named and not fixed (2026-10-02, read before the fold was begun):** the
 door's `--atlas-bin` flag, `Options.AtlasBin` and `findAtlas` are read by nothing now -- declared,
 correct, and loose; and `tests/e2e/_start_mcp.ps1` still refuses to start the door unless the Rust is
-built, for a tool that no longer needs it. Both travel with the fold if it is ruled; if the Rust stays
-they are harmless. The comment on `TierSpine` and the CLI reference's line for `verify_chain`, which
+built, for a tool that no longer needs it. The Rust stays (ruled 2026-10-02, B14 closed), so both are
+harmless dead code. The comment on `TierSpine` and the CLI reference's line for `verify_chain`, which
 said "Rust", are corrected.
 
 **The second half is a decision, not a build.** Reading what the fold touches found what the first
 measurement missed: `line/cmd/atlas-door` -- the D2 trade-ops page, the Go cutover of the Python
 `door.py` (docs/rollback/D2_DOOR.md) -- reads and writes through `atlas trade`, the Rust `store`
 crate, and every atlas release ships `atlas.exe` and `atlas-door.exe`. With the verdict in Python
-nothing in the tool server needs the Rust; those two shipped products do. Put to him 2026-10-02;
-nothing is folded.
+nothing in the tool server needs the Rust; those two shipped products do. Put to him 2026-10-02.
+**Ruled 2026-10-02, his word: "keep the Rust, close B14".** The Rust stays; nothing is folded.
 
 ### `land`: a line of work landed onto the main line from Version control (2026-10-01; his ruling of 2026-09-30, the core's WHAT'S LEFT B16)
 
