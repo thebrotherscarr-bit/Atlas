@@ -28,6 +28,7 @@
 |---|---|
 | [CLI_REFERENCE.md](CLI_REFERENCE.md) | Every command, every flag |
 | [COMPLIANCE.md](COMPLIANCE.md) | EU AI Act, SOC 2, ISO 42001 mapping |
+| [TOOL_PERMISSIONS.md](TOOL_PERMISSIONS.md) | Every tool the door offers: what it declares, who may call it (generated, held current by a test) |
 
 ## Specifications
 

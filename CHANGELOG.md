@@ -12,6 +12,41 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The door's tools have permission records: read off the table and the policy, held current by a test (2026-10-02; the core's WHAT'S LEFT D7)
+
+The tool server's tools declared what they are (writes or reads, which actions of a writing tool only
+read, which arguments are secrets, what they need beyond a directory) and the shipped role policy decided
+who may call what, but nothing set the two side by side where the operator could read them in one
+sitting: "the door's 85 tools have no permission records" was the line (HANDOFF 09-28).
+`docs/TOOL_PERMISSIONS.md` is the record, and it is READ OFF the tool table and the policy by the
+functions that judge a real call (`rbac.Can`, `Tool.Writes`, `Tool.Reads`, `HeldExempt`), not written
+beside them, so it cannot say what the door does not do: per tool, its tier, whether it writes, its
+reading actions, its secret arguments, whether a call from anything but the glass is held, and what each
+shipped role (operator, steward, agent, guest) is told -- yes, reads only, or refused. 85 tools: 48 read,
+37 write (two of the writers, `git_branch` and `git_tag`, have reading actions the agent role may call);
+tiers core 76, spine 1, engine 8; 4 carry a secret argument. A tool added, a flag turned or a role
+changed makes the record stale, and a stale copy fails `TestEveryToolHasAPermissionRecord`: the change
+shows up in review, before it reaches a door. Regenerate with
+`go test ./internal/tools -run TestEveryToolHasAPermissionRecord -update`.
+
+What it does not claim, said in the file itself: a tool's `Writes` is its author's declaration, and
+nothing here proves a tool that says it only reads never writes -- that is each tool's own test. The
+record makes a change of declaration visible; it does not make a false one true.
+
+**Proved.** Four tests in `internal/tools/permissions_test.go`: the record is current; it has a column
+for every role the policy ships and for none it does not; it has exactly one row per tool; and the shipped
+roles answer as the record says (the operator is refused nothing, the guest is allowed nothing, the
+agent is refused every tool that only writes). Six reversals on a scratch copy, each red and named,
+restored byte for byte: a tool's declaration flipped, the agent role allowed to edit, a role added to
+the policy and not to the record, the exempt list grown, a row deleted, a cell edited by hand. The
+package green on the ground (46 s). Go's test cache does not see a file outside the module, so a hand
+edit of the record can be answered from the cache by a repeat of the same command; run it with
+`-count=1`, which `tests/prove.py` does and GitHub, which has no cache, does by construction (said in
+the test's header).
+
+No binary moved: a test file and a document. **What goes red if unplugged:** those four tests, and
+`tests/prove.py`'s `go test ./... -count=1` on every push.
+
 ### The chain verdict in Python, and `verify_chain` rewired to it: the first half of the fold (2026-10-01; his ruling of the same morning, the core's WHAT'S LEFT B14)
 
 B14 read "retire the unused Rust". Measured before anything moved, the Rust was not unused: it was
