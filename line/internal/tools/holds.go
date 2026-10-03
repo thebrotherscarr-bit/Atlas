@@ -58,6 +58,12 @@ type Caller struct {
 	// Service is the one bit that decides anything: the request carried the
 	// service wire, so it is the operator's own glass.
 	Service bool
+	// Hold is the id of the parked call the operator just approved. It is set
+	// by hold_answer when it replays one, and by nothing else: the door strips
+	// the reserved key from whatever a caller sends. A tool that parks its own
+	// calls (shell_run) reads it to know THIS run is the approved one -- a
+	// typed field, not a word the caller's name has to begin with.
+	Hold string
 }
 
 // CallerKey is the reserved args key the door writes its judgement into, and
@@ -384,7 +390,10 @@ func toolHoldAnswer(t tenant.Tenant, args map[string]any) (string, error) {
 	// Run it AS ITSELF, with the args it was parked with -- not re-read, not
 	// re-judged. The operator approved that call, not a fresh one.
 	run := copyArgs(h.Args)
-	run[CallerKey] = Caller{Name: "operator via hold " + h.ID, Service: true}
+	run[CallerKey] = Caller{Name: "operator via hold " + h.ID, Service: true, Hold: h.ID}
+	// A replay is wired as a live call is (Call sets both): a tool that reads
+	// the registry -- shell_run records what it ran in the hold log -- finds it.
+	run[registryKey] = reg
 	out, err := tool.Fn(t, run)
 	if err != nil {
 		reg.record(t.Home, "approved_errored", h, err.Error())

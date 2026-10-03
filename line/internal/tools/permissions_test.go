@@ -76,10 +76,13 @@ func renderToolPermissions(reg *Registry) string {
 	tools := reg.All()
 	sort.Slice(tools, func(i, j int) bool { return tools[i].Name < tools[j].Name })
 
-	reads, writes, mixed, secrets := 0, 0, 0, 0
+	reads, writes, mixed, secrets, serviceOnly := 0, 0, 0, 0, 0
 	tiers := map[string]int{}
 	for _, t := range tools {
 		tiers[t.Tier.String()]++
+		if t.ServiceOnly {
+			serviceOnly++
+		}
 		if t.Writes {
 			writes++
 			if len(t.Reads) > 0 {
@@ -113,13 +116,18 @@ func renderToolPermissions(reg *Registry) string {
 	w("2. With the door's `--auth` on, a call that WRITES from anything but the glass is parked as a hold and runs\n")
 	w("   only when the operator approves it there. `hold_answer` and `hold_list` are exempt: they are how a hold\n")
 	w("   is answered and read. A reading action of a writing tool (`git_tag list`) is judged as a read.\n")
-	w("3. `can_approve` is structurally false. rbac never grants approval; it lives in the hand alone.\n\n")
+	w("3. `can_approve` is structurally false. rbac never grants approval; it lives in the hand alone.\n")
+	w("4. A tool declared `ServiceOnly` is the operator's own hand (`shell_run`, his typed shell): `Registry.Call` refuses\n")
+	w("   every caller but the glass before RBAC or the holds look at it, and writes the attempt down. No role grants it\n")
+	w("   and no agent can park a call of it for him to approve, so the role columns below say what a role would be\n")
+	w("   allowed WITHOUT that declaration and cannot make a caller other than the glass able to call it.\n\n")
 	w("## The record\n\n")
-	w("%d tools: %d read, %d write (%d of the writers have reading actions); %d carry a secret argument. ",
-		len(tools), reads, writes, mixed, secrets)
+	w("%d tools: %d read, %d write (%d of the writers have reading actions); %d carry a secret argument; service-only: %d. ",
+		len(tools), reads, writes, mixed, secrets, serviceOnly)
 	w("Tiers: core %d, spine %d, engine %d.\n\n", tiers["core"], tiers["spine"], tiers["engine"])
 	w("`yes` = may call it; `reads only` = refused the tool as a writer, may call its reading actions; `-` = refused. ")
-	w("`held` = a call from anything but the glass waits for the operator when holds are armed.\n\n")
+	w("`held` = a call from anything but the glass waits for the operator when holds are armed; ")
+	w("`service only` = refused to anything but the glass, and never parked.\n\n")
 	w("| tool | tier | declares | reading actions | secret args | held |")
 	for _, r := range permissionRoles {
 		w(" %s |", r)
@@ -138,6 +146,9 @@ func renderToolPermissions(reg *Registry) string {
 			if HeldExempt(t.Name) {
 				held = "exempt"
 			}
+		}
+		if t.ServiceOnly {
+			held = "service only"
 		}
 		w("| `%s` | %s | %s | %s | %s | %s |", t.Name, t.Tier.String(), declares,
 			dash(strings.Join(t.Reads, ", ")), dash(strings.Join(t.Secrets, ", ")), held)

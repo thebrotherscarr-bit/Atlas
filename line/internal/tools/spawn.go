@@ -37,6 +37,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -54,6 +56,21 @@ type spawnOpts struct {
 	Timeout time.Duration
 	// Env is appended to the process environment. Used to harden git.
 	Env []string
+	// CleanEnv, when non-nil, IS the child's whole environment: nothing of the
+	// door's own is inherited (Env is still appended). The operator's shell
+	// runs on this (shell.go): the door holds the service wire and the keys in
+	// its environment, and a child that inherited them could print them.
+	CleanEnv []string
+	// MaxBytes keeps the first MaxBytes of each stream and drains the rest
+	// (spawnResult.Truncated says so). Zero is unbounded, as it always was.
+	MaxBytes int
+	// Grace bounds how long Wait lingers after the deadline for a child's
+	// children to let go of the pipes. Zero is the old behaviour: forever.
+	Grace time.Duration
+	// KillTree makes the deadline take the child's children with it (taskkill
+	// /T on Windows), so a pipeline that outlives its shell does not outlive
+	// its limit.
+	KillTree bool
 }
 
 // spawnDefaultTimeout bounds any child whose caller did not choose. Generous
@@ -72,6 +89,44 @@ type spawnResult struct {
 	Combined string
 	Err      error
 	TimedOut bool
+	// Truncated is whether MaxBytes cut either stream.
+	Truncated bool
+}
+
+// capBuffer keeps the first max bytes written to it and swallows the rest, so a
+// child that floods its pipe is drained, never blocked, and never held whole in
+// memory. max <= 0 keeps everything, as bytes.Buffer does.
+type capBuffer struct {
+	max     int
+	buf     bytes.Buffer
+	dropped bool
+}
+
+func (c *capBuffer) Write(p []byte) (int, error) {
+	if c.max <= 0 {
+		return c.buf.Write(p)
+	}
+	if room := c.max - c.buf.Len(); room > 0 {
+		if len(p) <= room {
+			return c.buf.Write(p)
+		}
+		c.buf.Write(p[:room])
+	}
+	c.dropped = true
+	return len(p), nil
+}
+
+func (c *capBuffer) String() string { return c.buf.String() }
+
+// killTree ends a child and, on Windows, everything it started.
+func killTree(cmd *exec.Cmd) error {
+	if cmd.Process == nil {
+		return nil
+	}
+	if runtime.GOOS == "windows" {
+		_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+	}
+	return cmd.Process.Kill()
 }
 
 // spawn runs one child under the single contract:
@@ -95,8 +150,17 @@ func spawn(name string, args []string, opts spawnOpts) spawnResult {
 
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = opts.Dir
-	if len(opts.Env) > 0 {
+	switch {
+	case opts.CleanEnv != nil:
+		cmd.Env = append(append([]string(nil), opts.CleanEnv...), opts.Env...)
+	case len(opts.Env) > 0:
 		cmd.Env = append(os.Environ(), opts.Env...)
+	}
+	if opts.KillTree {
+		cmd.Cancel = func() error { return killTree(cmd) }
+	}
+	if opts.Grace > 0 {
+		cmd.WaitDelay = opts.Grace
 	}
 	// Closed, explicitly, at the one place that decides it.
 	if devnull, err := os.Open(os.DevNull); err == nil {
@@ -104,15 +168,16 @@ func spawn(name string, args []string, opts spawnOpts) spawnResult {
 		defer devnull.Close()
 	}
 
-	var out, errBuf bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errBuf
+	out, errBuf := &capBuffer{max: opts.MaxBytes}, &capBuffer{max: opts.MaxBytes}
+	cmd.Stdout = out
+	cmd.Stderr = errBuf
 	err := cmd.Run()
 
 	res := spawnResult{
-		Stdout: out.String(),
-		Stderr: errBuf.String(),
-		Err:    err,
+		Stdout:    out.String(),
+		Stderr:    errBuf.String(),
+		Err:       err,
+		Truncated: out.dropped || errBuf.dropped,
 	}
 	res.Combined = res.Stdout
 	if res.Stderr != "" {

@@ -135,8 +135,15 @@ type Tool struct {
 	Secrets []string
 	// Tier is what this tool needs beyond a directory. Zero value is core.
 	Tier Tier
-	Args []string
-	Fn   Fn
+	// ServiceOnly makes the tool the operator's own hand (2026-10-03, WHAT'S
+	// LEFT H15): Call refuses every caller but the glass before RBAC or the
+	// holds look at it, so no seat, agent or other client can reach it -- not
+	// by a role, not by asking him to approve its parked call. A declaration
+	// the door enforces and the permission record prints, not a check each
+	// tool has to remember to make. shell_run is the first.
+	ServiceOnly bool
+	Args        []string
+	Fn          Fn
 }
 
 // actionOf is THE reader of a call's `action`: lower-cased and trimmed, the one
@@ -230,6 +237,17 @@ func (r *Registry) Call(reg *tenant.Registry, name string, args map[string]any, 
 	tn, err := reg.Resolve(project)
 	if err != nil {
 		return "", err
+	}
+	// THE OPERATOR'S OWN HAND (ServiceOnly): nothing but his glass gets past
+	// here, whatever a role says, and the attempt is written down. The message
+	// avoids every phrase the tier strokes read as "the machinery is absent".
+	if t.ServiceOnly && !caller.Service {
+		r.record(tn.Home, "refused", Hold{
+			ID: fmt.Sprintf("refused_%d_%s", time.Now().UnixMilli(), name), Tool: name,
+			Caller: callerLabel(caller), Project: tn.Name, RBAC: rbacState(tn, caller),
+		}, "service-only: the caller is not the operator's glass")
+		return "", fmt.Errorf("refused: %q is the operator's own hand, offered to his glass alone and to no seat, "+
+			"agent or other client (RULE 6); if this IS his glass, the door has to run with --auth to tell", name)
 	}
 	// P0-13 (SPEC_CONTROL_CENTER 12.5; closed 2026-09-25). IDENTITY COMES FROM
 	// THE TRANSPORT, HERE TOO. This read `actor` off the caller's own args and
@@ -617,6 +635,19 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Description: "approve or deny one parked call by id; the operator's act alone, and it runs exactly the call that was parked",
 		Args:        []string{"id", "decision", "project?"},
 		Fn:          toolHoldAnswer,
+	})
+
+	// THE OPERATOR'S TYPED SHELL (2026-10-03, WHAT'S LEFT H15; his word of 10-02:
+	// "typed by you, gated"). Bash (Git Bash) and Python, run in this world. A
+	// plain look runs at once; anything that writes waits for his approval on a
+	// card; a secret or a path outside the ground is refused by name; and the
+	// tool is his glass's alone -- ServiceOnly -- so no seat or agent is ever
+	// handed a shell (shell.go, shellgate.go, shellpy.go).
+	r.add(Tool{
+		Name: "shell_run", Writes: true, ServiceOnly: true,
+		Description: "the operator's own typed shell, run in this world: a Git Bash command or a Python entry (Python keeps its names between entries). A plain look runs at once; anything that writes, deletes, installs, reaches the network, or saves or sends work waits for his approval; a secret, client material or a path outside the ground is refused by name. His glass alone may call it",
+		Args:        []string{"shell", "command", "timeout?", "reset?", "project?"},
+		Fn:          toolShellRun(opts.CoreCmd),
 	})
 
 	r.add(Tool{

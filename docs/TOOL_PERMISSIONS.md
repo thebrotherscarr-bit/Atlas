@@ -21,12 +21,16 @@ declaration visible. It does not make a false one true.
    only when the operator approves it there. `hold_answer` and `hold_list` are exempt: they are how a hold
    is answered and read. A reading action of a writing tool (`git_tag list`) is judged as a read.
 3. `can_approve` is structurally false. rbac never grants approval; it lives in the hand alone.
+4. A tool declared `ServiceOnly` is the operator's own hand (`shell_run`, his typed shell): `Registry.Call` refuses
+   every caller but the glass before RBAC or the holds look at it, and writes the attempt down. No role grants it
+   and no agent can park a call of it for him to approve, so the role columns below say what a role would be
+   allowed WITHOUT that declaration and cannot make a caller other than the glass able to call it.
 
 ## The record
 
-85 tools: 48 read, 37 write (2 of the writers have reading actions); 4 carry a secret argument. Tiers: core 76, spine 1, engine 8.
+86 tools: 48 read, 38 write (2 of the writers have reading actions); 4 carry a secret argument; service-only: 1. Tiers: core 77, spine 1, engine 8.
 
-`yes` = may call it; `reads only` = refused the tool as a writer, may call its reading actions; `-` = refused. `held` = a call from anything but the glass waits for the operator when holds are armed.
+`yes` = may call it; `reads only` = refused the tool as a writer, may call its reading actions; `-` = refused. `held` = a call from anything but the glass waits for the operator when holds are armed; `service only` = refused to anything but the glass, and never parked.
 
 | tool | tier | declares | reading actions | secret args | held | operator | steward | agent | guest |
 |---|---|---|---|---|---|---|---|---|---|
@@ -99,6 +103,7 @@ declaration visible. It does not make a false one true.
 | `run_start` | engine | writes | - | - | held | yes | yes | - | - |
 | `seat_ask` | core | writes | - | - | held | yes | yes | - | - |
 | `seats` | core | reads | - | - | - | yes | yes | yes | - |
+| `shell_run` | core | writes | - | - | service only | yes | yes | - | - |
 | `standup_run` | engine | writes | - | - | held | yes | yes | - | - |
 | `state_matrix` | core | reads | - | - | - | yes | yes | yes | - |
 | `suite_run` | engine | reads | - | - | - | yes | yes | yes | - |

@@ -284,13 +284,27 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 			t.Fatalf("the front page carries its own sign-in (%s); the lock is the PIN", bad)
 		}
 	}
-	// A tab that is not wired is marked so and says so when pressed.
-	for _, id := range []string{"bash", "python", "aider"} {
+	// A tab that is not wired is marked so and says so when pressed. Aider is the one left: Bash and
+	// Python were wired on 2026-10-03 (WHAT'S LEFT H15) and are held by
+	// TestTheShellTabsAreTheDoorsShellAndNothingElse.
+	notWired := regexp.MustCompile(`(?s)NOT_WIRED: \{(.*?)\n  \},`).FindStringSubmatch(src)
+	if notWired == nil {
+		t.Fatal("the table of what an unwired tab says is gone")
+	}
+	for _, id := range []string{"aider"} {
 		if !regexp.MustCompile(`id: '` + id + `',[^}]*wired: false`).MatchString(src) {
 			t.Fatalf("the %s tab is not marked as unwired", id)
 		}
-		if !regexp.MustCompile(`(?s)NOT_WIRED: \{.*` + id + `: '[^']*not wired yet`).MatchString(src) {
+		if !regexp.MustCompile(id + `: '[^']*not wired yet`).MatchString(notWired[1]) {
 			t.Fatalf("pressing the %s tab does not say it is not wired yet", id)
+		}
+	}
+	for _, id := range []string{"bash", "python"} {
+		if !regexp.MustCompile(`id: '` + id + `',[^}]*wired: true`).MatchString(src) {
+			t.Fatalf("the %s tab is not marked as wired", id)
+		}
+		if strings.Contains(notWired[1], id+": '") {
+			t.Fatalf("pressing the %s tab still says it is not wired", id)
 		}
 	}
 	// The failures go on the face of the answer, wherever the answer is shown
@@ -307,8 +321,112 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 	if !strings.Contains(funcOf(src, "  async go("), "this.asking()") {
 		t.Fatal("the prompt line takes an objective while the council is waiting on an answer")
 	}
-	if strings.Count(src, "App.tool('hold_answer'") != 1 || !strings.Contains(funcOf(src, "  async paneClick("), "App.tool('hold_answer'") {
+	// Two places answer a hold, and each is a button he presses: the Guardrails tab (paneClick) and a
+	// shell card in the thread (decide, called from the terminal's click handler for the card's two
+	// buttons and from nowhere else).
+	if strings.Count(src, "App.tool('hold_answer'") != 2 ||
+		!strings.Contains(funcOf(src, "  async paneClick("), "App.tool('hold_answer'") ||
+		!strings.Contains(funcOf(src, "  async decide("), "App.tool('hold_answer'") {
 		t.Fatal("a held call can be answered from somewhere other than a button he presses")
+	}
+	if strings.Count(src, "this.decide(") != 1 || !regexp.MustCompile(`(?s)act === 'shell-yes' \|\| act === 'shell-no'.{0,400}this\.decide\(`).MatchString(src) {
+		t.Fatal("a shell card can be answered from somewhere other than the click handler of its two buttons")
+	}
+}
+
+// THE SHELL TABS (WHAT'S LEFT H15, 2026-10-03). The page decides nothing about a command: the door's
+// shell_run reads it, runs it, parks it or refuses it, and the page draws the one document the door
+// answers in. These hold the page's half of that wire against the door's own text, so renaming a key
+// at the door, or letting the page grow an opinion of its own, goes red here.
+func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
+	src := page(t, "js/agent.js")
+	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "shell.go"))
+	if err != nil {
+		t.Fatalf("the door's shell is not beside the glass: %v", err)
+	}
+	holds, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "holds.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The keys the page reads off the answer are keys the door's answer has.
+	keys := map[string]bool{}
+	for _, m := range regexp.MustCompile("`json:\"([a-z_]+)[,\"]").FindAllStringSubmatch(string(door), -1) {
+		keys[m[1]] = true
+	}
+	if len(keys) < 10 {
+		t.Fatalf("read %d keys off the door's answer; this stroke is reading the wrong thing", len(keys))
+	}
+	read := map[string]bool{}
+	for _, fn := range []string{"  shellEntryHtml(", "  shellTake(", "  async decide("} {
+		for _, m := range regexp.MustCompile(`\b(?:a|ran)\.([a-z_]+)\b`).FindAllStringSubmatch(funcOf(src, fn), -1) {
+			read[m[1]] = true
+			if !keys[m[1]] {
+				t.Fatalf("the page reads .%s off the shell's answer and the door's answer has no such key", m[1])
+			}
+		}
+	}
+	for _, must := range []string{"state", "why", "hold", "exit", "class", "approved", "timed_out", "note", "output", "truncated"} {
+		if !keys[must] {
+			t.Fatalf("the door's answer lost the key %q the page is built on", must)
+		}
+	}
+	for _, must := range []string{"state", "why", "hold", "exit", "approved", "timed_out", "note", "truncated"} {
+		if !read[must] {
+			t.Fatalf("the page no longer reads .%s, so what the door says in it never reaches him", must)
+		}
+	}
+
+	// A card is drawn for a held answer and for nothing else; a refusal draws no button; a failure is
+	// on the face (a non-zero exit is a bad chip and a bad box).
+	face := funcOf(src, "  shellEntryHtml(")
+	card := regexp.MustCompile(`(?s)if \(en\.state === 'held'\) \{(.*?)\n    \}`).FindStringSubmatch(face)
+	if card == nil || !strings.Contains(card[1], "shell-yes") || !strings.Contains(card[1], "shell-no") {
+		t.Fatal("the card is not drawn for a held answer, or does not carry its two buttons")
+	}
+	if strings.Count(face, "shell-yes") != 1 {
+		t.Fatal("a shell button is drawn somewhere other than the card")
+	}
+	for _, want := range []string{"REFUSED BY NAME", "no click lifts a refusal", "a.exit !== 0", "ag-chip bad", "ag-pre${bad ? ' bad' : ''}"} {
+		if !strings.Contains(face, want) {
+			t.Fatalf("the shell's entry no longer carries %q", want)
+		}
+	}
+
+	// The page asks the door's shell and nothing else for a command: one call, with the shell named,
+	// and `reset` only from the session's own reset.
+	if strings.Count(src, "App.tool('shell_run'") != 1 || !strings.Contains(funcOf(src, "  async shellAsk("), "App.tool('shell_run'") {
+		t.Fatal("a command can reach the door by some way other than shellAsk")
+	}
+	if !strings.Contains(funcOf(src, "  async shellReset("), "reset: true") || strings.Count(src, "reset: true") != 1 {
+		t.Fatal("the session can be ended from somewhere other than its own reset")
+	}
+	if !strings.Contains(funcOf(src, "  async shellRun("), "{ shell: kind, command: text }") {
+		t.Fatal("an entry is not sent as the shell it was typed in, as typed")
+	}
+	// The page holds no list of commands or words of its own to judge by.
+	for _, bad := range []string{"'rm'", "'curl'", "'git push'", "rm -rf", "writes|deletes", "isWrite", "looksLike"} {
+		if strings.Contains(src, bad) {
+			t.Fatalf("the page carries its own opinion of what a command does (%s); the door judges, the page draws", bad)
+		}
+	}
+	// A card answered somewhere else (the Guardrails tab) stops offering buttons that could only be refused.
+	if !strings.Contains(funcOf(src, "  async readHolds("), "this.settleCards(") || !strings.Contains(funcOf(src, "  settleCards("), "en.state = 'gone'") {
+		t.Fatal("a shell card answered elsewhere keeps its buttons")
+	}
+	// A shell needs no engine: the council path is where the engine is asked for.
+	if g := funcOf(src, "  async go("); !regexp.MustCompile(`(?s)this\.shellRun\(.*?Run\.engineOpen`).MatchString(g) {
+		t.Fatal("a shell line is held up behind the engine check")
+	}
+	// The replay's words are the ones hold_answer says: `... ran:\n\n<document>`.
+	if !strings.Contains(string(holds), `%q ran:\n\n%s`) || !strings.Contains(funcOf(src, "  async decide("), "ran:") {
+		t.Fatal("the page and hold_answer no longer agree on where an approved run's document begins")
+	}
+	// Every wired tab offers something to try and says what it is for.
+	for _, id := range []string{"agent", "bash", "python"} {
+		if !regexp.MustCompile(`(?s)HINTS: \{.*?\b`+id+`: \[`).MatchString(src) || !regexp.MustCompile(`(?s)PLACEHOLDER: \{.*?\b`+id+`: '`).MatchString(src) {
+			t.Fatalf("the %s tab has no hints or no placeholder", id)
+		}
 	}
 }
 
@@ -371,5 +489,28 @@ func TestEveryToolTheFrontPageAsksForIsCarriedByTheDoor(t *testing.T) {
 		if !strings.Contains(string(srv), c.route) {
 			t.Fatalf("the front page fetches %s and the glass serves no %s", c.js, c.route)
 		}
+	}
+}
+
+// NO METHOD OF THE FRONT PAGE IS DEFINED TWICE. The page is one object literal, and in an object literal
+// the later of two keys with the same name silently replaces the earlier: on 2026-10-03 a new method
+// called `shell` replaced the page's own `shell()` (the template the page is drawn from), the page drew
+// "[object Promise]", and every stroke that reads the source as text stayed green. Only a run of the
+// page showed it. This is the check that would have said so.
+func TestNoMethodOfTheFrontPageIsDefinedTwice(t *testing.T) {
+	src := page(t, "js/agent.js")
+	seen := map[string]int{}
+	for i, line := range strings.Split(src, "\n") {
+		m := regexp.MustCompile(`^  (?:async )?([A-Za-z_][A-Za-z0-9_]*)\(`).FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		if first, dup := seen[m[1]]; dup {
+			t.Errorf("agent.js defines %s() on line %d and again on line %d: the later one replaces the first", m[1], first, i+1)
+		}
+		seen[m[1]] = i + 1
+	}
+	if len(seen) < 60 {
+		t.Fatalf("read %d methods; this stroke is reading the wrong thing", len(seen))
 	}
 }

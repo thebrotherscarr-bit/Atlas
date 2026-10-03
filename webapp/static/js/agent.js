@@ -16,8 +16,17 @@
 // committed it and said done, and the repair loop reported a repair that never
 // happened. Here every figure is read from a tool or not shown (SPEC 3
 // invariant 10), every failure is on the face of the answer (ESTATE LAW 5),
-// and no tab claims what it cannot do: Bash, Python and Aider are in the bar
-// and say, when pressed, that they are not wired yet.
+// and no tab claims what it cannot do: Aider is in the bar and says, when
+// pressed, that it is not wired yet.
+//
+// BASH AND PYTHON ARE HIS TYPED SHELL (WHAT'S LEFT H15, 2026-10-03; his word of
+// 2026-10-02: "typed by you, gated"). A line typed in either tab goes to the
+// door's shell_run, which only his glass may call. A plain look runs at once;
+// anything that writes shows a card in the thread and waits for his click; a
+// secret or a path outside the ground is refused by name, and the card is not
+// offered for a refusal. The page classifies nothing: it draws the one answer
+// the door gives (state, class, why, hold, exit, output) and a failure is on the
+// face of it. No shell tab needs an engine; the council's tab does.
 //
 // THE COUNCIL IS THE AGENT. A line typed here is the REPL's own turn: the
 // sealed law gate stamps it before any model reads a word, the one Router runs
@@ -47,11 +56,22 @@ const $ag = (id) => document.getElementById(id);
 const Agent = {
   // ---- what the page is made of ------------------------------------------
   MODES: [
-    { id: 'agent',  label: 'Agent',  badge: 'default', wired: true  },
-    { id: 'bash',   label: 'Bash',   badge: '$',       wired: false },
-    { id: 'python', label: 'Python', badge: '>>>',     wired: false },
-    { id: 'aider',  label: 'Aider',  badge: 'pair',    wired: false }
+    { id: 'agent',  label: 'Agent',  badge: 'default', wired: true,  tip: 'Ask the council' },
+    { id: 'bash',   label: 'Bash',   badge: '$',       wired: true,  tip: 'Git Bash in this world. A plain look runs at once; anything that writes asks first' },
+    { id: 'python', label: 'Python', badge: '>>>',     wired: true,  tip: 'A Python session that keeps its names. A plain calculation runs at once; the rest asks first' },
+    { id: 'aider',  label: 'Aider',  badge: 'pair',    wired: false, tip: 'Not wired yet' }
   ],
+  // What each tab offers to try, one click away.
+  HINTS: {
+    agent: ['/status', '/help', '/memory', '/sittings'],
+    bash: ['ls', 'pwd', 'git status', 'git log --oneline -5'],
+    python: ['1 + 1', 'x = 41', 'x + 1', '/reset']
+  },
+  PLACEHOLDER: {
+    agent: 'Ask the council, run a /command (e.g. /status), or say what you want done...',
+    bash: 'A command, run as you. A plain look runs at once; anything that writes asks first...',
+    python: 'Python, in a session that keeps its names. Plain calculations run at once; the rest asks first...'
+  },
   // The five doors in the bar, each of which opens the Inspector on its tab.
   DOORS: [
     { id: 'aider',  label: 'Aider Pair' },
@@ -74,8 +94,6 @@ const Agent = {
   // that looked wired and answered with a stub is the fault the page it came
   // from was full of.
   NOT_WIRED: {
-    bash: 'The Bash tab is not wired yet. It arrives as its own piece, behind the law gate: what you type runs as you, a read runs at once, and anything that writes asks first.',
-    python: 'The Python tab is not wired yet. It arrives with Bash, behind the same gate.',
     aider: 'The Aider tab is not wired yet. Aider is not installed here (WHAT\'S LEFT B20 and H12); until it is, a change to code goes through Version control, on a line of work, with your Land click.'
   },
   HIST_KEY: 'atlas.agent.hist',
@@ -153,11 +171,7 @@ const Agent = {
               <button type="button" class="ag-tool" id="ag-clear" title="Clear the screen (Ctrl+L)" aria-label="Clear the screen">${AG_ICON.trash}</button></div>
           </div>
           <div class="ag-out" id="ag-out" aria-live="polite"></div>
-          <div class="ag-hints" id="ag-hints" hidden><span>Try:</span>
-            <button type="button" data-say="/status">/status</button>
-            <button type="button" data-say="/help">/help</button>
-            <button type="button" data-say="/memory">/memory</button>
-            <button type="button" data-say="/sittings">/sittings</button></div>
+          <div class="ag-hints" id="ag-hints" hidden></div>
           <div class="ag-in">
             <span class="ag-p agent" id="ag-prompt"></span>
             <input id="ag-input" type="text" autocomplete="off" spellcheck="false"
@@ -192,7 +206,6 @@ const Agent = {
     on('ag-mic', 'click', () => this.mic());
     on('ag-help', 'click', () => { const h = $ag('ag-hints'); h.hidden = !h.hidden; $ag('ag-help').classList.toggle('on', !h.hidden); });
     on('ag-pages', 'click', (e) => { e.stopPropagation(); this.menu(); });
-    document.querySelectorAll('#ag-hints [data-say]').forEach(b => { b.onclick = () => this.go(b.dataset.say); });
     this.paintMode();
 
     const input = $ag('ag-input');
@@ -226,6 +239,11 @@ const Agent = {
         const en = this.entries.find(x => String(x.id) === b.dataset.id);
         if (en && navigator.clipboard) navigator.clipboard.writeText(this.textOf(en)).then(() => toast('Copied'), () => {});
       } else if (act === 'run') { this.open = true; this.tab = 'run'; this.paintPanel(); }
+      else if (act === 'shell-yes' || act === 'shell-no') {
+        // THE ONLY PLACE A SHELL CARD IS ANSWERED FROM: a button he presses (RULE 6).
+        const en = this.entries.find(x => String(x.id) === b.dataset.id);
+        if (en) this.decide(en, act === 'shell-yes' ? 'approve' : 'deny');
+      }
     });
     out.addEventListener('submit', (e) => {
       if (e.target.id !== 'ag-gate-form') return;
@@ -236,6 +254,7 @@ const Agent = {
       const b = e.target.closest('[data-act]');
       if (!b) return;
       if (b.dataset.act === 'boot') this.boot(); else if (b.dataset.act === 'close') this.closeSitting();
+      else if (b.dataset.act === 'reset') this.shellReset();
     });
     $ag('ag-pane').addEventListener('click', (e) => this.paneClick(e));
     $ag('ag-pane').addEventListener('input', (e) => { if (e.target.id === 'ag-tools-q') this.filterTools(e.target.value); });
@@ -316,19 +335,44 @@ const Agent = {
     if (!box) return;
     box.innerHTML = this.MODES.map(m =>
       `<button type="button" data-mode="${m.id}" class="${m.id === this.mode ? 'on' : ''}${m.wired ? '' : ' off'}"
-        title="${m.wired ? 'Ask the council' : 'Not wired yet'}"><span>${escHtml(m.label)}</span><small>${escHtml(m.badge)}</small></button>`).join('');
+        title="${escHtml(m.tip)}"><span>${escHtml(m.label)}</span><small>${escHtml(m.badge)}</small></button>`).join('');
     box.querySelectorAll('[data-mode]').forEach(b => {
       b.onclick = () => {
         const m = this.MODES.find(x => x.id === b.dataset.mode);
         if (!m.wired) { this.say('(' + m.label + ' tab)', this.NOT_WIRED[m.id], 'ERROR'); return; }
-        this.mode = m.id; this.paintMode(); $ag('ag-input').focus();
+        this.mode = m.id; this.paintMode(); this.paintTitle(); this.paintOut(); $ag('ag-input').focus();
       };
     });
-    const pr = $ag('ag-prompt');
-    if (pr) pr.innerHTML = this.promptText();
+    this.paintInput();
   },
 
-  promptText() { return 'agent[' + escHtml(Run.world || 'research') + ']&gt;'; },
+  // The line under the terminal belongs to the tab: its prompt, its placeholder and what it
+  // offers to try.
+  paintInput() {
+    const pr = $ag('ag-prompt');
+    if (pr) { pr.className = 'ag-p ' + this.mode; pr.innerHTML = this.promptText(); }
+    const input = $ag('ag-input');
+    if (input) input.placeholder = this.PLACEHOLDER[this.mode] || this.PLACEHOLDER.agent;
+    const box = $ag('ag-hints');
+    if (box) {
+      box.innerHTML = '<span>Try:</span>' + (this.HINTS[this.mode] || []).map(h =>
+        `<button type="button" data-say="${escHtml(h)}">${escHtml(h)}</button>`).join('');
+      box.querySelectorAll('[data-say]').forEach(b => { b.onclick = () => this.go(b.dataset.say); });
+    }
+  },
+
+  // The prompt a line is typed after. An entry keeps the prompt it was typed under, so the
+  // scrollback still says which tab each line went to.
+  promptText(kind) {
+    const k = kind || this.mode;
+    const w = escHtml(Run.world || 'research');
+    if (k === 'bash') return 'bash[' + w + ']$';
+    if (k === 'python') return 'py[' + w + ']&gt;&gt;&gt;';
+    return 'agent[' + w + ']&gt;';
+  },
+
+  // Bash and Python are the operator's typed shell; they run on the door and need no engine.
+  isShell(k) { return (k || this.mode) === 'bash' || (k || this.mode) === 'python'; },
 
   paintTitle() {
     const el = $ag('ag-title');
@@ -337,6 +381,12 @@ const Agent = {
     let state;
     if (Run.unreachable) {
       state = '<span class="ag-bad">door silent</span>';
+    } else if (this.isShell()) {
+      // A shell needs the door, not an engine: it says what it is, and the Python session can be ended.
+      state = this.mode === 'bash'
+        ? '<span title="Git Bash, run in this world as you; the law gate is walked before every run">git bash &middot; gated</span>'
+        : '<span title="One Python process for this world; it keeps its names until it is reset, runs past its limit, or the door restarts">keeps its names &middot; gated</span>' +
+          '<button type="button" class="ag-link" data-act="reset">Reset</button>';
     } else if (!Run.engineOpen) {
       state = '<span class="ag-warn">no engine</span><button type="button" class="ag-link" data-act="boot">Boot</button>';
     } else {
@@ -345,9 +395,9 @@ const Agent = {
         (Run.stale ? '<span class="ag-warn" title="' + escHtml((Run.staleFile || 'manjuel') + ' changed after this engine started; a reboot picks it up (seats, skills and pipelines reload without one)') + '">old code</span>' : '') +
         '<button type="button" class="ag-link" data-act="close">Close</button>';
     }
-    el.innerHTML = AG_ICON.cpu + '<b>agent</b><span class="ag-sl">/</span><span>project:' + w + '</span><span class="ag-sl">&middot;</span>' + state;
+    el.innerHTML = AG_ICON.cpu + '<b>' + escHtml(this.mode) + '</b><span class="ag-sl">/</span><span>project:' + w + '</span><span class="ag-sl">&middot;</span>' + state;
     const pr = $ag('ag-prompt');
-    if (pr) pr.innerHTML = this.promptText();
+    if (pr) { pr.className = 'ag-p ' + this.mode; pr.innerHTML = this.promptText(); }
   },
 
   // How long this engine has stood, said in words a person reads, from the
@@ -361,13 +411,25 @@ const Agent = {
 
   bannerHtml() {
     const w = escHtml(Run.world || 'research');
+    if (this.isShell()) {
+      const world = Run.world || 'research';
+      const lines = this.mode === 'bash'
+        ? ['Git Bash, run in ' + world + ' as you. A plain look (ls, cat, grep, git status, git log, git diff) runs at once.',
+           'Anything that writes, deletes, installs, reaches the network, or saves or sends work shows a card here and waits for your click. A secret file, client material, a key typed into a command or a path outside the ground is refused by name, and no click lifts a refusal.',
+           'The law is walked before every run, the command runs with none of the door\'s keys in its environment, what it prints is scrubbed of every secret the ground holds, and each run is written to the ground\'s holds log.']
+        : ['Python, in one session for ' + world + ' that keeps its names between entries: x = 41, then x + 1.',
+           'A plain calculation runs at once. An import, a file, a call to anything but a plain-data function, a def or a class shows a card and waits for your click. An entry that runs past 30 s ends the session and its names go; Reset (or /reset) ends it yourself.',
+           'The same gate as Bash: secrets and paths outside the ground are refused by name, the session holds none of the door\'s keys, and what it prints is scrubbed.'];
+      return '<div class="ag-e"><pre class="ag-pre dim">' + escHtml(Run.unreachable
+        ? 'The door did not answer. A shell runs on the door, so nothing below can run until it does.' : lines.join('\n')) + '</pre></div>';
+    }
     const l1 = Run.unreachable
       ? 'The door did not answer. Nothing below can run until it does.'
       : Run.engineOpen
         ? 'The council stands on ' + (Run.world || 'research') + ' (sitting ' + (Run.sitting || '?') + '). What you type goes to it: the law gate stamps it before any model reads a word, the router runs the tools, and every failure is shown with the answer.'
         : 'No engine is open on ' + (Run.world || 'research') + '. Press Boot, or type /boot: booting opens a sitting, and closing it writes its end and pays the toll if a turn ran.';
     const l2 = 'Your words go to the council as they are, and so does any /command the engine knows (try /help or /status). The page itself answers /boot, /close and /clear.';
-    const l3 = 'Bash, Python and Aider are in the tabs above and are not wired yet; each arrives as its own piece, behind the same gate.';
+    const l3 = 'Bash and Python are wired in the tabs above: what you type there runs as you, and anything that writes asks first. Aider is not wired yet.';
     void w;
     return '<div class="ag-e"><pre class="ag-pre dim">' + escHtml(l1 + '\n' + l2 + '\n' + l3) + '</pre></div>';
   },
@@ -382,6 +444,7 @@ const Agent = {
 
   textOf(en) {
     if (en.kind === 'local') return en.text || '';
+    if (en.kind === 'shell') return (en.ans && en.ans.output) || '';
     const t = en.cn && en.cn.turn;
     if ((en.isCommand || en.isAnswer) && en.cmdText != null && this.bare(en.cmdText)) return this.bare(en.cmdText);
     if (t) {
@@ -394,9 +457,10 @@ const Agent = {
 
   entryHtml(en) {
     const id = en.id;
+    if (en.kind === 'shell') return this.shellEntryHtml(en);
     if (en.kind === 'local') {
       const bad = en.status === 'ERROR';
-      return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText()}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
+      return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText('agent')}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
         <div class="ag-meta"><span class="ag-chip${bad ? ' bad' : ''}">${en.status === 'RUNNING' ? 'running' : 'page'}</span>${en.ms != null ? '<span>' + en.ms + 'ms</span>' : ''}</div></div>
         <pre class="ag-pre${bad ? ' bad' : ''}" id="ag-o-${id}">${escHtml(en.text || '')}</pre></div>`;
     }
@@ -434,9 +498,59 @@ const Agent = {
     }
     const deep = !!(t && t.delivery);
     const body = this.textOf(en);
-    return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText()}</span><span class="ag-cmd">${en.command === '' && en.isAnswer ? '(blank answer)' : escHtml(en.command)}</span></div>
+    return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText('agent')}</span><span class="ag-cmd">${en.command === '' && en.isAnswer ? '(blank answer)' : escHtml(en.command)}</span></div>
       <div class="ag-meta">${chips.join('')}<button type="button" class="ag-copy" data-act="copy" data-id="${id}" title="Copy the output" aria-label="Copy the output">${AG_ICON.copy}</button></div></div>
       ${body ? `<pre class="ag-pre${failed ? ' bad' : deep ? ' deep' : ''}" id="ag-o-${id}">${escHtml(body)}</pre>` : ''}${lines.join('')}${foot}</div>`;
+  },
+
+  // A line typed in a shell tab, as the door answered it. The page decides nothing: it draws the
+  // answer's state, class, reasons, hold and output, and a failure (a non-zero exit, a refusal, a run
+  // that was ended) is on the face of it. A card is drawn only for what the door said was held.
+  shellEntryHtml(en) {
+    const id = en.id;
+    const a = en.ans || null;
+    const kind = en.shell === 'python' ? 'python' : 'bash';
+    const why = (a && a.why) || [];
+    const chips = [];
+    let bad = false;
+    if (en.state === 'running') chips.push('<span class="ag-chip">running</span>');
+    else if (en.state === 'held') chips.push('<span class="ag-chip">asks first</span>');
+    else if (en.state === 'denied') chips.push('<span class="ag-chip bad">denied</span>');
+    else if (en.state === 'gone') chips.push('<span class="ag-chip">answered elsewhere</span>');
+    else if (en.state === 'refused') { chips.push('<span class="ag-chip bad">refused</span>'); bad = true; }
+    else if (en.state === 'error') { chips.push('<span class="ag-chip bad">could not run</span>'); bad = true; }
+    else if (en.state === 'ran' && a) {
+      chips.push('<span class="ag-chip">' + (a.approved ? 'approved by you' : escHtml(a.class || 'ran')) + '</span>');
+      if (a.exit != null) {
+        const nz = a.exit !== 0;
+        if (nz) bad = true;
+        chips.push('<span class="ag-chip' + (nz ? ' bad' : '') + '">exit ' + escHtml(String(a.exit)) + '</span>');
+      }
+    }
+    // Only a run or a refusal has a time: a card that waited for his hand has not taken that long to do anything.
+    if (en.state === 'ran' || en.state === 'refused') {
+      const ms = a && a.ms != null ? a.ms : en.ms;
+      if (ms != null) chips.push('<span>' + ms + 'ms</span>');
+    }
+    const out = this.textOf(en);
+    const lines = [];
+    if (en.state === 'held') {
+      lines.push(`<div class="ag-gate"><b>This asks first</b>
+        <div class="ag-gate-q">${escHtml(why.map(w => '- ' + w).join('\n'))}</div>
+        <div class="ag-btns"><button type="button" class="ag-btn go" data-act="shell-yes" data-id="${id}"${en.deciding ? ' disabled' : ''}>${en.deciding ? 'Running...' : 'Approve - run it'}</button>
+          <button type="button" class="ag-btn no" data-act="shell-no" data-id="${id}"${en.deciding ? ' disabled' : ''}>Deny</button></div>
+        <span class="ag-src">parked at the door as ${escHtml((a && a.hold) || '')}; approving runs exactly this entry and nothing else</span></div>`);
+    }
+    if (en.state === 'refused') lines.push(`<div class="ag-notrun"><b>REFUSED BY NAME</b><br>${why.map(escHtml).join('<br>')}<br><span class="ag-src">no click lifts a refusal; nothing ran</span></div>`);
+    if (en.state === 'denied') lines.push('<div class="ag-notrun"><b>DENIED</b> by you. Nothing ran.</div>');
+    if (en.state === 'gone') lines.push('<div class="ag-src">This was answered somewhere else (the Guardrails tab shows what it said), or the door restarted and dropped it. Nothing more happens from here.</div>');
+    if (en.state === 'error') lines.push(`<div class="ag-notrun"><b>COULD NOT RUN</b><br>${escHtml(en.err || '')}</div>`);
+    if (a && a.timed_out) lines.push(`<div class="ag-notrun"><b>ENDED</b> ${escHtml(a.note || 'it ran past its limit')}</div>`);
+    else if (a && a.note) lines.push(`<div class="ag-src">${escHtml(a.note)}</div>`);
+    if (a && a.truncated) lines.push('<div class="ag-src">the output was cut at 64 KB</div>');
+    return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p ${kind}">${en.prompt || this.promptText(kind)}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
+      <div class="ag-meta">${chips.join('')}<button type="button" class="ag-copy" data-act="copy" data-id="${id}" title="Copy the output" aria-label="Copy the output">${AG_ICON.copy}</button></div></div>
+      ${out ? `<pre class="ag-pre${bad ? ' bad' : ''}" id="ag-o-${id}">${escHtml(out)}</pre>` : ''}${lines.join('')}</div>`;
   },
 
   // THE GATE, IN THE THREAD. The council stopped to ask, so the question is
@@ -576,11 +690,13 @@ const Agent = {
 
   // ---- sending ------------------------------------------------------------
 
+  // A line may name its tab: `$ ls` or `! ls` is Bash, `>>> 1 + 1` is Python, from any tab.
   prefixMode(raw) {
-    if (/^(\$|!)\s/.test(raw)) return 'bash';
-    if (/^>>>\s/.test(raw)) return 'python';
-    if (/^aider\s/i.test(raw)) return 'aider';
-    return '';
+    let m;
+    if ((m = /^(?:\$|!)\s+([\s\S]*)$/.exec(raw))) return { mode: 'bash', text: m[1] };
+    if ((m = /^>>>\s+([\s\S]*)$/.exec(raw))) return { mode: 'python', text: m[1] };
+    if (/^aider\s/i.test(raw)) return { mode: 'aider', text: raw };
+    return null;
   },
 
   async go(rawIn) {
@@ -595,8 +711,15 @@ const Agent = {
     if (raw === '/clear') { this.entries = []; this.paintOut(); return; }
     if (raw === '/boot') return this.boot();
     if (raw === '/close') return this.closeSitting();
-    const wrong = this.prefixMode(raw);
-    if (wrong) return this.say(raw, this.NOT_WIRED[wrong], 'ERROR');
+    // A shell line: typed in a shell tab, or prefixed from any tab. A shell needs the door, not an
+    // engine, and it does not wait behind the council.
+    const via = this.prefixMode(raw);
+    if (via && via.mode === 'aider') return this.say(raw, this.NOT_WIRED.aider, 'ERROR');
+    const shell = via ? via.mode : (this.isShell() ? this.mode : '');
+    if (shell) {
+      if (raw === '/reset' && shell === 'python') return this.shellReset();
+      return this.shellRun(shell, via ? via.text : raw);
+    }
     if (Run.running) { toast('A turn is already running', 'error'); return; }
     if (this.asking()) {
       return this.say(raw, 'The council is waiting on your answer above, and it takes nothing else until you give it. Answer it first. Nothing was sent.', 'ERROR');
@@ -607,6 +730,69 @@ const Agent = {
         : 'No engine is open on ' + (Run.world || 'this world') + ', so nothing was sent. Press Boot (or type /boot) first: that opens a sitting, and the sitting line is the lock.', 'ERROR');
     }
     this.send(raw);
+  },
+
+  // ---- the shell tabs -------------------------------------------------------------
+
+  async shellRun(kind, text) {
+    const en = { id: ++this._seq, kind: 'shell', shell: kind, prompt: this.promptText(kind), command: text, state: 'running', t0: Date.now() };
+    this.entries.push(en);
+    this.paintOut();
+    await this.shellAsk(en, { shell: kind, command: text });
+  },
+
+  // /reset in the Python tab, or its Reset button: the session ends and its names go.
+  async shellReset() {
+    const en = { id: ++this._seq, kind: 'shell', shell: 'python', prompt: this.promptText('python'), command: '/reset', state: 'running', t0: Date.now() };
+    this.entries.push(en);
+    this.paintOut();
+    await this.shellAsk(en, { shell: 'python', reset: true });
+  },
+
+  async shellAsk(en, args) {
+    let said;
+    try { said = await App.tool('shell_run', args); }
+    catch (e) { en.state = 'error'; en.err = e.message || 'refused'; en.ms = Date.now() - en.t0; this.paintOut(); return; }
+    this.shellTake(en, said);
+  },
+
+  // What the door answered, in the one shape it answers in (state, class, why, hold, exit, output).
+  shellTake(en, said) {
+    let a = null;
+    try { a = JSON.parse(said); } catch { /* reported below */ }
+    en.ms = Date.now() - en.t0;
+    if (!a || typeof a !== 'object' || !a.state) {
+      en.state = 'error';
+      en.err = 'The door answered something that is not the shell\'s shape: ' + String(said).slice(0, 300);
+    } else { en.ans = a; en.state = a.state; }
+    this.readHolds();
+    this.paintOut();
+  },
+
+  // A CARD IS ANSWERED BY A BUTTON HE PRESSES AND NOWHERE ELSE (RULE 6). Approving runs, at the door,
+  // exactly the entry that was parked and re-judges it first: a refusal is refused again. The replay's
+  // answer is the shell's own document, after the words hold_answer puts before it.
+  async decide(en, decision) {
+    const a = en.ans;
+    if (!a || !a.hold || en.deciding) return;
+    en.deciding = true;
+    this.paintOut();
+    let said;
+    try { said = await App.tool('hold_answer', { id: a.hold, decision }); }
+    catch (e) { said = 'Refused: ' + (e.message || 'refused'); }
+    en.deciding = false;
+    en.ms = Date.now() - en.t0;
+    if (decision === 'deny') {
+      en.state = 'denied';
+    } else {
+      const m = /ran:\s*(\{[\s\S]*\})\s*$/.exec(said);
+      let ran = null;
+      if (m) { try { ran = JSON.parse(m[1]); } catch { /* shown as said, below */ } }
+      if (ran && ran.state) { en.ans = ran; en.state = ran.state; }
+      else { en.state = 'error'; en.err = said; }
+    }
+    this.readHolds();
+    this.paintOut();
   },
 
   // The page answered by itself, not the engine; the chip says so.
@@ -798,8 +984,19 @@ const Agent = {
     try {
       const d = JSON.parse(await App.tool('hold_list', {}, true));
       this.holdState = { armed: !!d.armed, n: (d.held || []).length, why: d.why_not || '' };
+      if (d.armed) this.settleCards(new Set((d.held || []).map(h => h.id)));
     } catch { this.holdState = null; }
     this.paintTop();
+  },
+
+  // A shell card whose hold has left the door's queue was answered somewhere else (the Guardrails
+  // tab) or dropped when the door restarted. It stops offering buttons that can only be refused.
+  settleCards(waiting) {
+    let moved = false;
+    for (const en of this.entries) {
+      if (en.kind === 'shell' && en.state === 'held' && !en.deciding && en.ans && !waiting.has(en.ans.hold)) { en.state = 'gone'; moved = true; }
+    }
+    if (moved) this.paintOut(false);
   },
 
   // The rack's own ladder, parsed the way the old Dashboard parsed it. A voice

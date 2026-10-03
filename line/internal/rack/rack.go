@@ -26,6 +26,10 @@ const (
 	VoiceMax = 8_000_000_000
 )
 
+// DefaultPort is Ollama's own. An OLLAMA_HOST that names a host and no port
+// means this one, in Ollama's own reading of its variable.
+const DefaultPort = "11434"
+
 // Voice is one lawful local voice.
 type Voice struct {
 	Name   string
@@ -47,10 +51,12 @@ func TierOf(size int64) string {
 // Host resolves the Ollama door: OLLAMA_HOST or loopback default. Anything
 // not loopback is refused — the rack never reaches outward.
 //
-// Two normalizations, both witnessed: a bare host:port gains http://
+// Three normalizations, all witnessed: a bare host:port gains http://
 // (Ollama itself exports OLLAMA_HOST=0.0.0.0:11434 as its bind address),
-// and 0.0.0.0/:: count as this-host — dialing them reaches loopback, never
-// outward, exactly like 127.0.0.1.
+// 0.0.0.0/:: count as this-host — dialing them reaches loopback, never
+// outward, exactly like 127.0.0.1 — and a host with no port gains Ollama's
+// own, 11434. This machine sets OLLAMA_HOST=127.0.0.1; the bare host dialled
+// port 80 and called a standing Ollama silent (WHAT'S LEFT C36, 2026-10-02).
 func Host() (string, error) {
 	raw := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
 	if raw == "" {
@@ -64,6 +70,10 @@ func Host() (string, error) {
 		return "", fmt.Errorf("refused: OLLAMA_HOST %q is not a door", raw)
 	}
 	host := u.Hostname()
+	if u.Port() == "" {
+		u.Host = net.JoinHostPort(host, DefaultPort)
+		raw = u.String()
+	}
 	if host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" || host == "::" ||
 		strings.EqualFold(host, "localhost") {
 		return strings.TrimRight(raw, "/"), nil

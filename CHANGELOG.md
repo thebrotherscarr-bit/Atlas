@@ -12,6 +12,117 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The operator's typed shell: Bash and Python on the front page, gated, and the rack's portless host mended (2026-10-03; the core's WHAT'S LEFT H15 and C36)
+
+The operator's word of 2026-10-02, on the card that ruled it, was that Bash and Python are "typed by you, gated". Asked
+today what the Bash tab should run and how the Python tab should behave, he chose Git Bash, and a Python session that
+remembers its names (the "python loop that works" he said he struggled to get before). And, mid-turn, about the rack:
+"the ollama host is always the same served from the desktop app, so whatever we need to do to rectify that, get it
+while you are at it."
+
+**The rack (C36).** This machine sets `OLLAMA_HOST=127.0.0.1`. `rack.Host()` turned the bare host into
+`http://127.0.0.1`, which dials port 80, so `rack_list` called a standing Ollama silent and the front page said "rack
+silent". A host with no port now means Ollama's own, 11434 (`rack.DefaultPort`), in the one function every caller goes
+through (the rack tools, `chat`, `play`); a port that is named is never changed, and an outward host is still refused
+once it has gained one. The core's engine never read the variable (it binds the rack on loopback itself), so the door
+was the only place that disagreed. Live on the placed door: "rack 11 voices".
+
+**`shell_run`, a tool of the door that only his glass may call** (`line/internal/tools`: `shell.go` the tool,
+`shellgate.go` the classifier, `shellpy.go` the Python session). `shell_run {shell: bash|python, command, timeout?,
+reset?}`. What you type runs as you, in the world the page is on, and is judged by reading it, never by asking a model:
+
+- A plain look runs at once: list, cat, head, tail, wc, grep, rg, find without `-delete` or `-exec`, echo, `git status`,
+  `git log`, `git diff` and the other read-only git verbs, a pipe of such, and, in Python, a calculation over numbers,
+  text and containers of them.
+- Anything else shows a card in the thread and waits for his click: it writes, deletes, installs, reaches the network,
+  commits, pushes, runs a program the gate cannot read, or uses shell syntax it does not model (a substitution, a
+  variable, a brace, a background job). The default is the card: the read list is short and exact, and a command the
+  gate has never heard of is asked about, not run. The card is the hold queue the door already has (`hold_list`,
+  `hold_answer`, the Guardrails tab), so approving runs exactly what was parked, and re-judges it first.
+- A secret file (`.env` and the rest of `is_secret`'s names), client material, a key typed into a command, a home
+  directory or a path outside the ground is refused by name, and no click lifts a refusal. A name dressed in quotes or
+  backslashes is the name it spells, and a glob that can reach a dotfile is refused.
+
+**What holds it shut.** No agent is ever given the shell: `Tool.ServiceOnly` is a new declaration, enforced in
+`Registry.Call` before RBAC or the holds look at it, so a role cannot grant the tool and an agent cannot park a call of
+it for him to approve. The attempt is written down; the tool refuses for itself too if it is reached any other way; and
+the permission record (`docs/TOOL_PERMISSIONS.md`, now 86 tools) prints the declaration. Approval is a typed field of
+the caller (`Caller.Hold`, set by `hold_answer` alone), not a word in a name. The law is walked before every run
+(`law/law.py verify`, cached against what `law/` holds, as the engine's own gate does). The child gets a BUILT
+environment with none of the door's keys in it (the door holds the service wire), and what it prints is scrubbed of
+every secret value in the ground's `.env` and of every variable of the door's own whose name says it is one. A run ends
+at its limit (30 s, 300 at most), with its children (taskkill's tree on Windows), keeps the first 64 KB of what it
+printed, and an entry is at most 8,000 characters. Every run, hold and refusal is a line in the world's
+`state/holds.jsonl` with the command (keys withheld): the log `hold_answer` already writes, not a new one. `spawn`
+gained four optional fields for this (`CleanEnv`, `MaxBytes`, `Grace`, `KillTree`); every other caller is as it was.
+
+**Bash** is Git Bash, found by the `git` on the PATH (the bare word `bash` on this machine is the WSL stub in
+WindowsApps, which the door never uses), and an entry reaches it in an environment variable that `eval` reads, never
+as an argument of `bash -c` (below). **Python** is one process per world, started from the ground with the python
+the door runs the engine with, speaking JSON lines over a private copy of its pipe (a child process's output lands on a
+separate channel and cannot pose as an answer; `input()` reads nothing). The driver judges the entry with `ast`, never
+`exec`: names are trusted for what they hold now, read off the live session, so a name an approved cell bound to a file
+does not make `x.read()` look like arithmetic. An entry that runs past its limit ends the session and its names go, and
+the next answer says so; `Reset` or `/reset` ends it by hand.
+
+**The page** (`js/agent.js`): the Bash and Python tabs are wired; Aider stays marked unwired. A line typed in a shell
+tab, or prefixed from any tab (`$ ls`, `! ls`, `>>> 1 + 1`), goes to `shell_run`; a shell needs no engine and does not
+wait behind the council. The page decides nothing about a command: it draws the one document the door answers in
+(`state`, `class`, `why`, `hold`, `exit`, `output`...), a card for a held answer and for nothing else, "REFUSED BY NAME"
+with no button for a refusal, a bad chip and box for a non-zero exit, "ENDED" for a run cut short, and "answered
+elsewhere" for a card whose hold was answered in Guardrails. Each tab has its own prompt, placeholder and things to try.
+
+**Proved.** 309 commands, each said 11 ways (padded, tabbed, behind a comment, chained behind a harmless look, piped,
+stderr folded in), 3,399 judgements, none allowed to differ from the plain phrasing; 87 Python entries judged by the
+real session; the tool run for real against Git Bash and Python in a temp ground (no agent is handed it, a name is not
+an approval, a write waits and approving runs exactly what was parked, a refusal is refused again at the replay, the
+child inherits no key, a secret value reaches no page, a broken law refuses the run, every outcome is recorded, a
+runaway ends); a differential test of the gate's lexer against the real Git Bash through the real route (33
+quotings); and 45 reversals (4 on the rack, 28 on the door, 13 on the page), each red and named, every file
+restored byte for byte. The whole door and glass suites green, `go vet` clean. Then the built pair was run for real: a
+scratch door and glass built from this tree (their own wire and lock, a throwaway ground), driven in the browser with
+real clicks and typing. Bash: a listing, a log, the three refusals, a recursive grep whose secret came back withheld, a
+write that showed a card and ran on a click, a delete that was denied and left the file. Python: `x = 41`, `x + 1` =
+42, an import that asked and ran, `/reset` and the NameError after it, the `$ ` prefix routed from the Python tab, the
+held call listed in Guardrails. The ground's holds log held all of it.
+
+**Found by that run, and mended.** I named a new method `shell`, which silently REPLACED the page's own `shell()` (the
+template it is drawn from; the later key of an object literal wins), and the page drew "[object Promise]". Every stroke
+that reads the source as text had stayed green. The method is `shellRun` now, and
+`TestNoMethodOfTheFrontPageIsDefinedTwice` says so for every method of the page. The run also showed a refusal said
+twice, a denied card that wore its waiting time as its run time, and a card that kept its buttons after Guardrails
+answered it; all three are mended and held.
+
+**A hole in the door as first placed, found an hour later and mended.** To prove the gate and bash see the same words I
+wrote the dull test: split a list of awkward quotings both ways and compare. Handed to `bash -c` on the Windows command
+line, a doubled backslash outside double quotes was HALVED by Git Bash's runtime: `cat .\\env` was lexed as the file
+`.\env` (not a secret's name) and run as `cat .\env`, which bash reads as `.env`. The name refusal for `.env` could be
+walked round for as long as that door stood (about an hour); the secret VALUES were still scrubbed from what it printed,
+so nothing showed. The entry travels in `ATLAS_SHELL_COMMAND` now and runs under `eval`, which is what the lexer
+models, and `TestTheLexerSeesTheWordsBashSees` (33 quotings through the real route) and
+`TestADoubledBackslashIsNotASecretName` hold it. The mistake was mine: I had assumed a command line is a faithful
+carrier for a command, and no test of the gate had ever compared its words with bash's.
+
+**Placed.** On the operator's card of 2026-10-03 ("Place and restart, hold the save and send") the door (12,340,736 to
+12,595,200 bytes, sha256 `7f36ab1e414c...`) and the glass (11,140,096 to 11,152,384 bytes, `53c89db99d1d...`) were
+placed; a fresh build of this tree comes out byte for byte the same. Both were restarted (door pid 17064, glass pid
+22816; the old binaries are kept outside the ground). The door was down about two minutes: PowerShell split the quoted
+`--manjuel "python ..."` value of its start line into two arguments and the door refused it by name; it was started
+again with the value quoted as the runbook has it. Checked on his own page, read-only: the status line says "rack 11
+voices", `ls` and `git log` read his ground, `env` showed a card that was denied (nothing ran), and `1 + 1`,
+`sum(range(101))` and `/reset` ran in Python.
+
+**Placed again.** On a second card the same hour ("Place the fixed door and restart it") the fixed door (12,595,200 to
+12,596,224 bytes, sha256 `e4392bb39683...`; a fresh build of the tree is byte for byte the same) was placed and
+restarted (door pid 9248; the glass is unchanged, pid 22816). The fixed route was run for real on the scratch pair:
+quotings, pipes, `cat .\env` refused by name, `cat .\\env` finding no such file. The last look at the fixed door on
+his own page did not happen: his glass had gone to its lock screen, and the PIN is his.
+
+**Not done, and said.** Python's `def`, `class` and a call to a function you defined are always a card (nothing
+remembers which of your functions are pure yet). `/reset` is not written to the holds log. The shell tabs keep no
+scrollback across a page reload (the record is the holds log). The Aider tab (B20, H12) and retiring the sidebar (H16)
+are the next pieces. Saved and sent on his word ("go"), after the ground's suites ran green from his glass.
+
 ### The front page: one terminal, five doors and an Inspector, in the glass's own JavaScript (2026-10-02; the core's WHAT'S LEFT H14)
 
 The operator, shown a page out of his own AI Studio project: "that's what I am looking for", and, asked where it

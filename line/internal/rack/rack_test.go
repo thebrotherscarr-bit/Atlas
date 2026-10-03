@@ -78,6 +78,40 @@ func TestOutwardHostRefused(t *testing.T) {
 	}
 }
 
+// A host with no port is Ollama's port (WHAT'S LEFT C36). This machine sets
+// OLLAMA_HOST=127.0.0.1; the rack read it as http://127.0.0.1, dialled port 80
+// and called a standing Ollama silent. A port that is named is never changed.
+func TestPortlessHostMeansOllamasPort(t *testing.T) {
+	for in, want := range map[string]string{
+		"":                    "http://127.0.0.1:11434",
+		"127.0.0.1":           "http://127.0.0.1:11434",
+		"localhost":           "http://localhost:11434",
+		"0.0.0.0":             "http://0.0.0.0:11434",
+		"http://127.0.0.1":    "http://127.0.0.1:11434",
+		"http://127.0.0.1/":   "http://127.0.0.1:11434",
+		"http://127.0.0.1:":   "http://127.0.0.1:11434",
+		"[::1]":               "http://[::1]:11434",
+		"127.0.0.1:11500":     "http://127.0.0.1:11500",
+		"http://127.0.0.1:80": "http://127.0.0.1:80",
+	} {
+		t.Setenv("OLLAMA_HOST", in)
+		got, err := Host()
+		if err != nil {
+			t.Fatalf("OLLAMA_HOST=%q refused: %s", in, err)
+		}
+		if got != want {
+			t.Fatalf("OLLAMA_HOST=%q read as %q, want %q", in, got, want)
+		}
+	}
+	// Adding the port must not make an outward host lawful.
+	for _, h := range []string{"example.com", "http://192.168.1.10", "https://10.0.0.5"} {
+		t.Setenv("OLLAMA_HOST", h)
+		if _, err := Host(); err == nil {
+			t.Fatalf("outward host %q admitted once it gained a port", h)
+		}
+	}
+}
+
 func TestSilenceHonest(t *testing.T) {
 	// Port 1 on loopback refuses: deterministic silence, honest reason.
 	t.Setenv("OLLAMA_HOST", "http://127.0.0.1:1")
