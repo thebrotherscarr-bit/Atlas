@@ -263,8 +263,12 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 // marked background is kept as before, so no call that writes can leave the
 // record by asking to. `projects` joined on 2026-09-21: the Dashboard's project
 // list (the maker's piece 2) reads it on arrival and after every turn.
+// `hold_list` joined on 2026-10-02 with the front page: its Inspector dot asks
+// how many writing calls wait for his hand when the page opens and after each
+// turn, and a toast saying "New trace recorded" at every one of those would be
+// the same noise the ruling above ended. The door declares it Writes: false.
 var backgroundReads = map[string]bool{"muster": true, "rack_list": true, "proofs": true,
-	"projects": true}
+	"projects": true, "hold_list": true}
 
 func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	var req struct {

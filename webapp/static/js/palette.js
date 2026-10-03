@@ -55,18 +55,18 @@ const Palette = {
         label: 'Close the sitting',
         note: (Run.runs ? 'pays its toll and reaps the engine' : 'reaps the engine; no turn ran, so no toll is owed')
           + ' · sitting ' + (Run.sitting || '?'),
-        run: () => { go('/')(); setTimeout(() => Home.closeSitting(), 60); },
+        run: () => { go('/')(); setTimeout(() => Agent.closeSitting(), 60); },
       });
       engine.push({
         label: 'Reboot the engine',
         note: 'closes this sitting and opens a fresh one',
-        run: () => { go('/')(); setTimeout(() => Home.boot(), 60); },
+        run: () => { go('/')(); setTimeout(() => Agent.boot(), 60); },
       });
     } else {
       engine.push({
         label: 'Boot an engine',
         note: 'opens a sitting on ' + (Run.world || 'this world'),
-        run: () => { go('/')(); setTimeout(() => Home.boot(), 60); },
+        run: () => { go('/')(); setTimeout(() => Agent.boot(), 60); },
       });
     }
     return engine.concat(pages);

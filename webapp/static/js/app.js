@@ -1,6 +1,6 @@
 // ATLAS App — SPA router and pages
 const App = {
-  currentPage: 'dashboard',
+  currentPage: 'agent',
   data: {},
 
   init() {
@@ -26,10 +26,14 @@ const App = {
   },
 
   router() {
-    const path = location.pathname.slice(1) || 'dashboard';
+    const path = location.pathname.slice(1) || 'agent';
     const parts = path.split('/');
     this.currentPage = parts[0];
     this.pageParam = parts[1] || null;
+    // THE FRONT PAGE HAS NO SIDEBAR (agent.css hides it under this class and
+    // nowhere else), and every other page gets it back the moment the route
+    // leaves.
+    document.body.classList.toggle('is-agent', this.currentPage === 'agent');
     document.querySelectorAll('.nav-link').forEach(a => {
       a.classList.toggle('active', a.dataset.page === this.currentPage);
     });
@@ -51,7 +55,7 @@ const App = {
     const name = link
       ? (link.childNodes[0].textContent || '').trim()
       : this.currentPage.charAt(0).toUpperCase() + this.currentPage.slice(1);
-    const home = this.currentPage === 'dashboard';
+    const home = this.currentPage === 'agent';
     const parts = [`<a href="/" onclick="event.preventDefault();history.pushState(null,'','/');App.router();">ATLAS</a>`];
     if (!home) {
       parts.push('<span class="sep">/</span>');
@@ -79,7 +83,7 @@ const App = {
     if (prim) prim.onclick = () => {
       history.pushState(null, '', '/');
       this.router();
-      setTimeout(() => (Run.engineOpen ? Home.closeSitting() : Home.boot()), 60);
+      setTimeout(() => (Run.engineOpen ? Agent.closeSitting() : Agent.boot()), 60);
     };
     // Repainted on every run event, because a turn can open or close a sitting
     // and the button must not go on offering the thing that already happened.
@@ -243,8 +247,11 @@ const App = {
   async render() {
     const el = document.getElementById('content');
     switch (this.currentPage) {
-      // The launchpad (home.js). renderDashboard below is the old estate
-      // readout -- kept whole, no longer routed, until he says its fate.
+      // THE FRONT PAGE (agent.js): one terminal, five doors, an Inspector.
+      case 'agent': await Agent.render(el); break;
+      // The launchpad (home.js), moved here from / on 2026-10-02 when the front
+      // page replaced it, and kept whole until he says its fate.
+      // renderDashboard below is the old estate readout -- no longer routed.
       case 'dashboard': await Home.render(el); break;
       // Everything still open, read from WHATS_LEFT.md (left.js).
       case 'left': await Left.render(el); break;
@@ -890,7 +897,7 @@ const App = {
         <div class="page-header">
           <div>
             <div class="page-title">Evaluations</div>
-            <div class="page-subtitle">${evals.length} scored evals, ${passed} passed, ${failed} failed. The last run, whole, is on the <a href="/" onclick="event.preventDefault();history.pushState(null,'','/');App.router();">Dashboard</a>; the suites, standups and sittings are on <a href="/records" onclick="event.preventDefault();history.pushState(null,'','/records');App.router();">Records</a>.</div>
+            <div class="page-subtitle">${evals.length} scored evals, ${passed} passed, ${failed} failed. The last run, whole, is on the <a href="/dashboard" onclick="event.preventDefault();history.pushState(null,'','/dashboard');App.router();">Dashboard</a>; the suites, standups and sittings are on <a href="/records" onclick="event.preventDefault();history.pushState(null,'','/records');App.router();">Records</a>.</div>
           </div>
           <!-- #ev-run-state and #ev-run-cancel WERE HERE and were dead. The
                run card moved to the Dashboard on 2026-09-10 and took the

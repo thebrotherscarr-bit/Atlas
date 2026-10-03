@@ -12,6 +12,67 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The front page: one terminal, five doors and an Inspector, in the glass's own JavaScript (2026-10-02; the core's WHAT'S LEFT H14)
+
+The operator, shown a page out of his own AI Studio project: "that's what I am looking for", and, asked where it
+should go, "replace the Dashboard now". `/` is now that page, written in this console's plain JavaScript and CSS
+(`js/agent.js`, `css/agent.css`): a top bar with five doors (Aider Pair, Audit Ledger, Workflows, Registry & Docs,
+Guardrails), a status line, a Pages menu, an Inspector toggle and who is signed in; ONE terminal with four mode tabs
+(Agent, Bash, Python, Aider), a prompt line with history, the microphone and suggestions; and an Inspector that opens
+beside it with seven tabs (Run, Aider Pair, Audit Ledger, Workflows, Guardrails, Docs & Registry, Rack). The sidebar
+is hidden on this page and on no other. The launchpad it replaced is kept whole at `/dashboard`, with its own
+sidebar link, and every other page is where it was.
+
+The Agent tab is the council: a line typed there is the REPL's own turn through `Run`, so the law gate stamps it before
+any model reads a word, and the page writes its turns into `Chat.thread`, which the Watchboard and the old Dashboard
+read too. Failures are on the face of the answer ("NOT EVERYTHING RAN"); a question from the council is a card in the
+thread with a field under it (a blank answer is an answer, as the door already treats it, and while a question is open
+the prompt line takes nothing else); a turn can be cancelled; a typed `/command` prints into the terminal; and
+`/boot`, `/close` and `/clear` are the page's own. Boot opens the engine, loads the pipeline's models and keeps the
+engine's own `/status` report. The sidebar's button and the palette boot through the same functions.
+
+What it did not take from the page it came from. That page showed a tokens-per-second figure drawn from a random
+number, a "WAL Active" that was a label, an agent that matched words and reported tool calls that never ran, a pair
+programmer that appended a stub, committed it and said done, a repair loop that reported a repair that never
+happened, a seeded approval queue that gated nothing, and a login with a token the page invented. None of it is here.
+Every figure on this page is read from a tool or not shown. Bash, Python and Aider are in the bar and, pressed, say
+they are not wired yet (each is its own piece, behind the door's gate; the operator ruled "typed by you, gated" for
+Bash and Python). The Audit Ledger shows the engine's own `/status` report, the sittings off `proofs` and the
+transcripts off `records`, and does not call `verify_chain`, which cannot yet read the pen's links (the core's H7).
+Guardrails is the door's real hold queue, with an Approve and a Deny that run only on his click. The prototype is
+unpacked and installed, untracked, at `worlds/agentos` in the core's ground, for reference only; nothing of its code
+is here.
+
+The door's `hold_list` joins the glass's quiet reads (`backgroundReads`): the Inspector's dot asks how many writing
+calls wait when the page opens and after each turn, and a "New trace recorded" toast at every one of those would be
+the noise the 2026-09-16 ruling ended. The door declares it `Writes: false`.
+
+**Proved.** Three new tests in `server/glass_test.go`. The front page is routed at `/` with the launchpad kept at
+`/dashboard`, and boot and close are its own. It fakes nothing: no random figure, no sign-in of its own, the unwired
+tabs marked and saying so, the failures drawn on the answer, the gate answered only from the field and the hold queue
+only from a button. And every tool it asks the door for is in the door's tool table, every quiet read is on the
+glass's list, and every route it fetches is served. Fifteen reversals, each red and named, restored byte for byte;
+one of them stayed green and showed a real gap in the first stroke, which looked for the failure face anywhere in the
+file, and it now looks in the terminal's own. The whole glass suite green (`db`, `handlers`, `server`), `go vet`
+clean. Then the built page was run for real: a copy of the glass built from this tree, on port 8191 with its own data
+and lock, against the live door. From the page it booted an engine (sitting 334; `/warm`, then `/status`, whose memory
+line read "chain whole"), ran one real council turn (310 s, two seats, four tools, delivered, the engine's own "READ IN
+PART, NOT WHOLE" line on the answer), ran a typed `/command`, made the council stop on its own question and answered
+it in the thread (a `/remember` declined at its last question; `memory.md` was not touched), cancelled a turn, read
+every Inspector tab off live data, and closed the sitting (tolled). That run found, and this code fixes, a top bar
+that made the page scroll sideways under about 1,200 px, a Seats stage that counted sittings and not seats, a gate
+that refused a blank answer, and an answered question that printed nothing.
+
+**Placed.** On the operator's word of 2026-10-03 ("go", with his sitting 335 open) the rebuilt glass was placed
+(11,140,096 bytes, sha256 `d7e29c67d1d0...`, the one the tests and the live run proved; the old binary is kept
+outside the ground) and the live glass on 8091 was restarted. It serves exactly the files in this tree, byte for
+byte, and his first tab shows the front page signed in, with the open sitting reflected ("engine open", "sitting
+335"). The glass embeds its pages, so any later change to them needs the same: a rebuild, a placement and a restart.
+
+**Not done, and said.** Bash and Python on the gate, the Aider tab (which waits on B20) and retiring the sidebar are
+the next pieces (the core's H15, H12 and H16). The status line quotes `rack_list`, which reads a portless
+`OLLAMA_HOST` as port 80 and so reports the rack silent while Ollama stands (the core's C36).
+
 ### The door's tools have permission records: read off the table and the policy, held current by a test (2026-10-02; the core's WHAT'S LEFT D7)
 
 The tool server's tools declared what they are (writes or reads, which actions of a writing tool only

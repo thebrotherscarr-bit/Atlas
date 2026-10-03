@@ -20,8 +20,10 @@ import (
 	"testing"
 )
 
-// The three reads Home.read asks for.
-var dashboardReads = []string{"muster", "rack_list", "proofs"}
+// The three reads Home.read asks for, and the one the front page adds
+// (hold_list, 2026-10-02): the reads that are asked on arrival and after every
+// turn, and so are the ones that may be answered without being kept.
+var dashboardReads = []string{"muster", "rack_list", "proofs", "hold_list"}
 
 // answeringDoor points h at a door that answers every call with the same few
 // words, and counts the calls it was asked.
@@ -84,7 +86,7 @@ func TestTheDashboardsOwnReadsAreNotKept(t *testing.T) {
 		}
 	}
 	if n := h.store.Count(); n != 0 {
-		t.Fatalf("three background reads left %d traces in the ledger", n)
+		t.Fatalf("%d background reads left %d traces in the ledger", len(dashboardReads), n)
 	}
 }
 
@@ -150,8 +152,8 @@ func TestTheSameReadsAskedPlainlyAreKept(t *testing.T) {
 }
 
 // NO OTHER TOOL LEAVES THE RECORD BY ASKING TO. A call that writes, marked
-// background, is kept and announced; so is a read the Dashboard does not poll.
-func TestOnlyTheDashboardsThreeReadsCanBeLeftOut(t *testing.T) {
+// background, is kept and announced; so is a read the front pages do not poll.
+func TestOnlyTheFrontPagesOwnReadsCanBeLeftOut(t *testing.T) {
 	h := newTestHandlers(t)
 	answeringDoor(t, h)
 	tab := listen(h)

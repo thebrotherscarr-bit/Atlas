@@ -6,6 +6,7 @@
   <title>ATLAS — Sovereign Agent Harness</title>
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/icons.css">
+  <link rel="stylesheet" href="/css/agent.css">
 </head>
 <body>
   <div class="app">
@@ -38,7 +39,14 @@
              stroke, masked over currentColor so they take the link's own
              colour through idle, hover and active. -->
         <div class="nav-section">Work</div>
-        <a href="/" class="nav-link active" data-page="dashboard">Dashboard</a>
+        <!-- THE FRONT PAGE (2026-10-02, his word, shown a page from his own AI
+             Studio project: "that's what I am looking for", then "replace the
+             Dashboard now"): one terminal, five doors, an Inspector. It is /
+             and it has no sidebar -- body.is-agent hides this panel there and
+             nowhere else, so this link is how every other page comes back to
+             it. The launchpad it replaced is kept whole at /dashboard. -->
+        <a href="/" class="nav-link active" data-page="agent">Home</a>
+        <a href="/dashboard" class="nav-link" data-page="dashboard">Dashboard</a>
         <!-- WHAT'S LEFT (2026-09-29, his word: "write a page on the webapp"):
              everything still open, numbered, read from WHATS_LEFT.md at the
              root of the ground -- js/left.js. Second in the panel because it
@@ -129,6 +137,7 @@
   <script src="/js/projects.js"></script>
   <script src="/js/chat.js"></script>
   <script src="/js/council.js"></script>
+  <script src="/js/agent.js"></script>
   <script src="/js/prompts.js"></script>
   <script src="/js/flows.js"></script>
   <script src="/js/workflows.js"></script>
