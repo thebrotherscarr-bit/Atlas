@@ -514,3 +514,34 @@ func TestNoMethodOfTheFrontPageIsDefinedTwice(t *testing.T) {
 		t.Fatalf("read %d methods; this stroke is reading the wrong thing", len(seen))
 	}
 }
+
+// THE FRONT PAGE'S WINDOW STAYS THE SIZE IT STARTS AT, ON A NARROW SCREEN TOO. His word, 2026-10-03, watching the app's browser
+// pane at 888 px: "the window should be locked to that scale it starts at and just scroll the terminal instead of the whole
+// page." Below 1024 px the stylesheet makes the main area a COLUMN, and in a column the window's `flex: 1` sizes its HEIGHT by
+// its content, overriding the `height: calc(100vh - 125px)` it is given: the page grew with every line (3696 px, then 4042) and
+// the output box, which scrolls, was never short enough to. This holds the two halves of the cure -- the window keeps a given
+// height, and the narrow block tells it not to flex -- and the page itself was measured in the browser at the same 888 px before
+// and after (the CHANGELOG has the numbers), because a rule read as text can be in the file and still lose.
+func TestTheWindowIsNotSizedByItsContentOnANarrowScreen(t *testing.T) {
+	css := page(t, "css/agent.css")
+	if !regexp.MustCompile(`(?s)\.ag-win, \.ag-panel \{[^}]*height: calc\(100vh - 125px\);`).MatchString(css) {
+		t.Fatal("the window and the panel no longer carry their given height; this stroke is reading the wrong thing")
+	}
+	i := strings.Index(css, "@media (max-width: 1023px) {")
+	if i < 0 {
+		t.Fatal("the narrow-screen block (max-width: 1023px) is gone")
+	}
+	block := css[i:]
+	if j := strings.Index(block, "\n}\n"); j >= 0 {
+		block = block[:j]
+	}
+	if !strings.Contains(block, ".ag-main { flex-direction: column;") {
+		t.Fatal("the narrow-screen block no longer makes the main area a column; this stroke is reading the wrong thing")
+	}
+	if !regexp.MustCompile(`\.ag-win \{ flex: none; \}`).MatchString(block) {
+		t.Error("below 1024 px the window is a child of a column, and without `.ag-win { flex: none; }` its flex: 1 sizes its height by its content again")
+	}
+	if !regexp.MustCompile(`(?s)\.ag-out \{[^}]*overflow-y: auto;`).MatchString(css) {
+		t.Error("the output box no longer scrolls (overflow-y: auto); the window would clip the terminal instead of scrolling it")
+	}
+}

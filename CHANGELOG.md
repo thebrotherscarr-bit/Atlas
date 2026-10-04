@@ -12,6 +12,36 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The front page's window keeps the size it starts at, and the terminal scrolls inside it (2026-10-03; the core's WHAT'S LEFT C37)
+
+His word, 2026-10-03, watching the app's browser pane while a session ran: "the window just keep growing, that doesnt make sense. the
+window should be locked to that scale it starts at and just scroll the terminal instead of the whole page."
+
+**The cause.** `agent.css` gives the terminal window a fixed height (`height: calc(100vh - 125px)`) and its output box
+`overflow-y: auto`, which works on a wide screen. Below 1024 px wide -- and the app's pane is 888 -- the same file turns the main
+area into a column, and in a column the window's `flex: 1` sizes its HEIGHT: by its content, overriding the fixed height. The window
+grew with every line, the page with it, and the output box was never short enough to scroll. Measured on his live page: the document
+3696 px tall at 888 px wide (4042 by the end of a session), the window 3578 against the 592 it is meant to be.
+
+**The fix** is one rule in the narrow-screen block, with the reason beside it: `.ag-win { flex: none; }`.
+
+**Proved in a browser, not only in the file**, on a scratch glass at the pane's own 888 x 717, with the same 150-line flood before and
+after. Before: the document 15,186 px, the window 15,068, the output box 14,960 px tall with nothing to scroll. After: the document
+717 px (the viewport: the page does not scroll), the window 592, the output box 485 px showing the end of 14,960 px of content and
+scrolling inside itself. And at 1280 x 800 (the side-by-side layout, unchanged: the window 675 = the viewport less 125, the output box
+scrolling) and at 600 x 800 (stacked, no horizontal scroll). The glass's whole Go suite is green and `go vet` is quiet.
+
+**What goes red if unplugged:** `TestTheWindowIsNotSizedByItsContentOnANarrowScreen` -- the window and the panel keep their given
+height, the narrow block tells the window not to flex, the output box scrolls -- with three reversals, each red and restored byte for
+byte. A rule read as text can be in the file and still lose, so the test is the wire and the browser measurement is the proof.
+
+**Not done, and said.** With the Inspector open on a screen narrower than 1024 px the panel still STACKS below the window (a second
+full-height box), so the page scrolls to reach it; that is the layout's old design and was not asked about. **Placed** on his card
+("Place and restart the glass"): the proved build over `atlas-webapp.exe` (a fresh build of the tree is byte for byte the same; the old one is
+kept outside the ground), only the glass restarted (pid 18916; the door untouched), and measured on his own page at his own 888 x 717 after he
+unlocked it: the served stylesheet has the rule; the page 717 px, the window 592, `flex: 0 0 auto`; and after a 60-line flood the page still 717
+and the window still 592, with the output box holding 4,925 px and scrolling inside its 485.
+
 ### The operator's typed shell: Bash and Python on the front page, gated, and the rack's portless host mended (2026-10-03; the core's WHAT'S LEFT H15 and C36)
 
 The operator's word of 2026-10-02, on the card that ruled it, was that Bash and Python are "typed by you, gated". Asked

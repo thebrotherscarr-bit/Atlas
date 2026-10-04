@@ -319,6 +319,12 @@ body.is-agent .crumb { display: none; }
 }
 @media (max-width: 1023px) {
   .ag-main { flex-direction: column; align-items: stretch; }
+  /* THE WINDOW KEEPS THE SIZE IT STARTS AT (his word, 2026-10-03, watching the app's browser pane: "the window should be
+     locked to that scale it starts at and just scroll the terminal instead of the whole page"). In a column, the window's
+     `flex: 1` sizes its HEIGHT, by its content, and overrides the fixed height it is given above -- so every line the
+     terminal printed made the whole page taller (3696 px at the pane's 888, 4042 by the end of a session) while the output
+     box, which has overflow-y: auto, was never short enough to scroll. `flex: none` hands the height back. */
+  .ag-win { flex: none; }
   .ag-panel { width: 100%; }
   .ag-nav { display: none; }
 }
