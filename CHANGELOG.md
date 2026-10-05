@@ -12,7 +12,7 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-## [v0.2.1] — 2026-10-05 15:16
+## [v0.2.1] — 2026-10-05 15:16 (tag on 5c6beeb)
 
 ### The PowerShell tab: PowerShell 7 beside Bash, Python and Aider, every line on his card, and a shell line may run up to 300 s (2026-10-05, the core's WHAT'S LEFT H26; his word: "i should be able to run them in a tab alongside the agent, bash, python, and aider buttons or tabs. Let's get this done")
 
