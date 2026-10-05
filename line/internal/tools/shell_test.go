@@ -597,3 +597,19 @@ func TestADoubledBackslashIsNotASecretName(t *testing.T) {
 		t.Fatalf("two backslashes are a literal one in a name that does not exist, and bash must say so: %+v", a)
 	}
 }
+
+// THE THIRD SHELL (WHAT'S LEFT H26, 2026-10-05). A PowerShell line goes through the bash gate for its refusals,
+// and nothing the gate reads as a plain look lets one run unasked: the gate does not read PowerShell, so every line
+// waits on his card.
+func TestAPowerShellLineAlwaysAsksFirst(t *testing.T) {
+	reg, tr, _ := shellWorld(t, map[string]string{"README.md": "# a ground"})
+	for _, cmd := range []string{"Get-Location", "ls", "git log --oneline -1"} {
+		a := callShell(t, reg, tr, glass, map[string]any{"shell": "pwsh", "command": cmd})
+		if a.State != "held" || a.Hold == "" {
+			t.Fatalf("a PowerShell line ran without his card: %q -> %+v", cmd, a)
+		}
+	}
+	if a := callShell(t, reg, tr, glass, map[string]any{"shell": "powershell", "command": "Get-Date"}); a.State != "held" {
+		t.Fatalf("the shell named powershell is not PowerShell: %+v", a)
+	}
+}

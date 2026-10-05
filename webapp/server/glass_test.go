@@ -293,7 +293,7 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 		t.Fatal("the table of what an unwired tab says is gone")
 	}
 	modes := regexp.MustCompile(`id: '([a-z]+)',[^}]*wired: (true|false)`).FindAllStringSubmatch(src, -1)
-	if len(modes) != 4 {
+	if len(modes) != 5 {
 		t.Fatalf("read %d tabs; this stroke is reading the wrong thing", len(modes))
 	}
 	says := map[string]bool{}
@@ -305,7 +305,7 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 			t.Fatalf("the %s tab is marked wired: %s and its words say %v when pressed", m[1], m[2], says[m[1]])
 		}
 	}
-	for _, id := range []string{"agent", "bash", "python", "aider"} {
+	for _, id := range []string{"agent", "bash", "python", "pwsh", "aider"} {
 		if !regexp.MustCompile(`id: '` + id + `',[^}]*wired: true`).MatchString(src) {
 			t.Fatalf("the %s tab is not marked as wired", id)
 		}
@@ -407,7 +407,7 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 	if !strings.Contains(funcOf(src, "  async shellReset("), "reset: true") || strings.Count(src, "reset: true") != 1 {
 		t.Fatal("the session can be ended from somewhere other than its own reset")
 	}
-	if !strings.Contains(funcOf(src, "  async shellRun("), "{ shell: kind, command: text }") {
+	if !strings.Contains(funcOf(src, "  async shellRun("), "{ shell: kind, command: text, timeout: 300 }") {
 		t.Fatal("an entry is not sent as the shell it was typed in, as typed")
 	}
 	// The page holds no list of commands or words of its own to judge by.
@@ -429,7 +429,7 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 		t.Fatal("the page and hold_answer no longer agree on where an approved run's document begins")
 	}
 	// Every wired tab offers something to try and says what it is for.
-	for _, id := range []string{"agent", "bash", "python", "aider"} {
+	for _, id := range []string{"agent", "bash", "python", "pwsh", "aider"} {
 		if !regexp.MustCompile(`(?s)HINTS: \{.*?\b`+id+`: \[`).MatchString(src) || !regexp.MustCompile(`(?s)PLACEHOLDER: \{.*?\b`+id+`: '`).MatchString(src) {
 			t.Fatalf("the %s tab has no hints or no placeholder", id)
 		}

@@ -1,7 +1,8 @@
 package tools
 
 // THE OPERATOR'S TYPED SHELL -- shell_run (WHAT'S LEFT H15, 2026-10-03). His word of 2026-10-02, on the
-// card: "typed by you, gated". Bash (Git Bash) and Python, run in a world, from the front page's two tabs.
+// card: "typed by you, gated". Bash (Git Bash) and Python, run in a world, from the front page's tabs, and
+// PowerShell 7 beside them since 2026-10-05 (WHAT'S LEFT H26): every PowerShell line waits on his card.
 //
 //	WHAT YOU TYPE RUNS AS YOU, and a plain look (ls, cat, grep, git status/log/diff, a calculation) runs at
 //	once. Anything that writes, deletes, installs, reaches the network, saves or sends work, or that the
@@ -113,6 +114,13 @@ const shellCommandVar = "ATLAS_SHELL_COMMAND"
 // bashInvocation is the arguments and the extra environment that run a typed entry in bash.
 func bashInvocation(command string) (args, env []string) {
 	return []string{"-c", `eval "$` + shellCommandVar + `"`}, []string{shellCommandVar + "=" + command}
+}
+
+// pwshInvocation runs a typed entry in PowerShell 7 (WHAT'S LEFT H26, 2026-10-05), carried the way a bash
+// entry is: in an environment variable, read by Invoke-Expression, so the Windows command line never touches it.
+func pwshInvocation(command string) (args, env []string) {
+	return []string{"-NoProfile", "-NonInteractive", "-Command",
+		"[Console]::OutputEncoding = [Text.Encoding]::UTF8; Invoke-Expression $env:" + shellCommandVar}, []string{shellCommandVar + "=" + command}
 }
 
 // findBash is Git Bash on Windows -- found by the git on the PATH, never by the word `bash`, which on
@@ -336,8 +344,11 @@ func toolShellRun(coreCmd string) Fn {
 			return "", errors.New("refused: the shell is the operator's own hand and is offered to his glass alone")
 		}
 		shell := strings.ToLower(strings.TrimSpace(str(args, "shell")))
-		if shell != "bash" && shell != "python" {
-			return "", fmt.Errorf("refused: name the shell, bash or python (got %q)", shell)
+		if shell == "powershell" {
+			shell = "pwsh"
+		}
+		if shell != "bash" && shell != "python" && shell != "pwsh" {
+			return "", fmt.Errorf("refused: name the shell, bash, python or pwsh (got %q)", shell)
 		}
 		py := pythonWord(coreCmd)
 		if shell == "python" && shellTruthy(args["reset"]) {
@@ -396,16 +407,24 @@ func toolShellRun(coreCmd string) Fn {
 			return "", false
 		}
 
-		if shell == "bash" {
-			if out, done := stop(JudgeBash(command, t.Home)); done {
+		if shell == "bash" || shell == "pwsh" {
+			v := JudgeBash(command, t.Home)
+			if shell == "pwsh" && v.Class == ShellRead {
+				v.Class, v.Why = ShellWrite, []string{"PowerShell: the gate does not read it, so every line waits on his card"}
+			}
+			if out, done := stop(v); done {
 				return out, nil
 			}
 			bash, err := findBash()
+			bashArgs, bashEnv := bashInvocation(command)
+			if shell == "pwsh" {
+				bash, err = exec.LookPath("pwsh")
+				bashArgs, bashEnv = pwshInvocation(command)
+			}
 			if err != nil {
 				return refuse(err.Error())
 			}
 			began := time.Now()
-			bashArgs, bashEnv := bashInvocation(command)
 			res := spawn(bash, bashArgs, spawnOpts{Dir: t.Home, Timeout: wait, CleanEnv: shellEnv(), Env: bashEnv,
 				MaxBytes: shellMaxBytes, Grace: 2 * time.Second, KillTree: true})
 			exit := 0

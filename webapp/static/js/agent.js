@@ -69,6 +69,7 @@ const Agent = {
     { id: 'agent',  label: 'Agent',  badge: 'default', wired: true,  tip: 'Ask the council' },
     { id: 'bash',   label: 'Bash',   badge: '$',       wired: true,  tip: 'Git Bash in this world. A plain look runs at once; anything that writes asks first' },
     { id: 'python', label: 'Python', badge: '>>>',     wired: true,  tip: 'A Python session that keeps its names. A plain calculation runs at once; the rest asks first' },
+    { id: 'pwsh',   label: 'PowerShell', badge: 'PS>', wired: true,  tip: 'PowerShell 7 in this world, as you. Every line shows a card and waits for your click, and may run up to 300 s' },
     { id: 'aider',  label: 'Aider',  badge: 'pair',    wired: true,  tip: 'Aider edits the files you name, on a line of work, with the coding seat\'s model on this machine. /add names a file, /undo takes a run back' }
   ],
   // What each tab offers to try, one click away.
@@ -76,12 +77,14 @@ const Agent = {
     agent: ['/status', '/help', '/memory', '/sittings'],
     bash: ['ls', 'pwd', 'git status', 'git log --oneline -5'],
     python: ['1 + 1', 'x = 41', 'x + 1', '/reset'],
+    pwsh: ['Get-Location', 'git log --oneline -5', '$PSVersionTable.PSVersion'],
     aider: ['/files', '/status', '/undo', '/help']
   },
   PLACEHOLDER: {
     agent: 'Ask the council, run a /command (e.g. /status), or say what you want done...',
     bash: 'A command, run as you. A plain look runs at once; anything that writes asks first...',
     python: 'Python, in a session that keeps its names. Plain calculations run at once; the rest asks first...',
+    pwsh: 'PowerShell 7, run as you. Every line asks first, and may run up to 300 s...',
     aider: 'Say what Aider should change. Name its files first: /add path/to/file.py (/help lists the rest). It writes only on a line of work...'
   },
   // The five doors in the bar, each of which opens the Inspector on its tab.
@@ -397,13 +400,14 @@ const Agent = {
     const k = kind || this.mode;
     const w = escHtml(Run.world || 'research');
     if (k === 'bash') return 'bash[' + w + ']$';
+    if (k === 'pwsh') return 'ps[' + w + ']&gt;';
     if (k === 'python') return 'py[' + w + ']&gt;&gt;&gt;';
     if (k === 'aider') return 'aider[' + w + ']&gt;';
     return 'agent[' + w + ']&gt;';
   },
 
   // Bash and Python are the operator's typed shell; they run on the door and need no engine.
-  isShell(k) { return (k || this.mode) === 'bash' || (k || this.mode) === 'python'; },
+  isShell(k) { return (k || this.mode) === 'bash' || (k || this.mode) === 'python' || (k || this.mode) === 'pwsh'; },
 
   paintTitle() {
     const el = $ag('ag-title');
@@ -414,7 +418,9 @@ const Agent = {
       state = '<span class="ag-bad">door silent</span>';
     } else if (this.isShell()) {
       // A shell needs the door, not an engine: it says what it is, and the Python session can be ended.
-      state = this.mode === 'bash'
+      state = this.mode === 'pwsh'
+        ? '<span title="PowerShell 7, run in this world as you; every line waits on your card">powershell &middot; every line asks</span>'
+        : this.mode === 'bash'
         ? '<span title="Git Bash, run in this world as you; the law gate is walked before every run">git bash &middot; gated</span>'
         : '<span title="One Python process for this world; it keeps its names until it is reset, runs past its limit, or the door restarts">keeps its names &middot; gated</span>' +
           '<button type="button" class="ag-link" data-act="reset">Reset</button>';
@@ -446,12 +452,15 @@ const Agent = {
     const w = escHtml(Run.world || 'research');
     if (this.isShell()) {
       const world = Run.world || 'research';
-      const lines = this.mode === 'bash'
+      const lines = this.mode === 'pwsh'
+        ? ['PowerShell 7, run in ' + world + ' as you. Every line shows a card here and waits for your click, and may run up to 300 s.',
+           'The same gate as Bash: a secret file, client material, a key typed into a command or a path outside the ground is refused by name, and no click lifts a refusal.']
+        : this.mode === 'bash'
         ? ['Git Bash, run in ' + world + ' as you. A plain look (ls, cat, grep, git status, git log, git diff) runs at once.',
            'Anything that writes, deletes, installs, reaches the network, or saves or sends work shows a card here and waits for your click. A secret file, client material, a key typed into a command or a path outside the ground is refused by name, and no click lifts a refusal.',
            'The law is walked before every run, the command runs with none of the door\'s keys in its environment, what it prints is scrubbed of every secret the ground holds, and each run is written to the ground\'s holds log.']
         : ['Python, in one session for ' + world + ' that keeps its names between entries: x = 41, then x + 1.',
-           'A plain calculation runs at once. An import, a file, a call to anything but a plain-data function, a def or a class shows a card and waits for your click. An entry that runs past 30 s ends the session and its names go; Reset (or /reset) ends it yourself.',
+           'A plain calculation runs at once. An import, a file, a call to anything but a plain-data function, a def or a class shows a card and waits for your click. An entry that runs past 300 s ends the session and its names go; Reset (or /reset) ends it yourself.',
            'The same gate as Bash: secrets and paths outside the ground are refused by name, the session holds none of the door\'s keys, and what it prints is scrubbed.'];
       return '<div class="ag-e"><pre class="ag-pre dim">' + escHtml(Run.unreachable
         ? 'The door did not answer. A shell runs on the door, so nothing below can run until it does.' : lines.join('\n')) + '</pre></div>';
@@ -545,7 +554,7 @@ const Agent = {
   shellEntryHtml(en) {
     const id = en.id;
     const a = en.ans || null;
-    const kind = en.shell === 'python' ? 'python' : 'bash';
+    const kind = en.shell === 'python' ? 'python' : en.shell === 'pwsh' ? 'pwsh' : 'bash';
     const why = (a && a.why) || [];
     const chips = [];
     let bad = false;
@@ -837,7 +846,7 @@ const Agent = {
     const en = { id: ++this._seq, kind: 'shell', shell: kind, prompt: this.promptText(kind), command: text, state: 'running', t0: Date.now() };
     this.entries.push(en);
     this.paintOut();
-    await this.shellAsk(en, { shell: kind, command: text });
+    await this.shellAsk(en, { shell: kind, command: text, timeout: 300 });
   },
 
   // /reset in the Python tab, or its Reset button: the session ends and its names go.
