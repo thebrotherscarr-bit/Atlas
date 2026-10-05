@@ -628,6 +628,9 @@ func TestTheFrontPagePlaysWhatTheMakerMade(t *testing.T) {
 	if !regexp.MustCompile(`if \(s && s\.name === name && s\.version === version\) return;`).MatchString(play) || !strings.Contains(play, "closed: false") {
 		t.Fatal("a page that is already shown would be loaded again, or a new version would not bring a closed page back")
 	}
+	if !strings.Contains(play, "this.stick();") {
+		t.Fatal("showing the frame takes room from the terminal and the reply she asked for would scroll out of view")
+	}
 	if !strings.Contains(paint, "s.closed = true") || !strings.Contains(paint, "box.hidden = true") {
 		t.Fatal("she cannot put the page away")
 	}

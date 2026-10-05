@@ -738,6 +738,7 @@ const Agent = {
     if (s && s.name === name && s.version === version) return;
     this.play = { name, version, closed: false };
     this.paintPlay();
+    this.stick();   // the frame took room from the terminal: its newest line (the reply she asked for) stays in view
   },
 
   paintPlay() {
@@ -750,7 +751,7 @@ const Agent = {
     box.innerHTML = '<div class="ag-play-bar"><b>' + escHtml(s.name) + '</b><span>' + (s.version ? 'version ' + s.version : 'as it stands') + '</span>' +
       '<span class="ag-play-sp"></span>' +
       '<a href="' + escHtml(url) + '" target="_blank" rel="noopener noreferrer" title="Opens the page alone, in its own tab">Open in its own tab</a>' +
-      '<button type="button" id="ag-play-x" title="Put it away; it comes back when a new version is made" aria-label="Put it away">Close</button></div>' +
+      '<button type="button" id="ag-play-x" title="Put it away; it comes back when a new version is made" aria-label="Put it away">Put away</button></div>' +
       '<div class="ag-play-body"><iframe title="' + escHtml(s.name) + '" referrerpolicy="no-referrer" src="' + escHtml(url) + '"></iframe></div>';
     const x = $ag('ag-play-x');
     if (x) x.onclick = () => { s.closed = true; this.paintPlay(); };

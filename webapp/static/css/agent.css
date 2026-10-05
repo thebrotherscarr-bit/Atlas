@@ -158,7 +158,7 @@ body.is-agent .crumb { display: none; }
 }
 /* THE PLAY FRAME (WHAT'S LEFT E1): what the maker made, played beside the terminal. It sits between the output and the input line and is capped, so it
    never crowds the terminal out; the output keeps the rest. Its frame is the glass's own sandboxed page, never the glass. */
-.ag-play { flex: none; height: 62%; max-height: 640px; min-height: 240px; display: flex; flex-direction: column; border-top: 1px solid var(--ag-line); background: var(--ag-bg); }
+.ag-play { flex: none; height: 56%; max-height: 640px; min-height: 240px; display: flex; flex-direction: column; border-top: 1px solid var(--ag-line); background: var(--ag-bg); }
 .ag-play[hidden] { display: none; }
 .ag-play-bar { flex: none; display: flex; align-items: center; gap: 12px; padding: 6px 12px; font-size: 12px; color: var(--ag-n400); border-bottom: 1px solid var(--ag-n800); }
 .ag-play-bar b { color: var(--ag-n300); font-weight: 600; }

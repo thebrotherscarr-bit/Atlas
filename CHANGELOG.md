@@ -28,16 +28,28 @@ line she types: the frame lives outside it, the same project and version are nev
 version or another project is loaded, and Close puts it away until a new version comes. (2) The game the maker made is an 800 by 600 canvas on a page with
 `overflow: hidden` (`game-4`, version 4): in a small stage most of it was cut off, with no way to scroll to the rest. The frame is therefore given a window of 1000 by
 720 and shrunk (never enlarged) to the room the stage has, centred in it and refitted when the room changes, so the whole game is on screen whatever the
-size of the window; the stage is capped at 62 percent of the window and 640 px so the terminal keeps its place.
+size of the window; the stage is capped at 56 percent of the window and 640 px so the terminal keeps its place.
 
 **Proof.** `TestTheFrontPagePlaysWhatTheMakerMade` pins the place (a sibling of the output, between it and the input line), that no frame is built in anything the
 terminal rewrites, the frame's url, the missing `sandbox` attribute and referrer, that the project is read off the delivery and nowhere else, the quiet
-`projects` read, that the same page is not loaded twice, Close, the fit and the height cap; 21 reversals, each red and named, every file restored byte for byte.
-A node run of the logic with stubs (15 checks: one load per version, a repeat delivery leaves the frame alone, a new version reloads it, Close and staying closed and
+`projects` read, that the same page is not loaded twice, Close, the fit and the height cap; 22 reversals, each red and named, every file restored byte for byte.
+A node run of the logic with stubs (17 checks: one load per version, a repeat delivery leaves the frame alone, a new version reloads it, Close and staying closed and
 coming back, the fit for a small, a big and an empty stage). And a scratch copy of the glass in the app's browser pane, against the real door: `game-4` (four
 versions, made by the wife test) shown whole, shrunk to fit and centred, and Close putting it away and giving the terminal its area back. **Not shown here:** keys
 and clicks through the scaled frame. The automation cannot deliver them into a cross-origin frame (it refuses to click a scaled one and sends keys to the top
-page), so that rests on how browsers treat a scaled frame and on the run on his own glass, below.
+page), so that rests on how browsers treat a scaled frame; the run on his own glass is below.
+
+**Run live on his own glass** (2026-10-05, 08:04 to 08:07; sitting 342, opened and closed from the front page, three runs). The glass was placed on his card twice: the
+first build (sha256 `8f8c44ae...`, replacing `0ff82efd...`) for the piece, the second (`fa37925e...`, glass pid 20416) for three fixes the first live run showed: when
+the frame opened it took room from the terminal and the reply she had asked for scrolled out of view (the page now keeps the terminal's newest line in view when it
+shows a page), the frame took 62 percent of the window and now takes 56, and two buttons on screen said Close (the frame's says Put away). Her three lines, typed as
+she wrote them. (1) "If you can code, try making me a little game. something simple like a little sandbox miecrafty thing." The maker seated the Expert Coder alone and
+made `game-5`, version 1, in 27.5 seconds; the delivery named it and the frame opened by itself on the front page with the game whole ("Arrow keys to move, Click to
+start"), no file path to open (the reply's own words still tell her to open one: that is the engine's). (2) "i dont want it text based, i want a game i can play." was
+answered "Nothing was saved: the page came back exactly as it was, so there is no new version to save." in 15.3 seconds, as on 10-03, and the frame stayed as it was: same
+project, same version, so the game was not loaded again. (3) "thanks man, appreciate it" got a plain, friendly reply in 8.4 seconds ("I'm glad you enjoyed the game ...")
+without the narration about "the operator" the same line got on 10-03 (one sample; the models vary). I did not play the game in the pane: the automation cannot deliver
+keys or clicks into the frame. GitHub: core `53859d0` and atlas `8bff128` green for the piece.
 
 **Not done, and said.** The engine's delivery text still tells her to open a file path, and the rest of what the live run found is the engine's (`manjuel/`), not
 the page's: her second line's reply, small talk, "the game" meaning the oldest of that name, a blank canvas passing the maker's check. Nothing in `manjuel/` moved.
