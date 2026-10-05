@@ -149,6 +149,18 @@ lines they had: door pid 21608, 12,801,536 bytes, sha256 `ba668ad1...` (the one 
 them. The old binaries are kept outside the ground. No sitting was open (341 closed 2026-10-03 18:11). The glass came back on its PIN lock, and the PIN
 is his.
 
+**Run live on his own glass** (2026-10-04, 21:11 to 21:15, after the first save of both repositories, atlas `406e5e3` and core `f1fd61e`: the door's
+`git_branch switch` refuses a tree with unsaved work and Aider needs a line of work, so a live run could only follow a save). On his page the Aider tab read
+"Aider 0.86.2 is ready: qwen2.5-coder:14b, a window of 8192 tokens (about 14 KB of files at a time)". An instruction on `main` was refused by name. A line of
+work, `aider-proof`, was opened through the call the Version control page's button makes. The `clamp` task of the measurement, handed to the real
+`manjuel/mathkit.py`, was written in 64 seconds (4.1k tokens sent, 339 received, 6 lines added), and the measurement's own scorer, run on it against the
+committed file, says wrote, parses, correct and clean; it is byte for byte the file the measurement's Aider run made, so the earlier OK stands for it too.
+The nested `atlas/` repository, standing on `main` while the core was on its line, refused an edit by name. A new file, `aider_proof.py`, was made in 9.8
+seconds and parses. Both were taken back with the Undo button: `manjuel/mathkit.py` hashed to the committed blob again (`9534e60a...`), the new file was
+gone and the tree was clean. The world's `state/holds.jsonl` holds the six lines (refused, wrote, undone, refused, wrote, undone), and the Inspector's Aider
+Pair read the status, the two runs "taken back", atlas on `main` with nothing changed and the core on its line with nothing changed. The core went back to
+`main`, the line was closed, and no sitting was opened.
+
 ### The front page's window keeps the size it starts at, and the terminal scrolls inside it (2026-10-03; the core's WHAT'S LEFT C37)
 
 His word, 2026-10-03, watching the app's browser pane while a session ran: "the window just keep growing, that doesnt make sense. the
