@@ -182,6 +182,12 @@ body.is-agent .crumb { display: none; }
 .ag-pre.deep { background: rgba(23,23,23,.6); border: 1px solid rgba(38,38,38,.6); color: var(--ag-n200); }
 .ag-pre.bad { background: rgba(76,5,25,.2); color: var(--ag-rose); border: 1px solid rgba(136,19,55,.3); }
 .ag-pre.dim { color: var(--ag-n500); }
+/* an Aider edit, as the door's diff gives it: the lines it added and took out are coloured, nothing else is */
+.ag-pre.diff { background: rgba(23,23,23,.6); border: 1px solid rgba(38,38,38,.6); }
+.ag-d-add { color: var(--ag-green); }
+.ag-d-del { color: var(--ag-rose); }
+.ag-d-hunk { color: var(--ag-cyan); }
+.ag-d-file { color: var(--ag-n200); font-weight: 600; }
 .ag-notrun {
   padding: 8px 10px; border-radius: 4px; background: rgba(76,5,25,.2); color: var(--ag-rose);
   border: 1px solid rgba(136,19,55,.3); font-size: 11px;

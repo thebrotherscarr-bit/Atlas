@@ -284,28 +284,34 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 			t.Fatalf("the front page carries its own sign-in (%s); the lock is the PIN", bad)
 		}
 	}
-	// A tab that is not wired is marked so and says so when pressed. Aider is the one left: Bash and
-	// Python were wired on 2026-10-03 (WHAT'S LEFT H15) and are held by
-	// TestTheShellTabsAreTheDoorsShellAndNothingElse.
+	// A tab that is not wired is marked so and says so when pressed. None is left: Bash and Python were wired on
+	// 2026-10-03 (WHAT'S LEFT H15) and Aider on 2026-10-04 (H12), held by the two strokes beside this one. The
+	// machinery stays, and is held generically: a tab marked unwired must have its words, and words must belong to
+	// an unwired tab.
 	notWired := regexp.MustCompile(`(?s)NOT_WIRED: \{(.*?)\n  \},`).FindStringSubmatch(src)
 	if notWired == nil {
 		t.Fatal("the table of what an unwired tab says is gone")
 	}
-	for _, id := range []string{"aider"} {
-		if !regexp.MustCompile(`id: '` + id + `',[^}]*wired: false`).MatchString(src) {
-			t.Fatalf("the %s tab is not marked as unwired", id)
-		}
-		if !regexp.MustCompile(id + `: '[^']*not wired yet`).MatchString(notWired[1]) {
-			t.Fatalf("pressing the %s tab does not say it is not wired yet", id)
+	modes := regexp.MustCompile(`id: '([a-z]+)',[^}]*wired: (true|false)`).FindAllStringSubmatch(src, -1)
+	if len(modes) != 4 {
+		t.Fatalf("read %d tabs; this stroke is reading the wrong thing", len(modes))
+	}
+	says := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^\s+([a-z]+): '[^']*not wired yet`).FindAllStringSubmatch(notWired[1], -1) {
+		says[m[1]] = true
+	}
+	for _, m := range modes {
+		if unwired := m[2] == "false"; unwired != says[m[1]] {
+			t.Fatalf("the %s tab is marked wired: %s and its words say %v when pressed", m[1], m[2], says[m[1]])
 		}
 	}
-	for _, id := range []string{"bash", "python"} {
+	for _, id := range []string{"agent", "bash", "python", "aider"} {
 		if !regexp.MustCompile(`id: '` + id + `',[^}]*wired: true`).MatchString(src) {
 			t.Fatalf("the %s tab is not marked as wired", id)
 		}
-		if strings.Contains(notWired[1], id+": '") {
-			t.Fatalf("pressing the %s tab still says it is not wired", id)
-		}
+	}
+	if strings.Contains(src, "Aider is not wired yet") {
+		t.Fatal("the banner still says Aider is not wired")
 	}
 	// The failures go on the face of the answer, wherever the answer is shown
 	// (ESTATE LAW 5).
@@ -423,10 +429,143 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 		t.Fatal("the page and hold_answer no longer agree on where an approved run's document begins")
 	}
 	// Every wired tab offers something to try and says what it is for.
-	for _, id := range []string{"agent", "bash", "python"} {
+	for _, id := range []string{"agent", "bash", "python", "aider"} {
 		if !regexp.MustCompile(`(?s)HINTS: \{.*?\b`+id+`: \[`).MatchString(src) || !regexp.MustCompile(`(?s)PLACEHOLDER: \{.*?\b`+id+`: '`).MatchString(src) {
 			t.Fatalf("the %s tab has no hints or no placeholder", id)
 		}
+	}
+}
+
+// THE AIDER TAB (WHAT'S LEFT H12 and B20, 2026-10-04). The page decides nothing about an edit: the door's aider_run copies the
+// files, runs Aider behind its wall, judges the edit, and writes it back or does not; the page draws the one document the
+// door answers in. These hold the page's half of that wire against the door's own text, so renaming a key at the door,
+// letting the page grow an opinion of its own, or letting a button reach something it must not goes red here.
+func TestTheAiderTabIsTheDoorsAiderAndNothingElse(t *testing.T) {
+	src := page(t, "js/agent.js")
+	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "aider.go"))
+	if err != nil {
+		t.Fatalf("the door's Aider is not beside the glass: %v", err)
+	}
+	fn := func(sig string) string {
+		body := funcOf(src, sig)
+		if body == "" {
+			t.Fatalf("the page has no %s", strings.TrimSpace(sig))
+		}
+		return body
+	}
+	asks := []string{"  async readAider(", "  aiderTitleState(", "  aiderBannerHtml(", "  aiderStatusText(", "  aiderEntryHtml(", "  aiderTake(", "  async aiderHtml("}
+	var all strings.Builder
+	for _, sig := range append([]string{"  async aiderGo(", "  aiderNames(", "  aiderDrop(", "  async aiderRun(", "  async aiderUndo(", "  aiderSay("}, asks...) {
+		all.WriteString(fn(sig))
+	}
+	aider := all.String()
+
+	// The keys the page reads off the door's documents are keys the door's documents have.
+	keys := map[string]bool{}
+	for _, m := range regexp.MustCompile("`json:\"([a-z_]+)[,\"]").FindAllStringSubmatch(string(door), -1) {
+		keys[m[1]] = true
+	}
+	if len(keys) < 25 {
+		t.Fatalf("read %d keys off the door's documents; this stroke is reading the wrong thing", len(keys))
+	}
+	read := map[string]bool{}
+	for _, sig := range asks {
+		for _, m := range regexp.MustCompile(`\b(?:a|f|r|s)\.([a-z_]+)\b`).FindAllStringSubmatch(fn(sig), -1) {
+			read[m[1]] = true
+			// `error` is the page's own word for a status it could not read (readAider), not a key of the door's.
+			if !keys[m[1]] && m[1] != "error" {
+				t.Fatalf("the page reads .%s off an Aider document and the door's documents have no such key", m[1])
+			}
+		}
+	}
+	for _, must := range []string{"state", "why", "changed", "diff", "withheld", "said", "ignored", "guarded", "exit", "timed_out", "note", "truncated", "run", "line", "model", "tokens", "ms",
+		"installed", "on_line", "on_rack", "busy", "runs", "budget_kb", "undone", "new", "file", "added", "removed"} {
+		if !keys[must] {
+			t.Fatalf("the door's documents lost the key %q the page is built on", must)
+		}
+		if !read[must] {
+			t.Fatalf("the page no longer reads .%s, so what the door says in it never reaches him", must)
+		}
+	}
+	if !strings.Contains(string(door), `// ran | refused | undone`) {
+		t.Fatal("the door's answer no longer says which states it has; this stroke is reading the wrong thing")
+	}
+	face := fn("  aiderEntryHtml(")
+	for _, state := range []string{"'running'", "'note'", "'refused'", "'error'", "'undone'", "'ran'"} {
+		if !strings.Contains(face, "en.state === "+state) {
+			t.Fatalf("the Aider entry no longer draws the %s state", state)
+		}
+	}
+
+	// A failure is on the face of the answer: a refusal, a wall that stopped something, an edit that was withheld,
+	// a run that was ended or failed. A refusal draws no button.
+	for _, want := range []string{"REFUSED BY NAME", "no click lifts a refusal", "THE WALL STOPPED", "NOT WRITTEN", "ENDED", "FAILED", "ag-chip bad", "COULD NOT RUN"} {
+		if !strings.Contains(face, want) {
+			t.Fatalf("the Aider entry no longer carries %q", want)
+		}
+	}
+	// The Undo button is drawn for a run that wrote, and for nothing else: not a refusal, not a withheld edit, not a run
+	// that changed nothing, not one already taken back.
+	if strings.Count(face, "aider-undo") != 1 || !regexp.MustCompile(`if \(en\.state === 'ran' && a && a\.run && \(a\.changed \|\| \[\]\)\.length && !a\.withheld && !en\.undone\) \{\s*lines\.push\(`+"`"+`<div class="ag-btns"><button type="button" class="ag-btn no" data-act="aider-undo"`).MatchString(face) {
+		t.Fatal("the Undo button is drawn for something other than a run that wrote")
+	}
+
+	// The page asks the door's Aider and nothing else: one call each, with what was typed as typed, and a status read
+	// asked quietly. It reads two other things for the Inspector's world cards (the muster and each world's git), and
+	// it never reaches a verb that saves, sends, lands, runs the suites or answers a hold.
+	if strings.Count(src, "App.tool('aider_run'") != 1 || !strings.Contains(fn("  async aiderRun("), "App.tool('aider_run', { message: text, files: files.join('\\n'), context: read.join('\\n') })") {
+		t.Fatal("an instruction can reach the door by some way other than aiderRun, or is not sent as typed with the names of the files in the chat")
+	}
+	if strings.Count(src, "App.tool('aider_undo'") != 1 || !strings.Contains(fn("  async aiderUndo("), "App.tool('aider_undo', { run: id })") {
+		t.Fatal("a run can be taken back by some way other than aiderUndo")
+	}
+	if strings.Count(src, "App.tool('aider_status'") != 1 || !strings.Contains(fn("  async readAider("), "App.tool('aider_status', {}, true)") {
+		t.Fatal("Aider's state is read from somewhere other than readAider, or not quietly")
+	}
+	for _, m := range regexp.MustCompile(`App\.tool\('([a-z_]+)'`).FindAllStringSubmatch(aider, -1) {
+		switch m[1] {
+		case "aider_run", "aider_undo", "aider_status", "muster", "git":
+		default:
+			t.Fatalf("the Aider tab asks the door for %s", m[1])
+		}
+	}
+	// Taking a run back is a button he presses or a line he types: the terminal's click, the Inspector's click, and /undo.
+	if strings.Count(src, "this.aiderUndo(") != 3 ||
+		!regexp.MustCompile(`(?s)act === 'aider-undo'\) this\.aiderUndo\(`).MatchString(src) ||
+		!regexp.MustCompile(`(?s)act === 'aider-undo'\) \{ this\.aiderUndo\(`).MatchString(funcOf(src, "  async paneClick(")) ||
+		!strings.Contains(fn("  async aiderGo("), "this.aiderUndo(rest || this.aiderLast, t)") {
+		t.Fatal("a run can be taken back from somewhere other than his button or his /undo")
+	}
+	// The page holds no opinion of what may be written: no list of names, no word of the door's rules.
+	for _, bad := range []string{"'law/'", "worlds/", "CLAUDE.md", "'.env'", "isProtected", "neverWritten", "isMain", "'main'", "'master'"} {
+		if strings.Contains(aider, bad) {
+			t.Fatalf("the Aider tab carries its own opinion of what may be written (%s); the door judges, the page draws", bad)
+		}
+	}
+	// The tab's own commands, and an instruction that is anything else.
+	for _, cmd := range []string{"'add'", "'read'", "'drop'", "'files'", "'status'", "'undo'", "'help'"} {
+		if !strings.Contains(fn("  async aiderGo("), "cmd === "+cmd) {
+			t.Fatalf("the Aider tab no longer answers /%s", strings.Trim(cmd, "'"))
+		}
+	}
+	// /drop says what it took out and what was never there: an answer that is only the chat's state afterwards reads as nothing done.
+	if d := fn("  aiderDrop("); !strings.Contains(d, "'dropped '") || !strings.Contains(d, "' not in the chat'") || !strings.Contains(d, "this.aiderSay(typed, said.join(") {
+		t.Fatal("/drop no longer says what it dropped, or what was never in the chat")
+	}
+	// Aider needs the door, not an engine: its line is sent, from the tab or by name, before the council's engine check is
+	// made, and a line typed in the tab is routed there by the tab itself.
+	g := funcOf(src, "  async go(")
+	at := strings.Index(g, "this.aiderGo(")
+	if at < 0 || strings.Contains(g[:at], "Run.engineOpen") || !strings.Contains(g, "via ? via.mode === 'aider' : this.isAider()") {
+		t.Fatal("an Aider line is held up behind the engine check, or a line typed in the tab is not sent to Aider")
+	}
+	// A line may name the tab from any other, with the prefix stripped.
+	if !strings.Contains(funcOf(src, "  prefixMode("), "mode: 'aider', text: m[1]") {
+		t.Fatal("`aider ...` no longer names the tab, or sends the prefix to Aider as part of the instruction")
+	}
+	// The thread says a run is waiting, so a working Aider is not read as a hung one.
+	if !strings.Contains(face, "A run takes minutes") || !strings.Contains(fn("  aiderTick("), "setInterval") {
+		t.Fatal("a waiting run says nothing of how long it takes, or its clock does not move")
 	}
 }
 

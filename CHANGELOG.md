@@ -12,6 +12,143 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Aider behind the glass: the front page's Aider tab runs Aider on the files he names, behind a wall, on a line of work, and it was measured against the coder flow (2026-10-04; the core's WHAT'S LEFT H12 and B20)
+
+His idea of 2026-10-02, as the list had it (WHAT'S LEFT H12): a page on the glass that drives Aider, open source and proven at search-and-replace edits. His answers of
+2026-10-04, on the card: download it (`aider-chat`, from PyPI), put it in `aider/` at the ground's root, drive it with the coding seat's
+own model on Ollama. And, in his words, "finish up h12 and b20, save and send, run it through the glass. also, finish wiring in the Aider
+panel, it's on this system."
+
+**What he gave (B20).** (1) The download: `aider-chat` 0.86.2 and the 110 packages it needs, about 640 MB, from PyPI, once, into a venv (a
+Python 3.11: Aider does not run on the machine's own 3.14). (2) The folder: `aider/` at the ground's root, with `venv/` and `work/` (its home,
+its temp folder and one folder per run). `.gitignore` names it, and was written BEFORE the folder was: `git_commit` stages everything, and one
+save would otherwise have carried a venv. (3) The model: the coding seat's own, `qwen2.5-coder:14b`, read off `agents/expert_coder.md` at
+every call (Model Target and Context, so a change he makes to the seat is the change Aider follows). No hosted route: RULE 4 as amended makes
+that a measured, per-seat move of his, and nothing here needs one.
+
+**Three door tools** (`line/internal/tools`: `aider.go` the tools, `aiderguard.go` the wall; the door serves 89 tools). `aider_run
+{message, files, context?, timeout?}` and `aider_undo {run}` are `ServiceOnly` writers: no seat, agent or role is ever given Aider, and the
+council cannot park a call of it for him to approve, exactly as with the shell. `aider_status` is a plain reader that the page asks quietly.
+What a run is:
+
+- **A copy, not the world.** He names the files Aider may change (at most 4) and optionally files it may only read (at most 4). The door copies
+  exactly those into a scratch folder under `aider/work/runs/<id>/`, each in LF, and runs Aider there, headless, one message and out
+  (`--message-file`), `--no-git`, the diff edit format, with every flag that stops it reaching for something it would be refused (no analytics,
+  update check, URL scraping, shell suggestions, lint or test, a repository map; its model metadata is a file the door writes, so it asks no
+  server). The scratch folder is its own empty git repository: Aider looks UP from where it stands for a repository even with `--no-git`, found
+  the world's own `.git` on the first real run, and the wall rightly refused it (below).
+- **The model is loaded first.** The door sends one empty request to Ollama at the seat's window (`num_ctx`) and `keep_alive` ten minutes before
+  Aider is started. Measured on the first batch: a request that reached Ollama in the moment it was unloading the model hung four minutes inside
+  Aider's own timeout until a request of that kind freed it. A rack that will not load the model is now a refusal that names it, and Aider is
+  never started. The window is Aider's: a different one makes Ollama unload the model and load it again.
+- **The window is the seat's.** The files and the instruction must fit the seat's declared Context (8,192 tokens: about 14 KB beside Aider's own
+  prompt); a bigger set is refused up front, by size, rather than silently cut by the model's server. A single file over 64 KB is refused whatever
+  the window.
+- **Every gate the council's own tree doors keep.** A write lands only while the NEAREST repository the file belongs to (atlas/ carries its own)
+  stands on a line of work: not main, not master, not detached, and a ground with no repository refuses. What a model may never write is the seats'
+  own list restated (`aiderNeverWritten`: the law, the seats, the ledgers, the proof stamps, the governing files, a binary, a `.git`, `worlds/`,
+  `projects/`, a secret, client material, a path outside the ground), and a new file lands in a folder that exists, never a new folder (RULE 8). The
+  instruction is judged for a key, a secret file, client material and a path outside the ground before anything is touched. A file with MIXED line
+  endings is refused; each file comes back in ITS OWN terminator whatever Aider wrote, and a new file takes its nearest sibling's.
+- **What comes back is checked.** Only the files he named are looked at: anything else Aider made is reported and dropped, and a read-only file it
+  changed is never written. A Python file it changed is parsed (never run) by the venv's own interpreter, and one that does not parse is NOT
+  written. A file that changed while Aider worked is not overwritten. Every file lands or none does, with what was written put back if a write
+  fails. The answer carries the diff (git's own, from the files as they were and as they stand), what Aider said, the tokens, and the run's id.
+- **Undo.** The files as they were are kept beside the run; `aider_undo` puts them back exactly, removes what the run made, refuses a run twice,
+  refuses a file that has changed since (it would lose what came after), and refuses on the main line. The last 30 runs are kept; an older
+  one is git's to take back.
+- **Recorded.** Every run, refusal and undo is a line in the world's `state/holds.jsonl`, the log `hold_answer` already writes, with the
+  instruction (keys withheld).
+- **One at a time**, because one model is in one memory; a second call while one runs is refused, not queued.
+
+**The wall** (`aiderguard.go`). Measured on the first probe (Aider 0.86.2): `--yes-always` is not optional, since a run with nobody at the
+keyboard would wait for a "y" for ever, and with it Aider will edit or create a file at ANY path the model names, outside its own root included.
+So the door does not trust Aider's own confirmations. Aider runs inside a PEP 578 audit hook, the same wall the council's `run_python` child has
+stood in since 2026-09-22, installed by source passed on the command line (`python -I -B -X utf8 -c <it>`) that nothing in the scratch folder can
+edit: writes go only to the run's scratch folder, Aider's own home and temp, and the run's three history files; reads stay out of the ground and
+the user's profile except `aider/` and the interpreter's own library; the network is loopback only (an address lookup or a connection to
+anything else is refused by name, RULE 4); and no other process starts. Every refusal is said on stderr and lifted into the answer, so the card
+shows what the wall stopped. And the wall ANNOUNCES ITSELF: once armed it writes a fresh random value the door put in the child's environment
+(and the guard removed from it) to stderr, and a run whose stderr lacks that line is thrown away whole, however well it edited. The child's
+environment is built from a list of names, never inherited: none of the door's keys, no service wire, no proxy, HOME and TEMP inside `aider/work`.
+**Honest limits, the same as the precedent's:** an audit hook is not a kernel sandbox, and CPython's own documentation says so; native code
+loaded through `ctypes` (which Aider's own terminal libraries import, so it cannot be refused) steps around it. The wall bounds an accident (a
+model naming the wrong path, a library phoning home), not a hostile program. The scratch copy, the line of work, the suites and his click are what
+stand behind it.
+
+**What the first real runs taught** (Aider 0.86.2, the real model, through the door's own code, in a throwaway repository; each is a stroke now).
+(1) The scratch folder, inside the world, let Aider find the world's own `.git` and its `.aider.conf.yml`, the wall refused the read, and the
+first run died on an uncaught PermissionError: the scratch folder is its own repository now. (2) Every healthy run asks for two things the wall
+refuses, `git version` (GitPython at import) and the Windows shell's `ver` (the platform module, three ways); a card that warned of the wall on
+every run would teach him to read past the one where it matters, so those two are refused WITHOUT a word and everything else is refused
+out loud. (3) Aider asks for its history files' folder, the run's own, on every start: asking for a folder that already exists is no change, and
+is the operating system's to answer. (4) The Ollama hang above. (5) Aider on Windows writes CRLF; with `--line-endings lf` and the door putting
+each file's own terminator back, a CRLF file comes back CRLF and an LF file LF. Aider is deterministic at temperature 0: two attempts at one task
+came back byte for byte the same (4.1k tokens in, 417 out), so repeats teach nothing and the measurement below uses more tasks instead.
+
+**The tab** (`js/agent.js`, `css/agent.css`). Wired: it was marked unwired and said so. A line typed in the Aider tab, or prefixed from any tab
+(`aider /files`), goes to the door; it needs no engine. `/add path` names a file Aider may change, `/read path` one it may only read, `/drop`,
+`/files`, `/status`, `/undo [run]` (the last by default), `/help`; anything else is an instruction. The page keeps only the NAMES of the files in
+the chat and judges nothing about them: a path that may not be written, a main line, a model not on the rack are refused at the door, by name, and
+the page draws the refusal ("REFUSED BY NAME", no button). A run's card shows: a chip for what happened (written, no change, withheld, timed out,
+exit N), the model, the line, the tokens; the files with +/-; the diff, coloured; "THE WALL STOPPED" for anything the wall refused; "NOT WRITTEN"
+with the reason when an edit was withheld; what Aider said (a toggle); what it made that was not kept; and an Undo button for a run that wrote and
+for nothing else. While a run waits the card says so and its clock moves: at this machine's speed a run is minutes. The title bar says the
+model, the line of work (or that it is on main and Aider cannot write), the files in the chat and whether a run is going. The Inspector's Aider
+Pair tab now shows the same status, the files in the chat (each can be dropped), the recent runs (each can be taken back) and, as before, where each
+world's work stands with its diff. Nothing on the page commits, runs the suites or lands (RULE 6): the edit is unsaved work on the line, and
+Version control is where it is saved.
+
+**Measured against the coder flow (H12).** The line asked whether Aider edits better than the council with the models this machine has, "measured, not
+argued". Six small changes to one real file, `manjuel/mathkit.py` (226 lines, 8 KB: it fits the seat's window): add `correlation` after `covariance`;
+give `mean` an optional `trim`; make `variance` refuse a negative `ddof`; add `zscores` after `stdev`; make `cosine` answer `None` for a zero vector;
+add `clamp` after `cosine`. The scorer was written before any attempt was run: an attempt counts only if it changed the file, the file parses, the
+behaviour asked for is right (a battery per task) and nothing else moved (every definition the task does not name is identical as a syntax tree, and a
+differential battery over the file's public functions answers exactly as the original's). What a model says of its own work counts for nothing.
+**Aider, through `aider_run` exactly as the glass calls it, one attempt per task: 6 of 6**, in 70, 100, 123, 140, 262 and 270 seconds (16 minutes in
+all; at temperature 0 it answers the same twice, so a second attempt teaches nothing). **The council, the same words handed to a council turn (the coder
+flow's `attempt` is one of these), in a throwaway copy of the ground on a line of work with the real engine, one attempt per task: 3 of 6**
+(`correlation`, `mean`'s `trim` and `clamp`, in 417 and about 600 and about 600 seconds). The other three changed nothing: `variance` and `zscores`
+never reached an edit (the answer is the file read back), and `cosine` asked `ground_edit` for an edit of the wrong shape ("needs exactly one `@@ OLD`
+line and one `@@ NEW` line ... Found 0 and 0"), after which the closing words claimed the change in their first lines and described the refused edit
+further down, and the engine's own "NOT EVERYTHING RAN" note under them says which is true. The council's turns took 466 to 648 seconds, 56 minutes in all.
+**What the numbers do not say.** The council had one sample a task and one pass, where the flow gives `attempt` two. The scorer first counted those
+three unchanged files as written, because the throwaway copy's file was CRLF (its git made it so) and the ground's is LF: found on reading the table,
+corrected before anything was concluded, and no verdict moved. And Aider needs the whole file in a window of 8,192 tokens, where the council's edit
+works on a named definition of a file of any size: of the 31 modules in the core's `manjuel/`, 12 fit (the largest, `skills.py`, is 249 KB), and 14
+of the 26 files in this package. So on small whole files Aider was faster and right more often; on most of the ground it cannot be used with this
+seat's window. Whether it becomes the flow's `attempt` is his (WHAT'S LEFT B21). The measuring scripts and the twelve results are in this session's
+scratch folder, not in the ground.
+
+**What goes red if unplugged** (RULE 11). The door: `TestAiderIsHisAloneByEveryRoute` and `TestEveryServiceOnlyToolRefusesEveryOtherCaller` (no
+other hand is given Aider), `TestAiderWritesOnlyOnALineOfWork`, `TestAiderRefusesWhatTheSeatsAreRefused` and the core's
+`test_the_aider_door_keeps_what_the_seats_keep` (the seats' lists and the door's copy are equal from both sides), `TestAiderRefusesAKeyAndRecordsEverythingWithoutOne`,
+`TestAiderWritesEachFileInItsOwnTerminator`, `TestAiderOnlyWritesBackTheFilesHeNamed`, `TestAiderIsBelievedOnlyBehindAWallThatSaidSo`,
+`TestAiderWritesNothingFromARunThatDidNotFinish`, `TestAiderWithholdsAnEditToAFileThatMovedWhileItWorked`,
+`TestAiderWithholdsAPythonFileThatDoesNotParse`, `TestAiderUndoPutsBackExactlyAndRefusesWhatMovedSince`, `TestAiderRunsOneAtATime`,
+`TestAiderFollowsTheCodingSeatAndRefusesWhatCannotFit`, `TestAiderLoadsTheModelAtTheSeatsWindowBeforeItStartsAider`,
+`TestAiderScratchFolderIsItsOwnRepository`, `TestAiderIsStartedWithTheFlagsThatKeepItOnTheLeash`, `TestAiderGetsABuiltEnvironmentWithNoKeyInIt`,
+`TestAiderWaitIsBoundedAndHasADefault`, `TestAiderKeepsTheLastThirtyRunsAndNothingElse`, `TestAiderSaysWhyItCannotRun`; the wall, against a real
+Python behind the real guard: `TestTheWallShutsWhatItNamesAndLeavesOpenWhatAiderNeeds` (26 attempts, 28 where the machine has an address of its own,
+to write, make a folder, read, list, remove, rename, copy, connect, look up, bind and start, each judged),
+`TestTheWallRefusesTheTwoKnownProbesQuietlyAndEverythingElseOutLoud`, `TestTheWallDoesNotStartWithoutItsEnvironment`,
+`TestTheWallsAnnouncementNamesTheRunsOwnNonce`, `TestTheGuardSourceIsSafeToCarryOnAWindowsCommandLine` (a double quote in the guard is read by two
+sets of rules on a Windows command line: a convention doing a type's job, held now); the glass: `TestTheAiderTabIsTheDoorsAiderAndNothingElse` (the
+keys the page reads off the door's documents are keys the door has, the Undo button is drawn for a run that wrote and nothing else, the page asks for
+three tools and never one that saves, lands or answers a hold, holds no list of what may be written, and `/drop` says what it dropped), with `TestTheFrontPageFakesNothing`,
+`TestNoMethodOfTheFrontPageIsDefinedTwice` and `TestEveryToolTheFrontPageAsksForIsCarriedByTheDoor` carrying the tab. **Reversals, each red and named,
+every file restored byte for byte: 111 (the door and the wall 67, the page 36, the core's stroke 8).** The scorer for the measurement was proved on six correct solutions and fourteen plausible wrong ones
+before it was trusted with a model's work.
+
+**Not done, and said.** Aider is not the coder flow's `attempt` engine: that is his decision, with the measurement above in front of him (WHAT'S
+LEFT B21). No seat, agent or hosted route is given Aider. The suites and the Land click are not touched. The door and the glass are placed (below).
+
+**Placed.** On his card ("Place and restart both") a build of the tree replaced the live door and glass, and both were started again with the start
+lines they had: door pid 21608, 12,801,536 bytes, sha256 `ba668ad1...` (the one it replaced: `e4392bb3...`); glass pid 25236, 11,177,472 bytes, sha256
+`0ff82efd...` (replacing `8ddafc33...`). Two builds of the tree came out byte for byte the same, and a third, taken just before the copy, matched
+them. The old binaries are kept outside the ground. No sitting was open (341 closed 2026-10-03 18:11). The glass came back on its PIN lock, and the PIN
+is his.
+
 ### The front page's window keeps the size it starts at, and the terminal scrolls inside it (2026-10-03; the core's WHAT'S LEFT C37)
 
 His word, 2026-10-03, watching the app's browser pane while a session ran: "the window just keep growing, that doesnt make sense. the

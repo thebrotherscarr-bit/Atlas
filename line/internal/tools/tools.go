@@ -650,6 +650,32 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolShellRun(opts.CoreCmd),
 	})
 
+	// AIDER BEHIND THE GLASS (2026-10-04, WHAT'S LEFT H12 and B20; his word of
+	// 10-04: install it into aider/). Aider, headless, on the files he names, in a
+	// wall (aiderguard.go), against the coding seat's own model on loopback
+	// Ollama, writing back only to a line of work, with an undo. Both writing
+	// tools are ServiceOnly -- no seat or agent is ever handed Aider -- and the
+	// status read is a plain reader the front page's tab and Inspector paint from
+	// (aider.go).
+	r.add(Tool{
+		Name: "aider_run", Writes: true, ServiceOnly: true,
+		Description: "the operator's own Aider, run on the files he names: it copies them into a scratch folder, runs Aider headless on the copies behind a wall (no network but loopback, writes only to the scratch, no other process) against the coding seat's model, and writes the changed files back only while the world stands on a line of work, only if every Python file still parses; the answer carries the diff, what Aider said and a run id to take it back with. His glass alone may call it",
+		Args:        []string{"message", "files", "context?", "timeout?", "project?"},
+		Fn:          toolAiderRun,
+	})
+	r.add(Tool{
+		Name: "aider_undo", Writes: true, ServiceOnly: true,
+		Description: "take one Aider run back: the files it changed are put back as they were, if nothing has changed them since; his glass alone may call it",
+		Args:        []string{"run", "project?"},
+		Fn:          toolAiderUndo,
+	})
+	r.add(Tool{
+		Name: "aider_status", Writes: false,
+		Description: "whether Aider can run in this world now and with what: installed, its version, the coding seat's model and window, whether the rack has the model, whether the world stands on a line of work, and the last runs",
+		Args:        []string{"project?"},
+		Fn:          toolAiderStatus,
+	})
+
 	r.add(Tool{
 		Name: "git_tag", Writes: true, Reads: []string{"list"},
 		Description: "the marks a version is cut at: list them with what GitHub has, cut one at a commit whose declared version it must equal, send one to GitHub by name, or remove one that never left this machine",

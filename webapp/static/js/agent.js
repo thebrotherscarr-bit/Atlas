@@ -16,8 +16,8 @@
 // committed it and said done, and the repair loop reported a repair that never
 // happened. Here every figure is read from a tool or not shown (SPEC 3
 // invariant 10), every failure is on the face of the answer (ESTATE LAW 5),
-// and no tab claims what it cannot do: Aider is in the bar and says, when
-// pressed, that it is not wired yet.
+// and no tab claims what it cannot do: a tab that is not wired is marked so and
+// says so when it is pressed (NOT_WIRED). None is left: all four are wired.
 //
 // BASH AND PYTHON ARE HIS TYPED SHELL (WHAT'S LEFT H15, 2026-10-03; his word of
 // 2026-10-02: "typed by you, gated"). A line typed in either tab goes to the
@@ -27,6 +27,16 @@
 // offered for a refusal. The page classifies nothing: it draws the one answer
 // the door gives (state, class, why, hold, exit, output) and a failure is on the
 // face of it. No shell tab needs an engine; the council's tab does.
+//
+// AIDER IS THE DOOR'S AIDER (WHAT'S LEFT H12 and B20, 2026-10-04; his word:
+// "finish wiring in the Aider panel, it's on this system"). A line typed in
+// the Aider tab is an instruction to the door's aider_run, which only his glass
+// may call: Aider runs headless on a COPY of the files he names, behind a wall,
+// against the coding seat's own model on this machine, and its edit is written
+// back only while the world stands on a line of work and every Python file
+// still parses. The page keeps the NAMES of the files in the chat (/add, /read,
+// /drop) and judges nothing about them; the door refuses by name and the page
+// draws the refusal. Nothing here commits, runs the suites or lands (RULE 6).
 //
 // THE COUNCIL IS THE AGENT. A line typed here is the REPL's own turn: the
 // sealed law gate stamps it before any model reads a word, the one Router runs
@@ -59,18 +69,20 @@ const Agent = {
     { id: 'agent',  label: 'Agent',  badge: 'default', wired: true,  tip: 'Ask the council' },
     { id: 'bash',   label: 'Bash',   badge: '$',       wired: true,  tip: 'Git Bash in this world. A plain look runs at once; anything that writes asks first' },
     { id: 'python', label: 'Python', badge: '>>>',     wired: true,  tip: 'A Python session that keeps its names. A plain calculation runs at once; the rest asks first' },
-    { id: 'aider',  label: 'Aider',  badge: 'pair',    wired: false, tip: 'Not wired yet' }
+    { id: 'aider',  label: 'Aider',  badge: 'pair',    wired: true,  tip: 'Aider edits the files you name, on a line of work, with the coding seat\'s model on this machine. /add names a file, /undo takes a run back' }
   ],
   // What each tab offers to try, one click away.
   HINTS: {
     agent: ['/status', '/help', '/memory', '/sittings'],
     bash: ['ls', 'pwd', 'git status', 'git log --oneline -5'],
-    python: ['1 + 1', 'x = 41', 'x + 1', '/reset']
+    python: ['1 + 1', 'x = 41', 'x + 1', '/reset'],
+    aider: ['/files', '/status', '/undo', '/help']
   },
   PLACEHOLDER: {
     agent: 'Ask the council, run a /command (e.g. /status), or say what you want done...',
     bash: 'A command, run as you. A plain look runs at once; anything that writes asks first...',
-    python: 'Python, in a session that keeps its names. Plain calculations run at once; the rest asks first...'
+    python: 'Python, in a session that keeps its names. Plain calculations run at once; the rest asks first...',
+    aider: 'Say what Aider should change. Name its files first: /add path/to/file.py (/help lists the rest). It writes only on a line of work...'
   },
   // The five doors in the bar, each of which opens the Inspector on its tab.
   DOORS: [
@@ -94,7 +106,8 @@ const Agent = {
   // that looked wired and answered with a stub is the fault the page it came
   // from was full of.
   NOT_WIRED: {
-    aider: 'The Aider tab is not wired yet. Aider is not installed here (WHAT\'S LEFT B20 and H12); until it is, a change to code goes through Version control, on a line of work, with your Land click.'
+    // Every tab is wired (Bash and Python on 2026-10-03, Aider on 2026-10-04). The next tab that is not is marked
+    // `wired: false` in MODES and says so here, in words, under its own id.
   },
   HIST_KEY: 'atlas.agent.hist',
 
@@ -109,6 +122,10 @@ const Agent = {
   holdState: null,        // read off hold_list
   bound: false,
   booting: false,
+  aiderFiles: [],         // the names of the files Aider may change; the door judges them when a run is asked
+  aiderRead: [],          // the names of the files it may only read
+  aiderSt: null,          // read off aider_status, never remembered
+  aiderLast: '',          // the last run that wrote, for /undo
   _seq: 0,
   _pane: 0,
 
@@ -141,6 +158,7 @@ const Agent = {
     this.paintTop();
     this.paintOut();
     this.readStatus();
+    this.readAider();
     this.watch(true);
   },
 
@@ -239,6 +257,11 @@ const Agent = {
         const en = this.entries.find(x => String(x.id) === b.dataset.id);
         if (en && navigator.clipboard) navigator.clipboard.writeText(this.textOf(en)).then(() => toast('Copied'), () => {});
       } else if (act === 'run') { this.open = true; this.tab = 'run'; this.paintPanel(); }
+      else if (act === 'aider-undo') this.aiderUndo(b.dataset.run, '/undo ' + b.dataset.run);
+      else if (act === 'aider-said') {
+        const en = this.entries.find(x => String(x.id) === b.dataset.id);
+        if (en) { en.showSaid = !en.showSaid; this.paintOut(false); }
+      }
       else if (act === 'shell-yes' || act === 'shell-no') {
         // THE ONLY PLACE A SHELL CARD IS ANSWERED FROM: a button he presses (RULE 6).
         const en = this.entries.find(x => String(x.id) === b.dataset.id);
@@ -341,6 +364,7 @@ const Agent = {
         const m = this.MODES.find(x => x.id === b.dataset.mode);
         if (!m.wired) { this.say('(' + m.label + ' tab)', this.NOT_WIRED[m.id], 'ERROR'); return; }
         this.mode = m.id; this.paintMode(); this.paintTitle(); this.paintOut(); $ag('ag-input').focus();
+        if (m.id === 'aider') this.readAider();
       };
     });
     this.paintInput();
@@ -368,6 +392,7 @@ const Agent = {
     const w = escHtml(Run.world || 'research');
     if (k === 'bash') return 'bash[' + w + ']$';
     if (k === 'python') return 'py[' + w + ']&gt;&gt;&gt;';
+    if (k === 'aider') return 'aider[' + w + ']&gt;';
     return 'agent[' + w + ']&gt;';
   },
 
@@ -387,6 +412,8 @@ const Agent = {
         ? '<span title="Git Bash, run in this world as you; the law gate is walked before every run">git bash &middot; gated</span>'
         : '<span title="One Python process for this world; it keeps its names until it is reset, runs past its limit, or the door restarts">keeps its names &middot; gated</span>' +
           '<button type="button" class="ag-link" data-act="reset">Reset</button>';
+    } else if (this.isAider()) {
+      state = this.aiderTitleState();
     } else if (!Run.engineOpen) {
       state = '<span class="ag-warn">no engine</span><button type="button" class="ag-link" data-act="boot">Boot</button>';
     } else {
@@ -423,13 +450,14 @@ const Agent = {
       return '<div class="ag-e"><pre class="ag-pre dim">' + escHtml(Run.unreachable
         ? 'The door did not answer. A shell runs on the door, so nothing below can run until it does.' : lines.join('\n')) + '</pre></div>';
     }
+    if (this.isAider()) return this.aiderBannerHtml();
     const l1 = Run.unreachable
       ? 'The door did not answer. Nothing below can run until it does.'
       : Run.engineOpen
         ? 'The council stands on ' + (Run.world || 'research') + ' (sitting ' + (Run.sitting || '?') + '). What you type goes to it: the law gate stamps it before any model reads a word, the router runs the tools, and every failure is shown with the answer.'
         : 'No engine is open on ' + (Run.world || 'research') + '. Press Boot, or type /boot: booting opens a sitting, and closing it writes its end and pays the toll if a turn ran.';
     const l2 = 'Your words go to the council as they are, and so does any /command the engine knows (try /help or /status). The page itself answers /boot, /close and /clear.';
-    const l3 = 'Bash and Python are wired in the tabs above: what you type there runs as you, and anything that writes asks first. Aider is not wired yet.';
+    const l3 = 'Bash, Python and Aider are wired in the tabs above: Bash and Python run what you type as you, and anything that writes asks first; Aider edits the files you name, on a line of work.';
     void w;
     return '<div class="ag-e"><pre class="ag-pre dim">' + escHtml(l1 + '\n' + l2 + '\n' + l3) + '</pre></div>';
   },
@@ -445,6 +473,7 @@ const Agent = {
   textOf(en) {
     if (en.kind === 'local') return en.text || '';
     if (en.kind === 'shell') return (en.ans && en.ans.output) || '';
+    if (en.kind === 'aider') return en.note || (en.ans && (en.ans.diff || en.ans.said)) || '';
     const t = en.cn && en.cn.turn;
     if ((en.isCommand || en.isAnswer) && en.cmdText != null && this.bare(en.cmdText)) return this.bare(en.cmdText);
     if (t) {
@@ -458,6 +487,7 @@ const Agent = {
   entryHtml(en) {
     const id = en.id;
     if (en.kind === 'shell') return this.shellEntryHtml(en);
+    if (en.kind === 'aider') return this.aiderEntryHtml(en);
     if (en.kind === 'local') {
       const bad = en.status === 'ERROR';
       return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText('agent')}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
@@ -695,7 +725,7 @@ const Agent = {
     let m;
     if ((m = /^(?:\$|!)\s+([\s\S]*)$/.exec(raw))) return { mode: 'bash', text: m[1] };
     if ((m = /^>>>\s+([\s\S]*)$/.exec(raw))) return { mode: 'python', text: m[1] };
-    if (/^aider\s/i.test(raw)) return { mode: 'aider', text: raw };
+    if ((m = /^aider\s+([\s\S]*)$/i.exec(raw))) return { mode: 'aider', text: m[1] };
     return null;
   },
 
@@ -714,7 +744,8 @@ const Agent = {
     // A shell line: typed in a shell tab, or prefixed from any tab. A shell needs the door, not an
     // engine, and it does not wait behind the council.
     const via = this.prefixMode(raw);
-    if (via && via.mode === 'aider') return this.say(raw, this.NOT_WIRED.aider, 'ERROR');
+    // The Aider tab's line goes to the door's Aider, and needs no engine either.
+    if (via ? via.mode === 'aider' : this.isAider()) return this.aiderGo(via ? via.text : raw);
     const shell = via ? via.mode : (this.isShell() ? this.mode : '');
     if (shell) {
       if (raw === '/reset' && shell === 'python') return this.shellReset();
@@ -793,6 +824,282 @@ const Agent = {
     }
     this.readHolds();
     this.paintOut();
+  },
+
+  // ---- the Aider tab ----------------------------------------------------------------
+  //
+  // AIDER IS THE DOOR'S AIDER (WHAT'S LEFT H12 and B20, 2026-10-04; his word: "finish wiring in the Aider panel, it's on
+  // this system"). A line typed here is an instruction to the door's aider_run, which only his glass may call: Aider runs
+  // headless on a COPY of the files he named, behind a wall, against the coding seat's own model on this machine, and the
+  // door writes its edit back only while the world stands on a line of work and every Python file still parses. The page
+  // keeps the NAMES of the files in the chat and judges nothing about them: a path that may not be written, a main line,
+  // a model that is not on the rack are refused at the door, by name, and the page draws the refusal. The Undo button
+  // and /undo are the door's aider_undo; nothing here commits, runs the suites or lands (RULE 6): the edit is unsaved
+  // work on the line, and Version control is where it is saved.
+
+  isAider(k) { return (k || this.mode) === 'aider'; },
+
+  // What the door says of Aider right now, read quietly. The title bar and the Inspector draw from it; the page never
+  // answers for it.
+  async readAider() {
+    try { this.aiderSt = JSON.parse(await App.tool('aider_status', {}, true)); }
+    catch (e) { this.aiderSt = { error: e.message || 'unreadable' }; }
+    if (this.mode === 'aider') this.paintTitle();
+  },
+
+  aiderTitleState() {
+    const s = this.aiderSt;
+    if (!s) return '<span>reading...</span>';
+    if (s.error) return '<span class="ag-bad" title="' + escHtml(s.error) + '">status unreadable</span>';
+    if (!s.installed) return '<span class="ag-warn" title="' + escHtml((s.why || [])[0] || '') + '">not installed</span>';
+    const parts = ['<span title="Aider ' + escHtml(s.version || '') + ', headless, behind a wall; the model is the coding seat\'s, on this machine">' + escHtml(s.model || 'no model') + '</span>'];
+    parts.push(s.on_line
+      ? '<span title="Aider writes only on a line of work">line <b>' + escHtml(s.line) + '</b></span>'
+      : '<span class="ag-warn" title="The main line is yours: open a line of work (Version control) and Aider can write on it">' + (s.line ? 'on ' + escHtml(s.line) : 'no line of work') + '</span>');
+    if (s.rack !== 'up' || !s.on_rack) parts.push('<span class="ag-bad" title="' + escHtml((s.why || []).join('; ')) + '">model not reachable</span>');
+    const n = this.aiderFiles.length;
+    const all = this.aiderFiles.concat(this.aiderRead.map(f => f + ' (read-only)'));
+    parts.push('<span title="' + escHtml(all.join('\n') || 'none yet: /add path') + '">' + n + ' file' + (n === 1 ? '' : 's') + (this.aiderRead.length ? ' + ' + this.aiderRead.length + ' read' : '') + '</span>');
+    if (s.busy) parts.push('<span class="ag-warn">busy</span>');
+    return parts.join('<span class="ag-sl">&middot;</span>');
+  },
+
+  aiderBannerHtml() {
+    const world = Run.world || 'research';
+    const s = this.aiderSt;
+    const lines = [
+      'Aider, run on the files you name in ' + world + ', with the coding seat\'s model on this machine. /add path names a file Aider may change, /read path one it may only read, /drop path takes one out, /files lists them, /undo takes the last run back, /help says all of it. Then say what to change.',
+      'It works on a copy, behind a wall: it writes only to its own scratch folder, reaches nothing but this machine, and starts no other process. The changes come back only while ' + world + ' stands on a line of work (never the main line), only if every Python file still parses, and each file keeps its own line endings.',
+      'Nothing is saved, run or sent from here. The edit is unsaved work on the line: run the suites, save it in Version control, and the Land click is yours.'
+    ];
+    let state = '';
+    if (Run.unreachable) state = 'The door did not answer, so Aider cannot run.';
+    else if (s && s.error) state = 'Aider\'s state could not be read: ' + s.error;
+    else if (s && !s.installed) state = 'Aider is not installed in ' + world + ': ' + ((s.why || [])[0] || '');
+    else if (s && (s.why || []).length) state = 'Not ready: ' + s.why.join('; ') + '.';
+    else if (s) state = 'Aider ' + (s.version || '') + ' is ready: ' + (s.model || '') + ', a window of ' + (s.context || '?') + ' tokens (about ' + (s.budget_kb || '?') + ' KB of files at a time).';
+    return '<div class="ag-e"><pre class="ag-pre dim">' + escHtml(lines.join('\n') + (state ? '\n' + state : '')) + '</pre></div>';
+  },
+
+  aiderHelp() {
+    return [
+      '/add path [path...]   files Aider may change (up to the door\'s limit)',
+      '/read path [path...]  files Aider may only read, for context',
+      '/drop path | all      take a file out of the chat',
+      '/files                 what is in the chat now',
+      '/status               what the door says of Aider now',
+      '/undo [run]           take a run back (the last one by default)',
+      'anything else         an instruction: what Aider should change in those files',
+      'A line may also name this tab from any other: `aider /files`.'
+    ].join('\n');
+  },
+
+  aiderFilesText() {
+    if (!this.aiderFiles.length && !this.aiderRead.length) return 'No files in the chat yet. /add path/to/file.py names one Aider may change; /read path/to/file.md one it may only read.';
+    return 'Aider may change: ' + (this.aiderFiles.join(', ') || '(nothing yet)') + (this.aiderRead.length ? '\nRead only: ' + this.aiderRead.join(', ') : '');
+  },
+
+  aiderStatusText() {
+    const s = this.aiderSt;
+    if (!s) return 'Not read yet.';
+    if (s.error) return 'Aider\'s state could not be read: ' + s.error;
+    const out = ['installed: ' + (s.installed ? 'yes' + (s.version ? ', ' + s.version : '') : 'no'),
+      'model: ' + (s.model || 'none declared') + (s.context ? ', a window of ' + s.context + ' tokens (about ' + (s.budget_kb || '?') + ' KB of files)' : ''),
+      'rack: ' + (s.rack === 'up' ? 'up' : 'silent') + (s.model ? (s.on_rack ? ', has the model' : ', does not have the model') : ''),
+      'line of work: ' + (s.on_line ? s.line : (s.line ? s.line + ' (the main line is yours)' : 'none')),
+      'busy: ' + (s.busy ? 'yes' : 'no')];
+    if ((s.why || []).length) out.push('NOT READY: ' + s.why.join('; '));
+    return out.join('\n');
+  },
+
+  // A line typed in the Aider tab: a /command of the tab's own, or an instruction for the door.
+  async aiderGo(text) {
+    const t = String(text || '').trim();
+    const m = /^\/([A-Za-z]+)\s*([\s\S]*)$/.exec(t);
+    if (!m) return this.aiderRun(t);
+    const cmd = m[1].toLowerCase();
+    const rest = m[2].trim();
+    if (cmd === 'add') return this.aiderNames('files', rest, t);
+    if (cmd === 'read') return this.aiderNames('read', rest, t);
+    if (cmd === 'drop') return this.aiderDrop(rest, t);
+    if (cmd === 'files') return this.aiderSay(t, this.aiderFilesText());
+    if (cmd === 'status') { await this.readAider(); return this.aiderSay(t, this.aiderStatusText()); }
+    if (cmd === 'undo') return this.aiderUndo(rest || this.aiderLast, t);
+    if (cmd === 'help') return this.aiderSay(t, this.aiderHelp());
+    return this.aiderSay(t, 'The Aider tab has no /' + cmd + '. /help lists what it answers.', 'ERROR');
+  },
+
+  aiderSplit(rest) {
+    return String(rest || '').split(/[\s,;]+/).map(n => n.replace(/\\/g, '/').replace(/^(\.\/)+/, '')).filter(Boolean);
+  },
+
+  aiderNames(kind, rest, typed) {
+    const names = this.aiderSplit(rest);
+    if (!names.length) return this.aiderSay(typed, 'Name a file: ' + (kind === 'files' ? '/add path/to/file.py' : '/read path/to/file.md') + '. More than one is fine, separated by spaces.', 'ERROR');
+    const mine = kind === 'files' ? this.aiderFiles : this.aiderRead;
+    const other = kind === 'files' ? this.aiderRead : this.aiderFiles;
+    const said = [];
+    for (const n of names) {
+      const i = other.indexOf(n);
+      if (i >= 0) other.splice(i, 1);
+      if (mine.includes(n)) { said.push(n + ' is already in the chat'); continue; }
+      mine.push(n);
+      said.push('added ' + n + (kind === 'files' ? '' : ' (read-only)'));
+    }
+    this.paintTitle();
+    if (this.open && this.tab === 'aider') this.paintPane();
+    return this.aiderSay(typed, said.join('\n') + '\n' + this.aiderFilesText());
+  },
+
+  aiderDrop(rest, typed) {
+    const names = this.aiderSplit(rest);
+    if (!names.length) return this.aiderSay(typed, 'Name the file to take out: /drop path/to/file.py, or /drop all.', 'ERROR');
+    const had = this.aiderFiles.concat(this.aiderRead);
+    const all = names.length === 1 && names[0].toLowerCase() === 'all';
+    const gone = all ? had : had.filter(f => names.includes(f));
+    this.aiderFiles = this.aiderFiles.filter(f => !gone.includes(f));
+    this.aiderRead = this.aiderRead.filter(f => !gone.includes(f));
+    const said = [];
+    if (gone.length) said.push('dropped ' + gone.join(', '));
+    else if (all) said.push('nothing was in the chat');
+    const missed = all ? [] : names.filter(n => !had.includes(n));
+    if (missed.length) said.push(missed.join(', ') + (missed.length === 1 ? ' was' : ' were') + ' not in the chat');
+    this.paintTitle();
+    if (this.open && this.tab === 'aider') this.paintPane();
+    return this.aiderSay(typed, said.join('\n') + '\n' + this.aiderFilesText());
+  },
+
+  // The page answered by itself, not the door; the chip says so.
+  aiderSay(command, text, status) {
+    this.entries.push({ id: ++this._seq, kind: 'aider', prompt: this.promptText('aider'), command, state: 'note', note: text, bad: status === 'ERROR', t0: Date.now(), ms: 0 });
+    this.paintOut();
+  },
+
+  // One instruction, sent as typed with the names of the files in the chat. The run takes a minute or more, and the
+  // entry says so while it waits; nothing in the world has changed until the door answers.
+  async aiderRun(text) {
+    const files = this.aiderFiles.slice();
+    const read = this.aiderRead.slice();
+    const en = { id: ++this._seq, kind: 'aider', prompt: this.promptText('aider'), command: text, state: 'running', t0: Date.now(), files, read };
+    this.entries.push(en);
+    this.aiderTick(true);
+    this.paintOut();
+    let said;
+    try { said = await App.tool('aider_run', { message: text, files: files.join('\n'), context: read.join('\n') }); }
+    catch (e) { en.state = 'error'; en.err = e.message || 'refused'; en.ms = Date.now() - en.t0; this.aiderTick(this.entries.some(x => x.kind === 'aider' && x.state === 'running')); this.paintOut(); return; }
+    this.aiderTake(en, said);
+  },
+
+  // Taking a run back is a button he presses or a line he types, and nothing else.
+  async aiderUndo(run, typed) {
+    const id = String(run || '').trim();
+    if (!id) return this.aiderSay(typed, 'There is no run in this tab to take back yet. /undo <run id> takes back one from the Recent runs in the Aider Pair inspector.', 'ERROR');
+    const en = { id: ++this._seq, kind: 'aider', prompt: this.promptText('aider'), command: typed || '/undo ' + id, state: 'running', t0: Date.now(), undoOf: id };
+    this.entries.push(en);
+    this.paintOut();
+    let said;
+    try { said = await App.tool('aider_undo', { run: id }); }
+    catch (e) { en.state = 'error'; en.err = e.message || 'refused'; en.ms = Date.now() - en.t0; this.paintOut(); return; }
+    this.aiderTake(en, said);
+  },
+
+  // What the door answered, in the one shape it answers in (state, why, changed, diff, said, note, guarded, ...).
+  aiderTake(en, said) {
+    let a = null;
+    try { a = JSON.parse(said); } catch { /* reported below */ }
+    en.ms = Date.now() - en.t0;
+    if (!a || typeof a !== 'object' || !a.state) {
+      en.state = 'error';
+      en.err = 'The door answered something that is not Aider\'s shape: ' + String(said).slice(0, 300);
+    } else {
+      en.ans = a;
+      en.state = a.state;
+      if (en.undoOf && a.state === 'undone') {
+        for (const x of this.entries) { if (x.ans && x.ans.run === en.undoOf) x.undone = true; }
+        if (this.aiderLast === en.undoOf) this.aiderLast = '';
+      } else if (!en.undoOf && a.state === 'ran' && a.run && (a.changed || []).length && !a.withheld) this.aiderLast = a.run;
+    }
+    this.aiderTick(this.entries.some(x => x.kind === 'aider' && x.state === 'running'));
+    this.readAider().then(() => { if (this.open && this.tab === 'aider') this.paintPane(); });
+    this.paintOut();
+  },
+
+  since(t0) { return Math.floor((Date.now() - t0) / 1000) + 's'; },
+
+  // A run waits for minutes; the clock on its chip keeps moving so a working Aider does not read as a hung one.
+  aiderTick(on) {
+    clearInterval(this._at);
+    this._at = null;
+    if (!on) return;
+    this._at = setInterval(() => {
+      const live = this.entries.filter(e => e.kind === 'aider' && e.state === 'running');
+      if (!live.length || !$ag('ag-out')) { this.aiderTick(false); return; }
+      for (const e of live) { const el = $ag('ag-at-' + e.id); if (el) el.textContent = this.since(e.t0); }
+    }, 1000);
+  },
+
+  diffHtml(text) {
+    return String(text || '').split('\n').map(l => {
+      const e = escHtml(l);
+      if (l.startsWith('+++') || l.startsWith('---') || l.startsWith('diff ')) return '<span class="ag-d-file">' + e + '</span>';
+      if (l.startsWith('@@')) return '<span class="ag-d-hunk">' + e + '</span>';
+      if (l.startsWith('+')) return '<span class="ag-d-add">' + e + '</span>';
+      if (l.startsWith('-')) return '<span class="ag-d-del">' + e + '</span>';
+      return e;
+    }).join('\n');
+  },
+
+  // A line typed in the Aider tab, as the door answered it. The page decides nothing: it draws the answer's state,
+  // reasons, files, diff, words and notes, and a failure (a refusal, a wall that stopped something, an edit that was
+  // withheld, a run that was ended) is on the face of it. The Undo button is drawn for a run that wrote and for nothing else.
+  aiderEntryHtml(en) {
+    const id = en.id;
+    const a = en.ans || null;
+    const why = (a && a.why) || [];
+    const chips = [];
+    let bad = !!en.bad;
+    if (en.state === 'running') chips.push('<span class="ag-chip">running <span id="ag-at-' + id + '">' + this.since(en.t0) + '</span></span>');
+    else if (en.state === 'note') chips.push('<span class="ag-chip' + (bad ? ' bad' : '') + '">page</span>');
+    else if (en.state === 'refused') { chips.push('<span class="ag-chip bad">refused</span>'); bad = true; }
+    else if (en.state === 'error') { chips.push('<span class="ag-chip bad">could not run</span>'); bad = true; }
+    else if (en.state === 'undone') chips.push('<span class="ag-chip">taken back</span>');
+    else if (en.state === 'ran' && a) {
+      if (a.withheld) { chips.push('<span class="ag-chip bad">withheld</span>'); bad = true; }
+      else if (a.timed_out) { chips.push('<span class="ag-chip bad">timed out</span>'); bad = true; }
+      else if (a.exit != null && a.exit !== 0) { chips.push('<span class="ag-chip bad">exit ' + escHtml(String(a.exit)) + '</span>'); bad = true; }
+      else if ((a.changed || []).length) chips.push('<span class="ag-chip">written</span>');
+      else chips.push('<span class="ag-chip">no change</span>');
+      if (a.model) chips.push('<span>' + escHtml(a.model) + '</span>');
+      if (a.line) chips.push('<span>on ' + escHtml(a.line) + '</span>');
+      if (a.tokens) chips.push('<span>' + escHtml(String(a.tokens).replace(/\.$/, '')) + '</span>');
+    }
+    // Only a finished answer has a time: a card still waiting has not taken that long to do anything.
+    if (en.state === 'ran' || en.state === 'refused' || en.state === 'undone') {
+      const ms = a && a.ms != null ? a.ms : en.ms;
+      if (ms != null && ms > 0) chips.push('<span>' + ms + 'ms</span>');
+    }
+    const out = en.state === 'note' ? (en.note || '') : '';
+    const lines = [];
+    if (en.state === 'running') lines.push('<div class="ag-src">' + (en.undoOf ? 'putting the files back' : 'Aider is working on a copy of ' + escHtml((en.files || []).join(', ') || 'no files') + '. A run takes minutes (the model reads the whole file and writes the edit at the speed of this machine), and nothing in the world changes until it has finished and its edit has been checked.') + '</div>');
+    if (en.state === 'refused') lines.push(`<div class="ag-notrun"><b>REFUSED BY NAME</b><br>${why.map(escHtml).join('<br>')}<br><span class="ag-src">no click lifts a refusal; nothing ran and nothing was written</span></div>`);
+    if (en.state === 'error') lines.push(`<div class="ag-notrun"><b>COULD NOT RUN</b><br>${escHtml(en.err || '')}</div>`);
+    if (a && (a.guarded || []).length) lines.push(`<div class="ag-notrun"><b>THE WALL STOPPED</b><br>${a.guarded.map(escHtml).join('<br>')}</div>`);
+    if (a && a.withheld) lines.push(`<div class="ag-notrun"><b>NOT WRITTEN</b><br>${escHtml(a.note || '')}</div>`);
+    else if (a && a.timed_out) lines.push(`<div class="ag-notrun"><b>ENDED</b> ${escHtml(a.note || 'it ran past its limit')}</div>`);
+    else if (a && a.exit != null && a.exit !== 0) lines.push(`<div class="ag-notrun"><b>FAILED</b> ${escHtml(a.note || '')}</div>`);
+    else if (a && a.note) lines.push(`<div class="ag-src">${escHtml(a.note)}</div>`);
+    if (a && (a.changed || []).length) lines.push('<div class="ag-src">' + (a.withheld ? 'the edit that was NOT written: ' : '') + a.changed.map(f => escHtml((f.new ? 'new ' : '') + f.file + (f.added || f.removed ? ' +' + f.added + ' -' + f.removed : ''))).join(' &middot; ') + '</div>');
+    if (a && a.diff) lines.push('<pre class="ag-pre diff' + (a.withheld ? ' bad' : '') + '">' + this.diffHtml(a.diff) + '</pre>');
+    if (en.state === 'ran' && a && a.run && (a.changed || []).length && !a.withheld && !en.undone) {
+      lines.push(`<div class="ag-btns"><button type="button" class="ag-btn no" data-act="aider-undo" data-run="${escHtml(a.run)}">Undo this run</button><span class="ag-src">run ${escHtml(a.run)}; unsaved on ${escHtml(a.line || 'the line')} until Version control saves it</span></div>`);
+    }
+    if (en.undone) lines.push('<div class="ag-src">taken back</div>');
+    if (a && a.said) lines.push(`<div><button type="button" class="ag-link" data-act="aider-said" data-id="${id}">${en.showSaid ? 'hide' : 'show'} what Aider said</button></div>` + (en.showSaid ? `<pre class="ag-pre dim">${escHtml(a.said)}</pre>` : ''));
+    if (a && (a.ignored || []).length) lines.push(`<div class="ag-src">Aider also touched, and none of it was kept: ${a.ignored.map(escHtml).join('; ')}</div>`);
+    if (a && a.truncated) lines.push('<div class="ag-src">what Aider said was cut at 16 KB</div>');
+    return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p aider">${en.prompt || this.promptText('aider')}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
+      <div class="ag-meta">${chips.join('')}<button type="button" class="ag-copy" data-act="copy" data-id="${id}" title="Copy the output" aria-label="Copy the output">${AG_ICON.copy}</button></div></div>
+      ${out ? `<pre class="ag-pre${bad && en.state === 'note' ? ' bad' : ''}" id="ag-o-${id}">${escHtml(out)}</pre>` : ''}${lines.join('')}</div>`;
   },
 
   // The page answered by itself, not the engine; the chip says so.
@@ -1028,6 +1335,7 @@ const Agent = {
       if (!$ag('ag-out')) { this.watch(false); return; }
       if (document.hidden || Run.running || this.booting) return;
       Run.check().then(() => { this.paintTitle(); this.paintTop(); });
+      if (this.isAider()) this.readAider();
     };
     this._wv = () => { if (!document.hidden) again(); };
     document.addEventListener('visibilitychange', this._wv);
@@ -1188,29 +1496,58 @@ const Agent = {
 
   // ---- Aider Pair ---------------------------------------------------------------
 
+  // The Inspector's side of the tab: what the door says of Aider now, the files in the chat (each can be dropped), the
+  // runs this world kept (each can be taken back), and where each world's work stands -- its branch and what changed --
+  // because an edit is unsaved work on a line, and Version control is where it is saved.
   async aiderHtml() {
+    await this.readAider();
+    const s = this.aiderSt || {};
+    const parts = [];
+    if (s.error) {
+      parts.push(this.card('Aider\'s state could not be read', `<p>${escHtml(s.error)}</p>`, 'aider_status'));
+    } else {
+      const rows = [
+        ['installed', s.installed ? 'yes' + (s.version ? ', ' + s.version : '') : 'no'],
+        ['folder', s.folder || ''],
+        ['model', s.model ? s.model + ' (the coding seat\'s)' : 'none declared'],
+        ['window', s.context ? s.context + ' tokens, about ' + (s.budget_kb || '?') + ' KB of files' : 'unknown'],
+        ['rack', (s.rack === 'up' ? 'up' : 'silent') + (s.model ? (s.on_rack ? ', has the model' : ', does not have the model') : '')],
+        ['line of work', s.on_line ? s.line : (s.line ? s.line + ' (the main line is yours)' : 'none')],
+        ['busy', s.busy ? 'yes: a run is going' : 'no']
+      ];
+      parts.push(this.card('Aider ' + (s.installed ? 'is installed' : 'is not installed here'),
+        rows.map(([k, v]) => `<div class="ag-row"><span class="k">${escHtml(k)}</span><span class="v">${escHtml(String(v))}</span></div>`).join('') +
+        ((s.why || []).length ? `<div class="ag-notrun"><b>NOT READY</b><br>${s.why.map(escHtml).join('<br>')}</div>` : ''),
+        'aider_status, read just now'));
+    }
+    const fileRows = (list, ro) => list.map(f => `<div class="ag-row"><span class="k">${escHtml(f)}${ro ? ' <span class="ag-src">read-only</span>' : ''}</span><span class="v"><button type="button" class="ag-link" data-act="aider-drop" data-file="${escHtml(f)}">drop</button></span></div>`).join('');
+    parts.push(this.card('In the chat',
+      (fileRows(this.aiderFiles, false) + fileRows(this.aiderRead, true)) ||
+        '<p>No files yet. In the Aider tab, /add path/to/file.py names a file Aider may change, and /read path one it may only read.</p>',
+      'kept in this page; the door judges every name when a run is asked'));
+    const runs = (s.runs || []).map(r => `<div class="ag-row"><span class="k">${escHtml(r.run)}<br><span class="ag-src">${escHtml((r.files || []).join(', '))}${r.line ? ' &middot; ' + escHtml(r.line) : ''}</span></span>
+      <span class="v">${r.undone ? 'taken back' : `<button type="button" class="ag-btn no" data-act="aider-undo" data-run="${escHtml(r.run)}">Undo</button>`}</span></div>`).join('');
+    parts.push(this.card('Recent runs', runs || '<p>No run yet.</p>', 'the last runs this world kept; an older one is git\'s to take back'));
     let worlds = [];
     let said = '';
     try {
       const m = await App.tool('muster', {}, true);
-      worlds = String(m).split('\n').map(s => s.trim()).filter(s => s && !s.endsWith(':'));
+      worlds = String(m).split('\n').map(x => x.trim()).filter(x => x && !x.endsWith(':'));
     } catch (e) { said = e.message || 'unreadable'; }
-    const cards = [];
     for (const wd of worlds) {
       let d = null;
       try { d = JSON.parse(await App.tool('git', { project: wd })); } catch (e) { d = { error: e.message || 'unreadable' }; }
       const keys = ['branch', 'changed', 'untracked', 'ahead', 'behind'].filter(k => d && d[k] != null && d[k] !== '');
-      cards.push(this.card(escHtml(wd),
+      parts.push(this.card(escHtml(wd),
         d && d.error ? `<p>${escHtml(d.error)}</p>`
           : d && d.is_repo === false ? '<p>Not a repository.</p>'
           : keys.map(k => `<div class="ag-row"><span class="k">${escHtml(k)}</span><span class="v">${escHtml(String(d[k]))}</span></div>`).join('') || '<p>Nothing to report.</p>',
         'git') + `<div class="ag-btns"><button type="button" class="ag-btn" data-act="diff" data-world="${escHtml(wd)}">Show the diff</button></div>`);
     }
-    return this.card('Aider is not installed here',
-        '<p>Aider is open source and proven at search-and-replace edits, and it is on the list (WHAT\'S LEFT B20 and H12) to be measured against the ground\'s own coder flow before it is wired. Until then a change to code goes through Version control: a line of work, the suites, and your Land click. Nothing on this page commits.</p>' +
-        '<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">Version control</button></div>', '') +
-      (said ? this.card('The worlds could not be read', `<p>${escHtml(said)}</p>`, 'muster') : '') +
-      cards.join('') + '<div id="ag-diff"></div>';
+    if (said) parts.push(this.card('The worlds could not be read', `<p>${escHtml(said)}</p>`, 'muster'));
+    parts.push('<div id="ag-diff"></div>');
+    parts.push(`<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">Version control</button></div>`);
+    return parts.join('');
   },
 
   // ---- Workflows ------------------------------------------------------------------
@@ -1302,6 +1639,8 @@ const Agent = {
     if (!b) return;
     const act = b.dataset.act;
     if (act === 'goto') { history.pushState(null, '', b.dataset.path); App.router(); return; }
+    if (act === 'aider-undo') { this.aiderUndo(b.dataset.run, '/undo ' + b.dataset.run); return; }
+    if (act === 'aider-drop') { this.aiderDrop(b.dataset.file, '/drop ' + b.dataset.file); return; }
     if (act === 'status') {
       b.disabled = true;
       const t = await this.stream('/status', () => {});

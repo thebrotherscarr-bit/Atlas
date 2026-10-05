@@ -267,8 +267,12 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 // how many writing calls wait for his hand when the page opens and after each
 // turn, and a toast saying "New trace recorded" at every one of those would be
 // the same noise the ruling above ended. The door declares it Writes: false.
+// `aider_status` joined on 2026-10-04 with the Aider tab: its title bar reads
+// it when the tab opens, every thirty seconds it is on screen and after each
+// run, and the Inspector's Aider Pair tab reads it when it opens. The door
+// declares it Writes: false and starts no process to answer it.
 var backgroundReads = map[string]bool{"muster": true, "rack_list": true, "proofs": true,
-	"projects": true, "hold_list": true}
+	"projects": true, "hold_list": true, "aider_status": true}
 
 func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	var req struct {
