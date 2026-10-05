@@ -186,5 +186,16 @@ jobs:
         run: go build ./...
 
       - name: The suites, for the first time off Windows
+        # A red run's log needs a GitHub sign-in to read; annotations do not, so
+        # the failing lines (the test's own file and line, and what it said) are
+        # ALSO written as annotations, which the run's summary page and the checks
+        # API show to anyone. The verdict is go test's own.
         working-directory: line
-        run: go test ./...
+        shell: bash {0}
+        run: |
+          go test ./... 2>&1 | tee "$RUNNER_TEMP/gotest.out"
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            grep -E '^(--- FAIL|FAIL|panic:)|_test\.go:[0-9]+:' "$RUNNER_TEMP/gotest.out" | head -40 | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+          fi
+          exit $rc
