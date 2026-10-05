@@ -12,6 +12,20 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The Linux leg went red on the Aider wall's probe test, and it was the test and not the wall (2026-10-05; follows "Aider behind the glass")
+
+GitHub's `the go half, off Windows` (the portability probe: the first time these tests ran off Windows) failed on `cbec5eb`, and only on
+`TestTheWallRefusesTheTwoKnownProbesQuietlyAndEverythingElseOutLoud`; the Windows battery, the gate, was green. The log needs a GitHub sign-in, so
+the failing test was read from the run's ANNOTATIONS, which need none: the job's test step now writes the failing lines (`--- FAIL`, `FAIL`, `panic:`
+and each `_test.go:line:` message) as annotations as well as in its log, the verdict still go test's own. The cause: the probe handed the wall
+command STRINGS (`'git version'`, `'cmd /c "ver"'`), which Windows reads as command lines and every other system reads as the name of ONE program, so
+on Linux the wall was shown the one-element list `['git version']`, did not match its two-word rule for the two known probes and said both out loud.
+The wall was right and the probe was wrong. The probe now sends each command in the form its system uses: a string on Windows, as before, and the
+same words as a list elsewhere, without the quote characters a list never carries. Proved here in the Windows form and, in a scratch copy only, with
+the list form forced on, both through the real wall; GitHub's Linux leg is the third proof. I had vetted and compiled the Aider tests for Linux but
+never run them there, and sent them: that is the fault. **What goes red if unplugged:** the test itself, and the annotation step (a red Linux leg
+whose annotations name nothing).
+
 ### Aider behind the glass: the front page's Aider tab runs Aider on the files he names, behind a wall, on a line of work, and it was measured against the coder flow (2026-10-04; the core's WHAT'S LEFT H12 and B20)
 
 His idea of 2026-10-02, as the list had it (WHAT'S LEFT H12): a page on the glass that drives Aider, open source and proven at search-and-replace edits. His answers of

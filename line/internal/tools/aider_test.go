@@ -1242,10 +1242,14 @@ func TestTheWallShutsWhatItNamesAndLeavesOpenWhatAiderNeeds(t *testing.T) {
 // is said.
 func TestTheWallRefusesTheTwoKnownProbesQuietlyAndEverythingElseOutLoud(t *testing.T) {
 	r := probeWall(t, `
-import subprocess, sys
+import os, subprocess, sys
 results = {}
-for name, cmd in (('git_version', 'git version'), ('git_version_list', ['git', 'version']), ('cmd_ver', 'cmd /c "ver"'),
-                  ('cmd_ver2', 'cmd /c "command /c ver"'), ('cmd_ver3', 'cmd /c "cmd /c ver"'), ('git_status', 'git status'), ('echo', 'cmd /c echo hi'), ('python', [sys.executable, '-c', 'pass'])):
+def run_as(line):
+    # a string is a command line only on Windows (the form the platform module and the shell paths use); anywhere else a string names ONE program, so the same words go as a list
+    return line if os.name == 'nt' else line.replace('"', '').split()
+for name, cmd in (('git_version', run_as('git version')), ('git_version_list', ['git', 'version']), ('cmd_ver', run_as('cmd /c "ver"')),
+                  ('cmd_ver2', run_as('cmd /c "command /c ver"')), ('cmd_ver3', run_as('cmd /c "cmd /c ver"')), ('git_status', run_as('git status')),
+                  ('echo', run_as('cmd /c echo hi')), ('python', [sys.executable, '-c', 'pass'])):
     try:
         subprocess.Popen(cmd)
         results[name] = 'allowed'
