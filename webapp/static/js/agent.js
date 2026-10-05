@@ -110,6 +110,10 @@ const Agent = {
     // `wired: false` in MODES and says so here, in words, under its own id.
   },
   HIST_KEY: 'atlas.agent.hist',
+  // The window a game is drawn for. A game is made for a window of its own size (an 800 by 600 canvas is common), and the page it is served as cannot be
+  // scrolled to, so the play frame is given this much and shrunk to fit the room the stage has (fitPlay).
+  PLAY_W: 1000,
+  PLAY_H: 720,
 
   // ---- state --------------------------------------------------------------
   mode: 'agent',
@@ -126,6 +130,7 @@ const Agent = {
   aiderRead: [],          // the names of the files it may only read
   aiderSt: null,          // read off aider_status, never remembered
   aiderLast: '',          // the last run that wrote, for /undo
+  play: null,             // the page the maker made, played beside the terminal: { name, version, closed }; never remembered
   _seq: 0,
   _pane: 0,
 
@@ -189,6 +194,7 @@ const Agent = {
               <button type="button" class="ag-tool" id="ag-clear" title="Clear the screen (Ctrl+L)" aria-label="Clear the screen">${AG_ICON.trash}</button></div>
           </div>
           <div class="ag-out" id="ag-out" aria-live="polite"></div>
+          <div class="ag-play" id="ag-play" hidden></div>
           <div class="ag-hints" id="ag-hints" hidden></div>
           <div class="ag-in">
             <span class="ag-p agent" id="ag-prompt"></span>
@@ -706,11 +712,72 @@ const Agent = {
       this.paintTop();
       if (this.open && this.tab === 'run') this.paintPane();
       Home.keepThread();
+      const made = Run.turn && Run.turn.delivery;
+      if (made && typeof made.project === 'string' && made.project) this.playProject(made.project);
       Run.check().then(() => { this.paintTitle(); this.paintTop(); this.paintOut(false); });
       this.readHolds();
       const input = $ag('ag-input');
       if (input && !document.querySelector('#ag-gate-form')) input.focus();
     }
+  },
+
+  // THE PLAY FRAME (WHAT'S LEFT E1, 2026-10-05). A person asked for a game and was handed a file path to open: this page never read the delivery's
+  // `project`, so the game she asked for was on another page. The delivery names the project in hand (read off the maker, never off a seat's words);
+  // the page asks the door's read-only `projects` tool which version that is and frames the page the glass already serves, sandboxed by the header it
+  // is served under (handlers/projects.go) and, as there, with no `sandbox` attribute (the app's own browser pane refuses any frame that has one).
+  // The frame lives OUTSIDE #ag-out, which is rewritten whole on most events: a frame inside it would restart the game on every line she types. The
+  // same page is never loaded twice, so a game she is playing keeps playing while she talks; a new version of it, or another project, is loaded.
+  async playProject(name) {
+    let version = 0;
+    try {
+      const d = JSON.parse(await App.tool('projects', { action: 'list' }, true));
+      const p = (d.projects || []).find(x => x.name === name);
+      version = p && Array.isArray(p.versions) ? p.versions.length : 0;
+    } catch { /* the page as it stands */ }
+    const s = this.play;
+    if (s && s.name === name && s.version === version) return;
+    this.play = { name, version, closed: false };
+    this.paintPlay();
+  },
+
+  paintPlay() {
+    const box = $ag('ag-play');
+    if (!box) return;
+    const s = this.play;
+    if (!s || s.closed) { box.hidden = true; box.innerHTML = ''; return; }
+    const url = Projects.pageUrl(s.name, s.version);
+    box.hidden = false;
+    box.innerHTML = '<div class="ag-play-bar"><b>' + escHtml(s.name) + '</b><span>' + (s.version ? 'version ' + s.version : 'as it stands') + '</span>' +
+      '<span class="ag-play-sp"></span>' +
+      '<a href="' + escHtml(url) + '" target="_blank" rel="noopener noreferrer" title="Opens the page alone, in its own tab">Open in its own tab</a>' +
+      '<button type="button" id="ag-play-x" title="Put it away; it comes back when a new version is made" aria-label="Put it away">Close</button></div>' +
+      '<div class="ag-play-body"><iframe title="' + escHtml(s.name) + '" referrerpolicy="no-referrer" src="' + escHtml(url) + '"></iframe></div>';
+    const x = $ag('ag-play-x');
+    if (x) x.onclick = () => { s.closed = true; this.paintPlay(); };
+    this.fitPlay();
+    if (typeof ResizeObserver === 'function') {
+      if (this._po) this._po.disconnect();
+      const body = box.querySelector('.ag-play-body');
+      if (body) { this._po = new ResizeObserver(() => this.fitPlay()); this._po.observe(body); }
+    }
+  },
+
+  // The whole game on screen: the frame is a window of PLAY_W by PLAY_H, shrunk (never enlarged) to the room the stage has and centred in it. Clicks and keys
+  // reach the page through the shrinking, as they do through any scaled frame.
+  fitPlay() {
+    const box = $ag('ag-play');
+    const body = box && box.querySelector && box.querySelector('.ag-play-body');
+    const fr = body && body.querySelector('iframe');
+    if (!fr) return;
+    const w = body.clientWidth, h = body.clientHeight;
+    if (!w || !h) return;
+    const k = Math.min(w / this.PLAY_W, h / this.PLAY_H, 1);
+    fr.style.width = this.PLAY_W + 'px';
+    fr.style.height = this.PLAY_H + 'px';
+    fr.style.transformOrigin = '0 0';
+    fr.style.transform = 'scale(' + k + ')';
+    fr.style.left = Math.max(0, (w - this.PLAY_W * k) / 2) + 'px';
+    fr.style.top = Math.max(0, (h - this.PLAY_H * k) / 2) + 'px';
   },
 
   schedulePane() {

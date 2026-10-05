@@ -569,6 +569,82 @@ func TestTheAiderTabIsTheDoorsAiderAndNothingElse(t *testing.T) {
 	}
 }
 
+// THE FRONT PAGE PLAYS WHAT THE MAKER MADE (WHAT'S LEFT E1, 2026-10-05). A person asked for a game and was handed a file path to open: the page never read the
+// delivery's `project`, so the game she asked for was on another page. The delivery names the project in hand, read off the maker and never off a seat's
+// words; the page asks the door's read-only `projects` tool which version that is and frames the page the glass already serves, sandboxed by the header it is
+// served under. Each promise is pinned to the line that keeps it, because the binary embeds the page and builds whether or not it says what it must.
+func TestTheFrontPagePlaysWhatTheMakerMade(t *testing.T) {
+	src := page(t, "js/agent.js")
+	css := page(t, "css/agent.css")
+	fn := func(sig string) string {
+		body := funcOf(src, sig)
+		if body == "" {
+			t.Fatalf("the page has no %s", strings.TrimSpace(sig))
+		}
+		return body
+	}
+	shell, play, paint, onRun := fn("  shell("), fn("  async playProject("), fn("  paintPlay("), fn("  onRun(")
+
+	// Its place is a sibling of the output, between the output and the input line: #ag-out is rewritten whole on most events, and a frame inside it would
+	// restart the game on every line she types.
+	out, box, hints := strings.Index(shell, `id="ag-out"`), strings.Index(shell, `id="ag-play"`), strings.Index(shell, `id="ag-hints"`)
+	if out < 0 || box < out || hints < box {
+		t.Fatal("the play frame is not between the terminal's output and its input line, as a sibling of the output")
+	}
+	for _, sig := range []string{"  entryHtml(", "  shellEntryHtml(", "  aiderEntryHtml(", "  bannerHtml(", "  gateHtml(", "  liveHtml(", "  paintOut(", "  paintLive("} {
+		if strings.Contains(fn(sig), "<iframe") {
+			t.Fatalf("%s builds a frame inside what the terminal rewrites whole, so the game would restart on every repaint", strings.TrimSpace(sig))
+		}
+	}
+	if strings.Count(src, "<iframe") != 1 || !strings.Contains(paint, "<iframe") {
+		t.Fatal("the page builds a frame somewhere other than paintPlay, or more than one")
+	}
+
+	// The frame is the glass's own sandboxed page, framed as the Dashboard frames it: the url is Projects.pageUrl's, there is no `sandbox` attribute (the app's
+	// own browser pane refuses any frame that carries one, measured 2026-09-21; the header the page is served under is the wall), and no referrer goes out.
+	if !strings.Contains(paint, "Projects.pageUrl(s.name, s.version)") || strings.Contains(paint, "sandbox") || !strings.Contains(paint, `referrerpolicy="no-referrer"`) {
+		t.Fatal("the frame is not the glass's own sandboxed project page, framed as the Dashboard frames it")
+	}
+
+	// The project named is the delivery's and nobody else's, as a string, only when it names one.
+	if !regexp.MustCompile(`const made = Run\.turn && Run\.turn\.delivery;\s+if \(made && typeof made\.project === 'string' && made\.project\) this\.playProject\(made\.project\);`).MatchString(onRun) {
+		t.Fatal("what is played is not read off the turn's delivery (`project`), or is played when the delivery names none")
+	}
+	if strings.Count(src, "this.playProject(") != 1 {
+		t.Fatal("something other than a delivery puts a project on the play frame")
+	}
+
+	// Which version it is comes from the door: a quiet read of the read-only `projects` tool (the glass keeps no trace of a quiet read).
+	if !strings.Contains(play, "App.tool('projects', { action: 'list' }, true)") {
+		t.Fatal("the version of the project is not read off the door's `projects` tool, quietly")
+	}
+	bg, err := os.ReadFile(filepath.Join("..", "handlers", "handlers.go"))
+	if err != nil || !strings.Contains(string(bg), `"projects": true`) {
+		t.Fatalf("`projects` is not among the glass's quiet reads (%v)", err)
+	}
+
+	// The same page is never loaded twice, so a game she is playing keeps playing while she talks; a new version or another project is loaded, and a page she
+	// put away comes back only then.
+	if !regexp.MustCompile(`if \(s && s\.name === name && s\.version === version\) return;`).MatchString(play) || !strings.Contains(play, "closed: false") {
+		t.Fatal("a page that is already shown would be loaded again, or a new version would not bring a closed page back")
+	}
+	if !strings.Contains(paint, "s.closed = true") || !strings.Contains(paint, "box.hidden = true") {
+		t.Fatal("she cannot put the page away")
+	}
+
+	// The WHOLE game is on screen: a game is drawn for a window of its own size and the page it is served as cannot be scrolled to, so the frame is given a
+	// window of PLAY_W by PLAY_H and shrunk (never enlarged) to the room the stage has, now and whenever that room changes.
+	if !regexp.MustCompile(`PLAY_W: \d+,\s+PLAY_H: \d+,`).MatchString(src) || !strings.Contains(paint, `class="ag-play-body"`) || !strings.Contains(paint, "this.fitPlay();") ||
+		!strings.Contains(paint, "new ResizeObserver(() => this.fitPlay())") || !strings.Contains(fn("  fitPlay("), "Math.min(w / this.PLAY_W, h / this.PLAY_H, 1)") {
+		t.Fatal("the frame is not fitted to the room the stage has, so a game made for a bigger window would be cut off with no way to scroll to the rest")
+	}
+
+	// It has room and cannot crowd the terminal out: its own rule caps its height, and the window keeps the height it starts at.
+	if !regexp.MustCompile(`\.ag-play \{[^}]*flex: none;[^}]*max-height: \d+px;`).MatchString(css) || !strings.Contains(css, ".ag-play[hidden] { display: none; }") {
+		t.Fatal("the play frame has no height cap, or is not hidden when there is nothing to play")
+	}
+}
+
 func TestEveryToolTheFrontPageAsksForIsCarriedByTheDoor(t *testing.T) {
 	src := page(t, "js/agent.js")
 	reg, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "tools.go"))

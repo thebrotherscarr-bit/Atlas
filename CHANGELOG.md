@@ -12,6 +12,37 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The front page plays what the maker made: the delivery's project in a sandboxed frame that shows the whole game (2026-10-05; the core's WHAT'S LEFT E1, first piece)
+
+Why: the wife test. A person who is not the operator asked for a game and was handed a file path ("To try it, open projects\game-3\index.html in your browser"): the
+new front page never read the delivery's `project` and had no way to play, so the game she asked for was on the old Dashboard's Projects card, another page
+(finding 1 of `logs/pack_2026-10-03_181226.md`, run live on his glass on 2026-10-03).
+
+What: a play frame between the terminal's output and its input line. When a turn ends and its delivery names a project (`project`, read off the maker and never
+off a seat's words), the page asks the door's read-only `projects` tool which version that is (a quiet read) and frames the page the glass already serves at
+`/api/projects/{name}/page?v=N`: sandboxed by the header it is served under and, as in the Dashboard, with no `sandbox` attribute (the app's own browser pane
+refuses any frame that has one). A bar over it says the project and the version and offers "Open in its own tab" and Close.
+
+Two things found by running it, each held now. (1) The terminal is rewritten whole on most events (`paintOut`), so a frame inside it would restart the game on every
+line she types: the frame lives outside it, the same project and version are never loaded twice (a game she is playing keeps playing while she talks), a new
+version or another project is loaded, and Close puts it away until a new version comes. (2) The game the maker made is an 800 by 600 canvas on a page with
+`overflow: hidden` (`game-4`, version 4): in a small stage most of it was cut off, with no way to scroll to the rest. The frame is therefore given a window of 1000 by
+720 and shrunk (never enlarged) to the room the stage has, centred in it and refitted when the room changes, so the whole game is on screen whatever the
+size of the window; the stage is capped at 62 percent of the window and 640 px so the terminal keeps its place.
+
+**Proof.** `TestTheFrontPagePlaysWhatTheMakerMade` pins the place (a sibling of the output, between it and the input line), that no frame is built in anything the
+terminal rewrites, the frame's url, the missing `sandbox` attribute and referrer, that the project is read off the delivery and nowhere else, the quiet
+`projects` read, that the same page is not loaded twice, Close, the fit and the height cap; 21 reversals, each red and named, every file restored byte for byte.
+A node run of the logic with stubs (15 checks: one load per version, a repeat delivery leaves the frame alone, a new version reloads it, Close and staying closed and
+coming back, the fit for a small, a big and an empty stage). And a scratch copy of the glass in the app's browser pane, against the real door: `game-4` (four
+versions, made by the wife test) shown whole, shrunk to fit and centred, and Close putting it away and giving the terminal its area back. **Not shown here:** keys
+and clicks through the scaled frame. The automation cannot deliver them into a cross-origin frame (it refuses to click a scaled one and sends keys to the top
+page), so that rests on how browsers treat a scaled frame and on the run on his own glass, below.
+
+**Not done, and said.** The engine's delivery text still tells her to open a file path, and the rest of what the live run found is the engine's (`manjuel/`), not
+the page's: her second line's reply, small talk, "the game" meaning the oldest of that name, a blank canvas passing the maker's check. Nothing in `manjuel/` moved.
+This is a glass change: it takes a rebuild and a restart of the glass, on his card. **What goes red if unplugged:** the stroke above; the Dashboard's own frame is untouched.
+
 ### The Linux leg went red on the Aider wall's probe test, and it was the test and not the wall (2026-10-05; follows "Aider behind the glass")
 
 GitHub's `the go half, off Windows` (the portability probe: the first time these tests ran off Windows) failed on `cbec5eb`, and only on
