@@ -12,6 +12,8 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.2.0] — 2026-10-05 13:39
+
 ### The Laws page: every law and how far the chain seals it, a law set and the ledger sealed from the glass (2026-10-05; his words, "set it as a law all the agents read ... THROUGH THE SYSTEM" and "a LAWS page ... Add it.")
 
 Why: the laws live in the core's `law/` -- every `.md` there bound to `law/chain.jsonl` by `law/law.py`, and `LAW_LEDGER.md` the one law sealed as far as it is written,
