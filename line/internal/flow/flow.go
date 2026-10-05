@@ -4,7 +4,9 @@
 // Specs live in <home>/flows/<name>.json — {name, version, budget_s,
 // nodes, edges}; history folds as <name>.v<k>.json, never rewritten.
 // Node kinds are a closed set: ask | prompt | seat | memory | eval | gate |
-// run -- `run` drives a whole Manjuel turn (the council), the others one voice.
+// run | aider -- `run` drives a whole Manjuel turn (the council), `aider` is an
+// attempt by Aider on the files it is handed (and the council's own turn when
+// Aider cannot take it), the others one voice.
 // Branches declare parallelism but run sequentially in topo order — one
 // rack queue, no interleaved output, the queue visible in the waterfall.
 // There is no verb here that finishes a task, lands a memory, or closes a
@@ -41,7 +43,20 @@ var Kinds = map[string]bool{
 	// refuses a repeat and the recompose puts every failure in the answer. An
 	// `ask` node reaches a bare model; a `run` node reaches the estate.
 	"run": true,
+	// `aider` is an attempt by Aider (2026-10-05, WHAT'S LEFT H17, his ruling on
+	// B21): the instruction and the files it names go to the door's Aider -- the
+	// operator's own hand, never a seat's -- and when Aider cannot take them (a
+	// file past its window, nothing it would change) the SAME instruction is the
+	// council's own turn, as a `run` node would have made it. It is reached only
+	// through a gate whose `grants` name AiderTool, refused at the save otherwise.
+	"aider": true,
 }
+
+// AiderTool is the door tool an `aider` node asks. A gate must grant it on every
+// path to the node (Validate), and on the door's side only a flow's `aider` node,
+// beside his own glass, may reach it -- a stroke there holds the two names to
+// each other, so a rename on one side is loud on the other.
+const AiderTool = "aider_run"
 
 // Verdicts. COMPLETE means every reached node came back ok; the rest name
 // exactly how a run stopped. No verdict here finishes anyone's task.
@@ -89,6 +104,10 @@ type Node struct {
 	// work, never around a gate, and a node that declares this with nothing
 	// returning to it is refused: a ceiling read by nothing.
 	Loops int `json:"loops,omitempty"`
+	// Files is an `aider` node's file list (2026-10-05, H17): templated like a
+	// question, one path to a line or separated by commas; the door judges every
+	// path. Only an aider node carries it.
+	Files string `json:"files,omitempty"`
 }
 
 // MaxLoops caps how many times a node may be returned to. BOUNDED EVERYTHING
@@ -200,6 +219,16 @@ func Validate(s Spec) ([]string, error) {
 		}
 		if n.Kind == "run" && strings.TrimSpace(n.Question) == "" {
 			return nil, fmt.Errorf("refused: run node %q has no objective", n.Name)
+		}
+		if n.Kind == "aider" && strings.TrimSpace(n.Question) == "" {
+			return nil, fmt.Errorf("refused: aider node %q has no instruction", n.Name)
+		}
+		if n.Kind == "aider" && strings.TrimSpace(n.Files) == "" {
+			return nil, fmt.Errorf("refused: aider node %q names no files; Aider works on the files it is given", n.Name)
+		}
+		if n.Kind != "aider" && strings.TrimSpace(n.Files) != "" {
+			return nil, fmt.Errorf("refused: node %q is a %s and names no files for Aider, so "+
+				"`files` means nothing on it", n.Name, n.Kind)
 		}
 		if n.Kind == "eval" && strings.TrimSpace(n.Ref) == "" {
 			return nil, fmt.Errorf("refused: eval node %q names no node to check", n.Name)
@@ -321,7 +350,63 @@ func Validate(s Spec) ([]string, error) {
 	if err := lawfulReturns(s, byName, order, returning, forward); err != nil {
 		return nil, err
 	}
+	if err := aiderGranted(s, byName, forward); err != nil {
+		return nil, err
+	}
 	return order, nil
+}
+
+// aiderGranted refuses an `aider` node that can be reached without the hand
+// having crossed a gate that grants AiderTool (2026-10-05, H17: "on a grant from
+// the gate you click to open the line and nowhere else").
+//
+// THE NEAREST GATE WINS, on every path. A crossing carries from its gate to the
+// NEXT gate or the end of the run (runFrom), so a gate that grants nothing
+// between the granting one and the node ends the hand's reach, and a path that
+// meets the start before any gate was never authorised at all. The walk is over
+// the forward edges only: a check's return re-fires work inside a crossing and
+// opens no path of its own. Judged at the save, never discovered when it runs.
+func aiderGranted(s Spec, byName map[string]Node, forward []Edge) error {
+	in := map[string][]string{}
+	for _, e := range forward {
+		in[e.To] = append(in[e.To], e.From)
+	}
+	memo := map[string]bool{}
+	var covered func(name string) bool
+	covered = func(name string) bool {
+		if v, ok := memo[name]; ok {
+			return v
+		}
+		ups := in[name]
+		ok := len(ups) > 0 // the start reached with no gate between: never authorised
+		for _, up := range ups {
+			if byName[up].Kind == "gate" {
+				granted := false
+				for _, g := range byName[up].Grants {
+					if g == AiderTool {
+						granted = true
+					}
+				}
+				if !granted {
+					ok = false
+				}
+				continue
+			}
+			if !covered(up) {
+				ok = false
+			}
+		}
+		memo[name] = ok
+		return ok
+	}
+	for _, n := range s.Nodes {
+		if n.Kind == "aider" && !covered(n.Name) {
+			return fmt.Errorf("refused: aider node %q can be reached without passing a gate that grants %q "+
+				"-- Aider is the operator's own hand, so the gate he crosses must say so, and the nearest "+
+				"gate before the node on every path is the one that counts", n.Name, AiderTool)
+		}
+	}
+	return nil
 }
 
 // loopsOf splits a spec's edges into the ones that RETURN -- a check's

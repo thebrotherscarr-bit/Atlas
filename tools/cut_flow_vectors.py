@@ -7,10 +7,15 @@ The flow v1 contract (the oracle; the Go flow package must honor it):
 
   names         : ^[a-z0-9][a-z0-9_-]{0,63}$ for flows, nodes, runs carry
                   f-YYYYMMDD-HHMMSS-<8hex> (RUN_RE pinned below)
-  node kinds    : ask | prompt | seat | memory | eval | gate | run — a
-                  closed set. A `run` node drives a whole Manjuel turn (the
+  node kinds    : ask | prompt | seat | memory | eval | gate | run | aider —
+                  a closed set. A `run` node drives a whole Manjuel turn (the
                   council), so it must carry an objective or it refuses; the
-                  others reach one voice.
+                  others reach one voice. An `aider` node (2026-10-05, H17) is
+                  an attempt by Aider on the files it is handed, and the
+                  council's own turn when Aider cannot take it: it carries an
+                  instruction (`question`) and `files`, no other kind names
+                  files, and it is reached only through a gate whose `grants`
+                  name `aider_run` on every path (the nearest gate wins)
   edges         : {from, to, when: always|pass|fail}; fail-edges only from
                   eval/gate nodes; everything else with when:fail refuses
   validation    : unique names, known kinds, refs resolve, no cycles,
@@ -48,7 +53,8 @@ FLOW = os.path.join(FIX, "flow_vectors.json")
 
 NAME_RE = r"^[a-z0-9][a-z0-9_-]{0,63}$"
 RUN_RE = r"^f-\d{8}-\d{6}-[0-9a-f]{8}$"
-KINDS = ["ask", "prompt", "seat", "memory", "eval", "gate", "run"]
+KINDS = ["ask", "prompt", "seat", "memory", "eval", "gate", "run", "aider"]
+AIDER_TOOL = "aider_run"    # flow.go AiderTool
 MAX_LOOPS = 5          # flow.go MaxLoops
 
 
@@ -80,6 +86,12 @@ def topo(nodes, edges):
             raise ValueError("unknown kind: " + n["kind"])
         if n["kind"] == "run" and not (n.get("question") or "").strip():
             raise ValueError("run node with no objective")
+        if n["kind"] == "aider" and not (n.get("question") or "").strip():
+            raise ValueError("aider node with no instruction")
+        if n["kind"] == "aider" and not (n.get("files") or "").strip():
+            raise ValueError("aider node that names no files")
+        if n["kind"] != "aider" and (n.get("files") or "").strip():
+            raise ValueError("only an aider node names files")
         k = n.get("loops") or 0
         if not isinstance(k, int) or k < 0 or k > MAX_LOOPS:
             raise ValueError("loops out of range: %r" % (k,))
@@ -140,6 +152,32 @@ def topo(nodes, edges):
     for n in names:
         if loops[n] > 0 and n not in reached:
             raise ValueError("a ceiling nothing returns to")
+    # AIDER IS REACHED ONLY THROUGH A GATE THAT GRANTS IT (H17): the nearest gate
+    # before the node on every forward path must grant AIDER_TOOL, and a path that
+    # meets the start before any gate was never authorised (flow.go aiderGranted).
+    grants = {n["name"]: n.get("grants") or [] for n in nodes}
+    ups = {n: [] for n in names}
+    for frm, to in forward:
+        ups[to].append(frm)
+    memo = {}
+
+    def covered(name):
+        if name in memo:
+            return memo[name]
+        ok = len(ups[name]) > 0
+        for up in ups[name]:
+            if kinds[up] == "gate":
+                if AIDER_TOOL not in grants[up]:
+                    ok = False
+                continue
+            if not covered(up):
+                ok = False
+        memo[name] = ok
+        return ok
+
+    for n in names:
+        if kinds[n] == "aider" and not covered(n):
+            raise ValueError("an aider node no gate authorised")
     return order
 
 
@@ -232,6 +270,10 @@ def vectors():
     chk = lambda n, ref: {"name": n, "kind": "eval", "node": ref,
                           "expected": "RAN:", "match": "contains"}
     back = [E("w", "c"), E("c", "w", "fail")]
+    # THE AIDER NODE'S VECTORS (H17, 2026-10-05): the node, the gate that grants it,
+    # and what is refused about it.
+    aider = lambda n, files="a.py", q="do": dict({"name": n, "kind": "aider", "question": q}, **({"files": files} if files else {}))
+    granting = lambda n, *g: {"name": n, "kind": "gate", "title": "t", "grants": list(g)}
     return {
         "name_re": NAME_RE,
         "run_re": RUN_RE,
@@ -278,6 +320,25 @@ def vectors():
              "spec": spec([work("w", 2), {"name": "g", "kind": "gate", "title": "t"},
                            chk("c", "w")],
                           [E("w", "g"), E("g", "c", "pass"), E("c", "w", "fail")])},
+            {"why": "aider node with no instruction",
+             "spec": spec([ask("a"), granting("g", AIDER_TOOL), aider("w", q="")],
+                          [E("a", "g"), E("g", "w")])},
+            {"why": "aider node that names no files",
+             "spec": spec([ask("a"), granting("g", AIDER_TOOL), aider("w", files="")],
+                          [E("a", "g"), E("g", "w")])},
+            {"why": "files on a node that is not an aider node",
+             "spec": spec([dict(ask("a"), files="a.py")], [])},
+            {"why": "aider node with no gate before it",
+             "spec": spec([ask("a"), aider("w")], [E("a", "w")])},
+            {"why": "aider node behind a gate that grants another tool",
+             "spec": spec([ask("a"), granting("g", "git_branch"), aider("w")],
+                          [E("a", "g"), E("g", "w")])},
+            {"why": "aider node behind the granting gate and then a gate that grants nothing",
+             "spec": spec([ask("a"), granting("g", AIDER_TOOL), granting("h"), aider("w")],
+                          [E("a", "g"), E("g", "h"), E("h", "w")])},
+            {"why": "aider node reached by a path around the granting gate",
+             "spec": spec([ask("a"), granting("g", AIDER_TOOL), ask("c"), ask("d"), aider("w")],
+                          [E("a", "g"), E("g", "c"), E("c", "w"), E("a", "d"), E("d", "w")])},
             {"why": "loops on a check",
              "spec": spec([ask("a"),
                            {"name": "c1", "kind": "eval", "node": "a",
@@ -286,6 +347,18 @@ def vectors():
                           [E("a", "c1"), E("c1", "c2", "pass"), E("c2", "c1", "fail")])},
         ],
     }
+
+
+def lawful_aider():
+    """An aider node the law allows, for the verifier to prove the oracle does not
+    refuse every aider node: a plan, the gate that grants it, work in between."""
+    return spec([{"name": "a", "kind": "ask", "question": "plan"},
+                 {"name": "g", "kind": "gate", "title": "open?", "grants": ["git_branch", AIDER_TOOL]},
+                 {"name": "c", "kind": "run", "question": "open the line"},
+                 {"name": "w", "kind": "aider", "question": "do it", "files": "a.py"}],
+                [{"from": "a", "to": "g", "when": "always"},
+                 {"from": "g", "to": "c", "when": "pass"},
+                 {"from": "c", "to": "w", "when": "always"}])
 
 
 def lawful_return():
@@ -347,6 +420,14 @@ def verify():
     except ValueError as ex:
         ok = False
         print("    [FAIL]  a lawful return is refused: %s" % ex)
+    try:
+        lawful = lawful_aider()
+        if topo(lawful["nodes"], lawful["edges"]) != ["a", "g", "c", "w"]:
+            ok = False
+            print("    [FAIL]  a lawful aider node is ordered wrongly")
+    except ValueError as ex:
+        ok = False
+        print("    [FAIL]  a lawful aider node is refused: %s" % ex)
     for b in want["budget_cases"]:
         if over(b["elapsed_ms"], b["budget_s"]) != b["over"]:
             ok = False

@@ -676,6 +676,29 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolAiderStatus,
 	})
 
+	// THE LAWS, THROUGH THE GLASS (2026-10-05, his word: "set it as a law all the agents read ... THROUGH THE SYSTEM", then "a LAWS page ... Add it."). A
+	// reader for how far each law is sealed and what the chain says of itself, and two writers that are his hand and nobody's else: set a law (an entry
+	// appended to the ledger, below the seal, as a draft) and seal the ledger (law.py, the one tool the chain is appended through). Neither runs while a
+	// sitting is open, and no seat, agent or role is ever handed either (law.go).
+	r.add(Tool{
+		Name: "law_status", Writes: false,
+		Description: "the laws as the chain holds them: every law file, how far it is sealed, what is draft below the ledger's seal, and the chain's own verdict (law.py verify); and why the two writing tools would refuse right now, if they would",
+		Args:        []string{"project?"},
+		Fn:          toolLawStatus(opts),
+	})
+	r.add(Tool{
+		Name: "law_add", Writes: true, ServiceOnly: true,
+		Description: "the operator's own hand: set a law -- one numbered entry appended to law/LAW_LEDGER.md, BELOW its seal, as a draft until he seals it. Refused while a sitting is open and over a chain that does not prove whole; the chain is walked again after the append and the entry is taken back if it refused. His glass alone may call it",
+		Args:        []string{"title", "text", "from?", "project?"},
+		Fn:          toolLawAdd(opts),
+	})
+	r.add(Tool{
+		Name: "law_seal", Writes: true, ServiceOnly: true,
+		Description: "the operator's own hand: seal the ledger as far as it is written (law.py seal on law/LAW_LEDGER.md) -- what is below the seal becomes law and is frozen; an entry sealed is changed only by a new entry that amends it. Refused while a sitting is open and when nothing is below the seal. His glass alone may call it",
+		Args:        []string{"note?", "project?"},
+		Fn:          toolLawSeal(opts),
+	})
+
 	r.add(Tool{
 		Name: "git_tag", Writes: true, Reads: []string{"list"},
 		Description: "the marks a version is cut at: list them with what GitHub has, cut one at a commit whose declared version it must equal, send one to GitHub by name, or remove one that never left this machine",

@@ -52,7 +52,8 @@
     "memory",
     "eval",
     "gate",
-    "run"
+    "run",
+    "aider"
   ],
   "name_re": "^[a-z0-9][a-z0-9_-]{0,63}$",
   "receipt_example": {
@@ -337,6 +338,270 @@
         ]
       },
       "why": "gate inside the loop"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "g",
+            "when": "always"
+          },
+          {
+            "from": "g",
+            "to": "w",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "grants": [
+              "aider_run"
+            ],
+            "kind": "gate",
+            "name": "g",
+            "title": "t"
+          },
+          {
+            "files": "a.py",
+            "kind": "aider",
+            "name": "w",
+            "question": ""
+          }
+        ]
+      },
+      "why": "aider node with no instruction"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "g",
+            "when": "always"
+          },
+          {
+            "from": "g",
+            "to": "w",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "grants": [
+              "aider_run"
+            ],
+            "kind": "gate",
+            "name": "g",
+            "title": "t"
+          },
+          {
+            "kind": "aider",
+            "name": "w",
+            "question": "do"
+          }
+        ]
+      },
+      "why": "aider node that names no files"
+    },
+    {
+      "spec": {
+        "edges": [],
+        "nodes": [
+          {
+            "files": "a.py",
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          }
+        ]
+      },
+      "why": "files on a node that is not an aider node"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "w",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "files": "a.py",
+            "kind": "aider",
+            "name": "w",
+            "question": "do"
+          }
+        ]
+      },
+      "why": "aider node with no gate before it"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "g",
+            "when": "always"
+          },
+          {
+            "from": "g",
+            "to": "w",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "grants": [
+              "git_branch"
+            ],
+            "kind": "gate",
+            "name": "g",
+            "title": "t"
+          },
+          {
+            "files": "a.py",
+            "kind": "aider",
+            "name": "w",
+            "question": "do"
+          }
+        ]
+      },
+      "why": "aider node behind a gate that grants another tool"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "g",
+            "when": "always"
+          },
+          {
+            "from": "g",
+            "to": "h",
+            "when": "always"
+          },
+          {
+            "from": "h",
+            "to": "w",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "grants": [
+              "aider_run"
+            ],
+            "kind": "gate",
+            "name": "g",
+            "title": "t"
+          },
+          {
+            "grants": [],
+            "kind": "gate",
+            "name": "h",
+            "title": "t"
+          },
+          {
+            "files": "a.py",
+            "kind": "aider",
+            "name": "w",
+            "question": "do"
+          }
+        ]
+      },
+      "why": "aider node behind the granting gate and then a gate that grants nothing"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "g",
+            "when": "always"
+          },
+          {
+            "from": "g",
+            "to": "c",
+            "when": "always"
+          },
+          {
+            "from": "c",
+            "to": "w",
+            "when": "always"
+          },
+          {
+            "from": "a",
+            "to": "d",
+            "when": "always"
+          },
+          {
+            "from": "d",
+            "to": "w",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "grants": [
+              "aider_run"
+            ],
+            "kind": "gate",
+            "name": "g",
+            "title": "t"
+          },
+          {
+            "kind": "ask",
+            "name": "c",
+            "question": "Q"
+          },
+          {
+            "kind": "ask",
+            "name": "d",
+            "question": "Q"
+          },
+          {
+            "files": "a.py",
+            "kind": "aider",
+            "name": "w",
+            "question": "do"
+          }
+        ]
+      },
+      "why": "aider node reached by a path around the granting gate"
     },
     {
       "spec": {

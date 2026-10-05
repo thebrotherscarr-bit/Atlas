@@ -31,6 +31,12 @@ type Engine interface {
 	// refuses it, because a flow that silently downgraded a `run` to an `ask`
 	// would be answering with a model where the estate was asked.
 	Turn(ctx context.Context, objective, feed, method string) (string, error)
+	// Aider is an `aider` node's attempt (2026-10-05, H17): the instruction, the
+	// file list as rendered (the door judges every path) and what the last pass
+	// failed with (empty on a first pass). THE LINE supplies it -- Aider through
+	// the door under the crossing the gate made, and the council's own turn when
+	// Aider cannot take it -- and the bare prodEngine refuses it as it does Turn.
+	Aider(ctx context.Context, instruction, files, feed string) (string, error)
 	Ask(ctx context.Context, question, voice string) (string, error)
 	RunPrompt(name string, version int, vars map[string]string, voice string) (play.Run, error)
 	SeatAsk(seat, question, voice, method string) (play.Run, error)
@@ -47,6 +53,14 @@ func (p prodEngine) Turn(ctx context.Context, objective, feed, method string) (s
 	return "", fmt.Errorf("refused: this flow has no engine wired, so a `run` " +
 		"node has no council to put its objective through. Fire the flow through " +
 		"THE LINE (flow_run), with atlas-mcp started with --manjuel")
+}
+
+// Aider refuses on the bare engine, for the reason Turn does: Aider is reached
+// through the door, under a crossing, and a flow that answered an `aider` node
+// with a model where Aider was asked would be answering something else.
+func (p prodEngine) Aider(ctx context.Context, instruction, files, feed string) (string, error) {
+	return "", fmt.Errorf("refused: this flow has no door wired, so an `aider` node has " +
+		"no Aider to ask. Fire the flow through THE LINE (flow_run), with atlas-mcp started with --manjuel")
 }
 
 func (p prodEngine) Ask(ctx context.Context, question, voice string) (string, error) {
@@ -638,6 +652,24 @@ func execNode(ctx context.Context, eng Engine, nd Node, vars map[string]string,
 			return "", false, "fail", err
 		}
 		return out, true, "ok", nil
+	case "aider":
+		// THE INSTRUCTION AND THE FILES ARE RENDERED HERE, THE FAILED PASS IS
+		// NOT (2026-10-05, H17): `fail_<node>` is seeded for a node that declares
+		// loops, empty until a pass was sent back, and the engine -- which knows
+		// Aider's message is capped -- decides how much of it rides.
+		q, err := play.Render(nd.Question, vars)
+		if err != nil {
+			return "", false, "fail", err
+		}
+		files, err := play.Render(nd.Files, vars)
+		if err != nil {
+			return "", false, "fail", err
+		}
+		out, err := eng.Aider(ctx, q, files, vars["fail_"+nd.Name])
+		if err != nil {
+			return "", false, "fail", err
+		}
+		return out, true, "ok", nil
 	case "ask":
 		q, err := play.Render(nd.Question, vars)
 		if err != nil {
@@ -726,11 +758,14 @@ func execNode(ctx context.Context, eng Engine, nd Node, vars map[string]string,
 		// pasted `RAN:` pass earlier today. Requiring the block means the
 		// evidence was machine-emitted from the tool results, not typed.
 		//
-		// ONLY FOR `run` NODES. An `ask`, `prompt` or `memory` node holds no
-		// tools by definition, so demanding tool evidence there would refuse
-		// every honest eval over a voice -- `branchSpec`'s does exactly that
-		// and must keep working.
-		if byName[nd.Ref].Kind == "run" {
+		// ONLY FOR `run` AND `aider` NODES. An `ask`, `prompt` or `memory` node
+		// holds no tools by definition, so demanding tool evidence there would
+		// refuse every honest eval over a voice -- `branchSpec`'s does exactly that
+		// and must keep working. An `aider` node is the other node that DOES: its
+		// answer is the report of Aider's run with the door's own lines under it, or
+		// the council's turn it fell back to -- and a seat can write any sentence of
+		// the second, so only the machine's lines are scored.
+		if k := byName[nd.Ref].Kind; k == "run" || k == "aider" {
 			ev, ok := evidenceOf(got)
 			if !ok {
 				return "fail: NO EVIDENCE -- `" + nd.Ref + "` is a run node that " +
@@ -1089,11 +1124,11 @@ func Resume(home string, eng Engine, run, decision string) (Result, error) {
 	// appended, so a refusal leaves the run standing at its gate.
 	if ready, ok := eng.(interface{ Ready() error }); ok {
 		for _, n := range s.Nodes {
-			if n.Kind != "run" || outputs[n.Name] {
+			if (n.Kind != "run" && n.Kind != "aider") || outputs[n.Name] {
 				continue
 			}
 			if err := ready.Ready(); err != nil {
-				return Result{}, fmt.Errorf("refused: %s still has a `run` node to "+
+				return Result{}, fmt.Errorf("refused: %s still has a `run` or `aider` node to "+
 					"fire (%s) and %w. Nothing was resumed -- the run stands at its "+
 					"gate; open the engine and resume it again", run, n.Name, err)
 			}

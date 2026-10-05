@@ -12,6 +12,75 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The Laws page: every law and how far the chain seals it, a law set and the ledger sealed from the glass (2026-10-05; his words, "set it as a law all the agents read ... THROUGH THE SYSTEM" and "a LAWS page ... Add it.")
+
+Why: the laws live in the core's `law/` -- every `.md` there bound to `law/chain.jsonl` by `law/law.py`, and `LAW_LEDGER.md` the one law sealed as far as it is written,
+which grows below its seal. Seeing how far each was sealed, setting a law or sealing the ledger meant typing at a terminal. On 2026-10-05 he set two laws (the core's
+RULE 12, and the ledger's entries 6 and 7, SITTING LAWS 7 and 8, as drafts) and asked that it go through the system.
+
+What, in the door (`line/internal/tools/law.go`, three tools):
+
+- `law_status` reads: every law file in `law/` and how far the chain seals it (sealed, partly sealed, not on the chain, changed since sealed), read off `chain.jsonl` with
+  law.py's own anchor; the bytes written below the ledger's seal; `law.py verify`'s own line as the verdict, where a clean exit that never says "proves whole" is not
+  taken as whole; and why the two writers would refuse now, if they would.
+- `law_add` writes one numbered entry to `law/LAW_LEDGER.md`, below its seal, in the ledger's own shape (an `entered:` and `from:` block, then the words). The file is
+  opened for append only; the chain is walked before and after, and an entry the chain refuses after is taken back to the byte. Refused while a sitting or an engine is
+  open on the world (SITTING LAW 5), over a chain that does not prove whole, for a line that would split the entry (`## ...` or a bare `---`), a control character, a
+  title that is not one line of 3 to 120 characters, a law under 20 or over 8000 characters, and a ledger with a carriage return or no final line break.
+- `law_seal` runs `law.py seal LAW_LEDGER.md --note ...` and nothing else: the chain is appended only through law.py. Refused when nothing is below the seal, a sitting is
+  open, or the chain refuses.
+
+Neither writer binds a law whole (`direct`), touches `CLAUDE.md`, or writes anywhere but the ledger and, through law.py, the chain; every act and every refusal is a line
+in the holds record. Both are ServiceOnly: only his glass may call them, no role, seat or crossed gate's grant reaches them, and nothing parks them on a card -- his
+click, behind the glass's own lock, is the decision. `docs/TOOL_PERMISSIONS.md` is regenerated (92 tools).
+
+What, in the glass: a **Laws** line first under Record (a scales glyph) and `/laws` (`static/js/laws.js`). The chain card shows law.py's own verdict, green or red; a
+card for the entries below the seal carries **Seal the ledger...**, which only asks (the question says how many bytes it binds and that a byte of it cannot change
+after, with **Seal it** and **Not now**); a **Set a law** form takes its name, its words and where it came from; then `CLAUDE.md`'s standing rules in number order, the
+ledger's entries each marked SEALED or DRAFT by where it stands against the seal's byte (counted in bytes, never characters), and every law file with its state. While
+the door would refuse, both buttons are disabled with its reason and a card says it. Its reads are kept like What's left's, never quiet; it opens no pop-up and reaches
+round the door for nothing.
+
+**Proof.** In the door, 9 strokes (`line/internal/tools/law_test.go`) over a stand-in that speaks as law.py does; in the glass, 4 (`webapp/server/laws_test.go`), with
+`TestNoPageOpensABrowserPopUp` and the permission record beside them. 22 reversals, each red and named, every file restored byte for byte. One stayed green at first,
+the verdict taken from law.py's exit code alone, and `TestTheVerdictIsTheWalksOwnWordsNotItsExitCode` is the stroke written to turn it red. The door's reading of the
+real law.py (its anchor, its verdict line, the chain's file and fields, the seal's words, an append below the seal and a seal over it on a copy of the real `law/`) is
+held by the core's own suite: 15 checks and 12 reversals, in the core's CHANGELOG. A node run of the page with stubs, against the real `CLAUDE.md` and ledger: 25 checks.
+And live, on a scratch pair in the app's browser pane (a door on 8190 and a glass on 8191 built from a synced copy, one throwaway ground holding copies of `CLAUDE.md`
+and `law/`, a fresh wire): the page showed the chain proving whole at 6 links (head `07491469cd7d6d6c`), 14 standing rules, entries 1 to 5 sealed and 6 and 7 draft (2614
+bytes), the ledger partly sealed and `SITTING_LAWS_2.md` not on the chain; a test law set from the form became entry 8 (344 bytes, LF, in the ledger's shape) with the
+chain still whole; **Seal the ledger...** asked first, and **Seal it** sealed the copy to byte 18467 of 18467, the chain proving whole at 7 links; with a sitting
+marked open the page said "Laws cannot be set or sealed now" in SITTING LAW 5's words, and a call made around the disabled button was refused by the door in the same
+words. His ledger and chain did not move, and his door and glass were not touched.
+
+**Placed on his card** (2026-10-05, 11:05, "Place and restart both"): the door and the glass were rebuilt from the tree, whose source was first checked byte for byte
+against the copy that was proved (171 files), placed and restarted with the flags they had (door `e5713491...`, was `ba668ad1...`; glass `3db7cc11...`, was
+`fa37925e...`; the old binaries kept outside the ground), and the page was opened on his own glass: the chain proving whole at 6 links, 14 standing rules, entries 6
+and 7 drafts. **Not done.** The ledger's entries 6 and 7 stay drafts until he seals them, from this page or with `python law\law.py seal LAW_LEDGER.md`. The Records
+page still marks the whole `law/` folder sealed (`records`); this page does not read that flag. **Restart:** done, on his card. **What goes red if unplugged:** the 9 door strokes, the 4 glass strokes, the permission
+record, and the core's `test_the_door_reads_the_law_chain_as_law_py_writes_it`.
+
+### The flow engine takes an `aider` node: its contract and its runner, and not yet the door's half (2026-10-05; the core's WHAT'S LEFT H17, first half)
+
+Why: his ruling of B21 ("yes"): Aider makes the coder flow's code changes. H17 is that build; this is its engine half, and the piece is NOT finished.
+
+What is built (`line/internal/flow`): `aider` is the eighth kind of the closed set. A node carries an instruction (`question`) and a file list (`files`, templated like a
+question; the door judges every path). Refused at the save, never discovered when it runs: an aider node with no instruction or no files, `files` on any other kind, and
+an aider node that can be reached without passing a gate whose `grants` name `aider_run` (`flow.AiderTool`) on every path; the nearest gate before it is the one that
+counts, so a gate that grants nothing ends the hand's reach. The runner renders the instruction and the files and asks `Engine.Aider`, with the failed pass's words when
+a check sent it back (a node that declares `loops`); an eval over an aider node scores the machine's own lines only (the evidence block), as over a `run` node; it is
+retried like any node; a resume with no engine standing refuses at it; and the bare engine refuses it ("this flow has no door wired"). The Python cutter
+(`tools/cut_flow_vectors.py`) learned the kind and its refusals, and the goldens were cut again: 8 kinds and 19 refusals, from 7 and 12, held by `TestFlowContract`.
+
+**Not built: the door's half.** The door's council engine embeds the bare engine, so a flow fired through THE LINE refuses at an aider node with that sentence; nothing
+yet asks the door's `aider_run` from a node, the coder tree is still its version 5, and the flow builder offers no `aider` kind. Those, and measuring the coder flow
+with Aider on the six tasks of H12, are the rest of H17. Under RULE 11 the kind is declared and read by nothing on the door until then.
+
+**Proof.** 8 strokes in `line/internal/flow/aider_test.go` and the regenerated contract; 16 reversals, each red by a failing test (four were first written so that they
+only failed to compile, and were rewritten until they compiled and failed). The core's gate keeps its own copy of this law, and it did not know the kind until
+the core's suite went red on the stroke that reconciles the two; the copy was restated the same day (the core's CHANGELOG). A door rebuild carries it, and nothing
+on his door runs it yet. **What goes red if unplugged:** those 8 strokes, `TestFlowContract`, and in the core `test_the_flows_and_workflows_are_read_before_a_mark`.
+
 ### The front page plays what the maker made: the delivery's project in a sandboxed frame that shows the whole game (2026-10-05; the core's WHAT'S LEFT E1, first piece)
 
 Why: the wife test. A person who is not the operator asked for a game and was handed a file path ("To try it, open projects\game-3\index.html in your browser"): the

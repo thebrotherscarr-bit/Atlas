@@ -48,6 +48,11 @@ func (s *stubEngine) Turn(_ context.Context, objective, feed, method string) (st
 	return "stub-run:" + objective, nil
 }
 
+func (s *stubEngine) Aider(_ context.Context, instruction, files, _ string) (string, error) {
+	s.calls = append(s.calls, "aider:"+instruction+"|"+files)
+	return "stub-aider:" + instruction, nil
+}
+
 func (s *stubEngine) Recall(_, question string) (string, error) {
 	s.calls = append(s.calls, "memory:"+question)
 	return "stub-memory", nil
@@ -876,6 +881,11 @@ func (h headEngine) Recall(voice, q string) (string, error) {
 	return "recalled", nil
 }
 
+func (h headEngine) Aider(_ context.Context, instruction, _, _ string) (string, error) {
+	h.log.turns = append(h.log.turns, "aider:"+instruction+"@"+headName(h.head))
+	return "aided " + instruction, nil
+}
+
 // The council's head is written down whole: the roster-wide voice, then the
 // seats named one by one, which is the only record of what a `run` node was
 // actually fired on.
@@ -1306,6 +1316,11 @@ func (h handEngine) SeatAsk(_, _, _, _ string) (play.Run, error) {
 }
 
 func (h handEngine) Recall(_, _ string) (string, error) { return "recalled", nil }
+
+func (h handEngine) Aider(_ context.Context, instruction, _, _ string) (string, error) {
+	h.log.turns = append(h.log.turns, "aider:"+instruction+"@"+h.gate+":"+strings.Join(h.grants, ","))
+	return "aided " + instruction, nil
+}
 
 // One gate that grants, a run node after it, a second gate that grants
 // nothing, and a run node after that.

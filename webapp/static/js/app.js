@@ -255,6 +255,8 @@ const App = {
       case 'dashboard': await Home.render(el); break;
       // Everything still open, read from WHATS_LEFT.md (left.js).
       case 'left': await Left.render(el); break;
+      // The laws, and how far each is sealed (laws.js).
+      case 'laws': await Laws.render(el); break;
       case 'agents': this.pageParam ? await this.renderAgentDetail(el) : await this.renderAgents(el); break;
       case 'traces': this.pageParam ? await this.renderTraceDetail(el) : await this.renderTraces(el); break;
       case 'tools': await this.renderTools(el); break;

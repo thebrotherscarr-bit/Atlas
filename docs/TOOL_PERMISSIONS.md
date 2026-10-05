@@ -22,14 +22,14 @@ declaration visible. It does not make a false one true.
    is answered and read. A reading action of a writing tool (`git_tag list`) is judged as a read.
 3. `can_approve` is structurally false. rbac never grants approval; it lives in the hand alone.
 4. A tool declared `ServiceOnly` is the operator's own hand (`shell_run`, his typed shell; `aider_run` and `aider_undo`, his
-   Aider): `Registry.Call` refuses
+   Aider; `law_add` and `law_seal`, his laws): `Registry.Call` refuses
    every caller but the glass before RBAC or the holds look at it, and writes the attempt down. No role grants it
    and no agent can park a call of it for him to approve, so the role columns below say what a role would be
    allowed WITHOUT that declaration and cannot make a caller other than the glass able to call it.
 
 ## The record
 
-89 tools: 49 read, 40 write (2 of the writers have reading actions); 4 carry a secret argument; service-only: 3. Tiers: core 80, spine 1, engine 8.
+92 tools: 50 read, 42 write (2 of the writers have reading actions); 4 carry a secret argument; service-only: 5. Tiers: core 83, spine 1, engine 8.
 
 `yes` = may call it; `reads only` = refused the tool as a writer, may call its reading actions; `-` = refused. `held` = a call from anything but the glass waits for the operator when holds are armed; `service only` = refused to anything but the glass, and never parked.
 
@@ -74,6 +74,9 @@ declaration visible. It does not make a false one true.
 | `git_tag` | core | writes | list | - | held | yes | yes | reads only | - |
 | `hold_answer` | core | writes | - | - | exempt | yes | yes | - | - |
 | `hold_list` | core | reads | - | - | - | yes | yes | yes | - |
+| `law_add` | core | writes | - | - | service only | yes | yes | - | - |
+| `law_seal` | core | writes | - | - | service only | yes | yes | - | - |
+| `law_status` | core | reads | - | - | - | yes | yes | yes | - |
 | `list_doctrine` | core | reads | - | - | - | yes | yes | yes | - |
 | `memory` | core | reads | - | - | - | yes | yes | yes | - |
 | `mesh_chain` | core | reads | - | - | - | yes | yes | yes | - |
