@@ -12,13 +12,15 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.2.1] — 2026-10-05 15:16
+
 ### The PowerShell tab: PowerShell 7 beside Bash, Python and Aider, every line on his card, and a shell line may run up to 300 s (2026-10-05, the core's WHAT'S LEFT H26; his word: "i should be able to run them in a tab alongside the agent, bash, python, and aider buttons or tabs. Let's get this done")
 
 The door's `shell_run` takes `pwsh` (and `powershell`) beside `bash` and `python`. A PowerShell line goes through the bash gate for its refusals by name, and nothing the gate reads as a plain look lets it run unasked: the gate does not read PowerShell, so every line parks on his card. It runs `pwsh -NoProfile -NonInteractive`, the line carried in `ATLAS_SHELL_COMMAND` and read by `Invoke-Expression`, so the Windows command line never touches it, with the shell's built environment, output cap and secret scrub. The glass's fifth tab is PowerShell (`ps[world]>`), and every shell tab now asks the door for up to 300 s (`shellMaxWait`), where the page sent no time and every line got 30: the suites (about 175 s) and the `.ps1` scripts now fit.
 
 Held by `TestAPowerShellLineAlwaysAsksFirst` (a cmdlet, a plain `ls` and a `git log` each park; `powershell` names the same shell) and by the glass's tab strokes (five tabs, each wired; `shellRun` sends `timeout: 300`). The refusal case is the bash gate's own, held there: a test line naming the secret file could not be typed through the glass, whose gate refuses it. Built in his Bash tab, placed on his card (the old builds kept as `.old.exe`), and run live on his glass: `7.6.6`, the ground's path, and a 35 s sleep that came back (35,347 ms). Not yet: a gate that reads PowerShell, so a plain look waits on the card where in Bash it runs at once.
 
-## [v0.2.0] — 2026-10-05 13:39
+## [v0.2.0] — 2026-10-05 13:39 (tag on e2db417)
 
 ### The Laws page: every law and how far the chain seals it, a law set and the ledger sealed from the glass (2026-10-05; his words, "set it as a law all the agents read ... THROUGH THE SYSTEM" and "a LAWS page ... Add it.")
 
