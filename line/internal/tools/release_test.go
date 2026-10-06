@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"atlas/line/internal/flow"
 	"atlas/line/internal/tenant"
@@ -113,9 +114,6 @@ func TestAToolNodesCallIsJudgedByTheDoor(t *testing.T) {
 	}
 }
 
-// THE WIRE: a flow fired through the door calls the door. A reader answers the
-// run; a writer reached past no gate that grants it fails the run, even fired
-// from his glass. Unplug councilAt from flow_run and the first run fails.
 // A DECISION IS REFUSED WHILE A RUN IS MOVING (2026-10-05): waiting on the
 // world's flow lock instead, it answered the next gate, unseen.
 func TestADecisionIsRefusedWhileARunIsMoving(t *testing.T) {
@@ -139,6 +137,51 @@ func TestADecisionIsRefusedWhileARunIsMoving(t *testing.T) {
 	}
 }
 
+// A FIRE IS REFUSED WHILE A RUN IS MOVING (2026-10-06), as a decision is:
+// waiting on the world's flow lock, a second Fire queued behind the run in
+// flight and started, unwatched, the moment that one stopped. Refused, nothing
+// is fired and nothing is recorded; with no run moving, the same fire runs.
+func TestAFireIsRefusedWhileARunIsMoving(t *testing.T) {
+	tr, home := releaseWorld(t)
+	reg := Build(tr, Options{})
+	glass := Caller{Name: "glass", Service: true}
+	if _, err := flow.Save(home, flow.Spec{Name: "roll", Nodes: []flow.Node{{Name: "roll", Kind: "tool", Tool: "muster"}}}); err != nil {
+		t.Fatal(err)
+	}
+	tn, err := tr.Resolve("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := flowLock(tn.Home)
+	lock.Lock()
+	fired := make(chan error, 1)
+	go func() {
+		_, err := reg.Call(tr, "flow_run", map[string]any{"name": "roll"}, glass)
+		fired <- err
+	}()
+	select {
+	case err = <-fired:
+		lock.Unlock()
+	case <-time.After(5 * time.Second):
+		lock.Unlock()
+		<-fired
+		t.Fatal("a fire made while a run moves waited behind it, and ran the moment it stopped")
+	}
+	if err == nil || !strings.Contains(err.Error(), "a run is moving on this world") {
+		t.Fatalf("a fire made while a run moves must be refused by name: %v", err)
+	}
+	if runs, _ := flow.ListRuns(home, "roll", 0); !strings.Contains(runs, "no runs yet") {
+		t.Fatalf("a refused fire must leave no run on the record:\n%s", runs)
+	}
+	out, err := reg.Call(tr, "flow_run", map[string]any{"name": "roll"}, glass)
+	if err != nil || !strings.Contains(out, flow.VerdictComplete) {
+		t.Fatalf("with no run moving, the same fire must run: %q %v", out, err)
+	}
+}
+
+// THE WIRE: a flow fired through the door calls the door. A reader answers the
+// run; a writer reached past no gate that grants it fails the run, even fired
+// from his glass. Unplug councilAt from flow_run and the first run fails.
 func TestAFlowsToolNodeCallsTheDoorItWasFiredThrough(t *testing.T) {
 	tr, home := releaseWorld(t)
 	glass := Caller{Name: "glass", Service: true}

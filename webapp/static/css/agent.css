@@ -299,6 +299,32 @@ body.is-agent .crumb { display: none; }
 .ag-pane tr.click { cursor: pointer; }
 .ag-pane tr.click:hover td { background: var(--ag-n900); }
 
+/* THE BUILDER, IN THE WORKFLOWS TAB (2026-10-06). The tab draws the Workflows page's own builder (workflows.js)
+   into the panel, so its furniture is the console's -- .card, .btn, .input, .badge and the .wf-* parts in app.css --
+   and every value there is a token. The wrapper points the tokens at this page's palette instead of restyling each
+   part. The buttons alone need rules, because `.ag button` above strips every button bare; and the waterfall keeps
+   its columns, which `.ag-pane pre` would wrap. */
+.ag-wf {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500);
+  --accent: var(--ag-n400); --accent-2: #f5f5f5;
+  --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-md: 12px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.ag-wf > :empty { display: none; }
+.ag-wf .card { margin: 0; padding: 14px; border-radius: 8px; }
+.ag-wf .card + .card { margin-top: 16px; }
+.ag-wf .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ag-wf .btn { padding: 3px 10px; background: var(--ag-n900); border: 1px solid var(--ag-n700); border-radius: 4px; color: var(--ag-n200); font-size: 11px; }
+.ag-wf .btn:hover { background: var(--ag-n800); }
+.ag-wf .btn-primary { border-color: rgba(52,211,153,.5); color: var(--ag-green); }
+.ag-wf .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
+.ag-wf .btn:disabled { opacity: .4; cursor: default; }
+.ag-wf .wf-pre { white-space: pre; max-height: 420px; }
+.ag-wf .wf-edge .select { width: auto; max-width: 150px; }
+
 /* the six stages of a turn, read off the events the engine sent */
 .ag-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ag-st { border: 1px solid var(--ag-n800); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; color: var(--ag-n500); }

@@ -58,7 +58,9 @@ var askLock sync.Mutex
 // budget's ten -- so one flow froze the glass's chat, every prompt run, every
 // key mint and every other world's flow. That is the same reason `engines` is
 // deliberately not under it (SPEC_CONTROL_CENTER 4.6). Two flows on ONE world
-// still queue: they would drive one engine and one ledger.
+// never move at once: they would drive one engine and one ledger. A fire or a
+// decision made while one moves is refused (2026-10-06, 2026-10-05); a replay
+// still waits its turn.
 var (
 	flowLocksMu sync.Mutex
 	flowLocks   = map[string]*sync.Mutex{}
@@ -2826,8 +2828,17 @@ func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// A FIRE IS REFUSED WHILE A RUN IS MOVING (2026-10-06), as a decision is.
+	// It waited on the world's flow lock, so a second Fire queued behind the
+	// run in flight and started the moment that one stopped -- at a gate,
+	// perhaps, with nobody watching the page it was pressed on. Two runs on one
+	// world drive one engine and one ledger: the second is refused, and nothing
+	// is fired.
 	lock := flowLock(t.Home)
-	lock.Lock()
+	if !lock.TryLock() {
+		return "", fmt.Errorf("refused: a run is moving on this world -- fire again once it stops, " +
+			"at a gate or at its end; nothing was fired")
+	}
 	defer lock.Unlock()
 	res, err := flow.RunOn(t.Home, councilAt(t.Home, args), s, inputs,
 		flow.Head{Voice: strings.TrimSpace(voice), Voices: voices})

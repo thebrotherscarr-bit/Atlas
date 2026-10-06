@@ -246,6 +246,80 @@ func TestTheBuilderAsksForEveryVarTheEngineRenders(t *testing.T) {
 	}
 }
 
+// THE BUILDER IS IN THE INSPECTOR (his word, 2026-10-06: the builder goes
+// "Inside the Inspector"). The front page's Workflows tab draws the Workflows
+// page's own builder into its panel -- one object, so the two cannot drift --
+// and no longer sends him to that page for it; the flow in hand outlives the
+// redraw the tab gets every time it opens; a run that comes back while the tab
+// is shut waits on the record; the builder takes the page's look; and the tab
+// is named as the bar's door is.
+func TestTheInspectorDrawsTheBuilderItself(t *testing.T) {
+	src := page(t, "js/agent.js")
+	wf := page(t, "js/workflows.js")
+	css := page(t, "css/agent.css")
+	pane := funcOf(src, "  async paintPane(")
+	if !strings.Contains(pane, "id === 'flows'") || !strings.Contains(pane, "this.flowsPane(stamp)") {
+		t.Fatal("the Workflows tab does not draw the builder")
+	}
+	if !strings.Contains(funcOf(src, "  async flowsPane("), "Workflows.render(box, true)") {
+		t.Fatal("the Workflows tab draws something other than the Workflows page's own builder")
+	}
+	if strings.Contains(src, `data-path="/workflows"`) {
+		t.Fatal("the tab still sends him to the Workflows page for the builder it draws")
+	}
+	render := funcOf(wf, "  async render(")
+	if !strings.Contains(render, "inPanel ? ''") {
+		t.Fatal("the builder draws the page's header into the panel")
+	}
+	if !strings.Contains(render, "if (this.spec) this.build();") {
+		t.Fatal("the flow in hand is lost when the tab is drawn again, and an unsaved edit with it")
+	}
+	if !strings.Contains(funcOf(wf, "  paint("), "if (!box) return;") {
+		t.Fatal("a run that comes back while the tab is shut throws instead of waiting on the record")
+	}
+	if !regexp.MustCompile(`\.ag-wf \{[^}]*--bg:`).MatchString(css) || !strings.Contains(css, ".ag-wf .btn {") {
+		t.Fatal("the builder in the panel does not take the page's look, and .ag button strips its buttons bare")
+	}
+	if strings.Contains(src, "Docs & Registry") || strings.Count(src, "label: 'Registry & Docs'") != 2 {
+		t.Fatal("the Inspector's tab and the bar's door do not both say Registry & Docs")
+	}
+}
+
+// NOTHING IS FIRED ON AN EMPTY BOX, AND NOTHING TWICE (2026-10-06, the Fire
+// hole): an empty box went to the engine as an empty value, which nothing
+// refused, and a second press went to the door, which queued it behind the run
+// in flight. Both are refused before the door is asked; the door's own half is
+// TestAFireIsRefusedWhileARunIsMoving.
+func TestFireRefusesAnEmptyBoxAndASecondPress(t *testing.T) {
+	fire := funcOf(page(t, "js/workflows.js"), "  async fire(")
+	empty, busy, call := strings.Index(fire, "if (empty.length)"), strings.Index(fire, "if (this.busy)"), strings.Index(fire, "API.fireFlow(")
+	if empty < 0 || busy < 0 || call < 0 || empty > call || busy > call {
+		t.Fatal("Fire asks the door before refusing an empty box or a second press")
+	}
+	if !strings.Contains(fire, "!i.value.trim()") || !strings.Contains(fire, "Nothing was fired.") {
+		t.Fatal("an empty box is not refused, or the refusal does not say that nothing was fired")
+	}
+}
+
+// A REFUSAL REACHES THE PAGE IN WORDS (2026-10-06). The handlers answer a
+// failure as {"error": words}, and the page's client threw "HTTP 502" and
+// dropped them, so every refusal the door gave a page arrived as a number.
+func TestARefusalReachesThePageInWords(t *testing.T) {
+	api := page(t, "js/api.js")
+	if !strings.Contains(funcOf(api, "  async fail("), ".error") {
+		t.Fatal("the page's client no longer reads the words a refusal is answered in")
+	}
+	for _, sig := range []string{"  async get(", "  async post("} {
+		if !strings.Contains(funcOf(api, sig), "throw await this.fail(r)") {
+			t.Fatalf("%s throws a number in place of the refusal's words", strings.TrimSpace(sig))
+		}
+	}
+	hand, err := os.ReadFile(filepath.Join("..", "handlers", "handlers.go"))
+	if err != nil || !strings.Contains(string(hand), `map[string]string{"error": msg}`) {
+		t.Fatalf("the handlers no longer answer a failure as {\"error\": words}, the shape the page reads (%v)", err)
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his

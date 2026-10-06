@@ -39,6 +39,8 @@ const Workflows = {
   run: null,
   verdict: '',
   busy: false,
+  // The flow a moving run was fired from, for the panel that says it moves.
+  firing: '',
 
   // The closed node set, from flow.go's Kinds map. Anything else is refused
   // by name at save, so the picker offers exactly these and no more.
@@ -78,12 +80,16 @@ const Workflows = {
   // this reason; naming the set means the next number field cannot forget.
   NUMERIC: { version: true, retries: true, loops: true },
 
-  async render(el) {
+  // THE SAME BUILDER IN TWO PLACES (2026-10-06, his word: the builder goes
+  // "Inside the Inspector"). The front page's Workflows tab draws THIS object
+  // into its panel -- `inPanel`, without the page's header -- and the page under
+  // Pages draws it whole: one builder, so the two can never drift apart.
+  async render(el, inPanel) {
     el.innerHTML = `
-      <div class="page-header"><div>
+      ${inPanel ? '' : `<div class="page-header"><div>
         <div class="page-title">Workflows</div>
         <div class="page-subtitle">Build a run, fire it, and watch every step land</div>
-      </div></div>
+      </div></div>`}
 
       <div class="card">
         <div class="card-title">The flows — what is folded here</div>
@@ -100,6 +106,12 @@ const Workflows = {
 
     el.querySelector('#wf-start').onclick = () => this.start();
     el.querySelector('#wf-new').onkeydown = (e) => { if (e.key === 'Enter') this.start(); };
+    // THE FLOW IN HAND OUTLIVES A REDRAW. The Inspector draws its tab again
+    // every time it is opened, and Open reads the flow off the door again, so
+    // an edit not yet saved was lost to a click on the Inspector button. The
+    // spec is this object's, not the page's; a run still moving says so.
+    if (this.spec) this.build();
+    if (this.busy) this.moving();
     await this.list();
     // Every flow's runs on arrival, so a run waiting at a gate is found before
     // any flow is opened (C25).
@@ -437,18 +449,34 @@ const Workflows = {
       </div>`).join('')}`;
   },
 
+  // NOTHING IS FIRED ON AN EMPTY BOX, AND NOTHING TWICE (2026-10-06, the Fire
+  // hole). A box left empty went to the engine as an empty value -- present, so
+  // nothing refused it -- and the release flow's first step was handed no mark;
+  // and a second press while a run moved went to the door, which queued it
+  // behind the first. Both are refused here, by name, before anything is asked;
+  // the door refuses a fire while any run moves on the world besides.
   async fire() {
-    if (!this.spec || this.busy) return;
-    this.busy = true;
+    if (!this.spec) return;
+    const msg = document.getElementById('wf-msg');
+    const no = (why) => { if (msg) msg.innerHTML = `<div class="wf-bad mt-16">${esc(why)} Nothing was fired.</div>`; };
+    if (this.busy) { no('A run fired from here is still moving; it shows below when it stops.'); return; }
     // Read BEFORE the run panel is painted: these live in #wf-build, which
     // the paint below does not touch, and reading them first keeps it that way.
     const inputs = {};
+    const empty = [];
     document.querySelectorAll('#wf-build [data-var]').forEach(i => {
-      inputs[i.getAttribute('data-var')] = i.value;
+      const k = i.getAttribute('data-var');
+      inputs[k] = i.value;
+      if (!i.value.trim()) empty.push(k);
     });
-    const box = document.getElementById('wf-run');
-    box.innerHTML = `<div class="card"><div class="card-title">The run, step by step</div>
-      <div class="muted">Firing ${esc(this.spec.name)}… every step is a real call; this takes as long as it takes.</div></div>`;
+    if (empty.length) {
+      no('Fill in ' + empty.join(', ') + ' first: the steps use ' + (empty.length === 1 ? 'it' : 'them') + ', and an empty one is run as nothing.');
+      return;
+    }
+    if (msg) msg.innerHTML = '';
+    this.busy = true;
+    this.firing = this.spec.name;
+    this.moving();
     try {
       const r = await API.fireFlow(this.spec.name, JSON.stringify(inputs));
       const text = r.text || '';
@@ -456,12 +484,24 @@ const Workflows = {
       const v = (text.match(/verdict:\s*([A-Z_]+)/) || [])[1]
              || (text.match(/:\s*([A-Z_]+)\s*·/) || [])[1] || '';
       this.run = id; this.verdict = v;
+      this.busy = false;
       this.paint(text);
       await this.runs();
     } catch (e) {
-      box.innerHTML = `<div class="card"><div class="card-title">The run, step by step</div>
+      // Found again: the tab may have been drawn afresh while the run moved,
+      // and the box this started with is no longer on the page.
+      const box = document.getElementById('wf-run');
+      if (box) box.innerHTML = `<div class="card"><div class="card-title">The run, step by step</div>
         <div class="wf-bad">${esc(e.message)}</div></div>`;
     } finally { this.busy = false; }
+  },
+
+  // The run panel while a run fired from here is moving: drawn by fire(), and
+  // again by render() if the tab is drawn afresh before the run stops.
+  moving() {
+    const box = document.getElementById('wf-run');
+    if (box) box.innerHTML = `<div class="card"><div class="card-title">The run, step by step</div>
+      <div class="muted">Firing ${esc(this.firing || '')}… every step is a real call; this takes as long as it takes.</div></div>`;
   },
 
   // A PAUSED run is the only place this page offers a decision, and it offers
@@ -469,6 +509,9 @@ const Workflows = {
   // of them is the default.
   paint(text) {
     const box = document.getElementById('wf-run');
+    // The Inspector may be shut, or on another tab, when a run comes back; the
+    // run is on the record, and the tab finds it there when it is opened again.
+    if (!box) return;
     const paused = /PAUSED/.test(this.verdict || text);
     const bad = /FAIL|OUT_OF_TIME|STOPPED/.test(this.verdict || '');
     box.innerHTML = `

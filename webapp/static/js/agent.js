@@ -102,7 +102,7 @@ const Agent = {
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
     { id: 'guards', label: 'Guardrails' },
-    { id: 'docs',   label: 'Docs & Registry' },
+    { id: 'docs',   label: 'Registry & Docs' },
     { id: 'rack',   label: 'Rack' }
   ],
   // WHAT A TAB THAT IS NOT WIRED SAYS WHEN IT IS PRESSED. It says so. A tab
@@ -1449,11 +1449,11 @@ const Agent = {
     const stamp = ++this._pane;
     const put = (html) => { if (this._pane === stamp && this.tab === id && $ag('ag-pane')) $ag('ag-pane').innerHTML = html; };
     if (id === 'run') { put(this.runHtml()); return; }
+    if (id === 'flows') { put('<div class="ag-wf" id="ag-wf"></div>'); await this.flowsPane(stamp); return; }
     put('<div class="ag-empty">Reading...</div>');
     try {
       if (id === 'aider') put(await this.aiderHtml());
       else if (id === 'ledger') put(await this.ledgerHtml());
-      else if (id === 'flows') put(await this.flowsHtml());
       else if (id === 'guards') put(await this.guardsHtml());
       else if (id === 'docs') put(await this.docsHtml());
       else if (id === 'rack') put(await this.rackHtml());
@@ -1629,15 +1629,20 @@ const Agent = {
 
   // ---- Workflows ------------------------------------------------------------------
 
-  async flowsHtml() {
-    let flows = '', runs = '';
-    try { flows = (await API.listFlows()).flows || ''; } catch (e) { flows = 'The flows could not be read: ' + (e.message || 'refused'); }
-    try { runs = (await API.listRuns('')).runs || ''; } catch (e) { runs = 'The runs could not be read: ' + (e.message || 'refused'); }
-    const cut = (s, n) => s.length > n ? '...' + s.slice(-n) : s;
-    return this.card('Flows', `<pre>${escHtml(flows.trim() || 'none declared')}</pre>`, 'flow_list') +
-      this.card('Recent runs', `<pre>${escHtml(cut(runs.trim(), 3000) || 'none on record')}</pre>`, 'flow_runs') +
-      `<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/workflows">Open the builder</button>
-        <button type="button" class="ag-btn" data-act="goto" data-path="/flows">Version control</button></div>`;
+  // THE BUILDER IS IN THE TAB (his word, 2026-10-06: "start with workflows", the builder "Inside the Inspector"). This
+  // tab drew the flows and the runs as text under a button that went to the Workflows page to do anything with them. It
+  // now draws that page's own builder -- the same object, workflows.js, into the panel -- so there is one builder and
+  // not two that drift: the flows and their Open, a new one, the steps and edges, Save, the boxes a flow needs from him
+  // and Fire, a gate's two buttons, and the runs waiting on him and the runs before. The page under Pages draws the
+  // same object, whole. Its furniture takes this page's look from agent.css (.ag-wf).
+  async flowsPane(stamp) {
+    const box = $ag('ag-wf');
+    if (!box || this._pane !== stamp) return;
+    try { await Workflows.render(box, true); }
+    catch (e) { box.innerHTML = this.card('Could not be read', `<p>${escHtml(e.message || 'refused')}</p>`); return; }
+    if (this._pane === stamp && $ag('ag-wf') === box) {
+      box.insertAdjacentHTML('beforeend', '<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">Version control</button></div>');
+    }
   },
 
   // ---- Guardrails -------------------------------------------------------------------

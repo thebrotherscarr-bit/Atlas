@@ -8,9 +8,22 @@ const API = {
     if (r.status === 401 && typeof Lock !== 'undefined') Lock.show();
   },
 
+  // A REFUSAL IS READ, NOT NUMBERED (2026-10-06). Every handler answers a
+  // failure as {"error": words} (jsonErr), and these two threw `HTTP 502` and
+  // dropped the words, so a page could say that something failed and never
+  // why: the door's "a run is moving on this world" reached the Workflows page
+  // as a number. The words are the error; the number stands in only when there
+  // are none.
+  async fail(r) {
+    this.refused(r);
+    let said = '';
+    try { said = String(((await r.json()) || {}).error || ''); } catch { /* not the handlers' shape */ }
+    return new Error(said || `HTTP ${r.status}`);
+  },
+
   async get(path) {
     const r = await fetch(this.base + path);
-    if (!r.ok) { this.refused(r); throw new Error(`HTTP ${r.status}`); }
+    if (!r.ok) throw await this.fail(r);
     return r.json();
   },
 
@@ -20,7 +33,7 @@ const API = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!r.ok) { this.refused(r); throw new Error(`HTTP ${r.status}`); }
+    if (!r.ok) throw await this.fail(r);
     return r.json();
   },
 
