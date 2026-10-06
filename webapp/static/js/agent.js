@@ -1453,7 +1453,14 @@ const Agent = {
     put('<div class="ag-empty">Reading...</div>');
     try {
       if (id === 'aider') put(await this.aiderHtml());
-      else if (id === 'ledger') put(await this.ledgerHtml());
+      else if (id === 'ledger') {
+        put(await this.ledgerHtml());
+        // The proof is drawn by the console's one reader of it, from the one read the tab just made.
+        if (this._pane === stamp && this.tab === id) {
+          App.paintProof('ag-proof-led', 'ledger', this._proofs);
+          App.paintProof('ag-proof-estate', 'estate', this._proofs);
+        }
+      }
       else if (id === 'guards') put(await this.guardsHtml());
       else if (id === 'docs') put(await this.docsHtml());
       else if (id === 'rack') put(await this.rackHtml());
@@ -1533,6 +1540,12 @@ const Agent = {
 
   // ---- Audit Ledger -----------------------------------------------------------
 
+  // RECORDS, EVALS AND THE LIVE CHECK, IN THE TAB (his word, 2026-10-06: "go, next: audit ledger"; the design pass laid it
+  // out as Records, Evals and the live check). What the build has proved and the estate behind it are drawn by the
+  // console's one reader of the proof (App.paintProof, the same that draws them on the Dashboard and on Records), from the
+  // one `proofs` read this tab makes, into the two places this leaves for it; the live check is the Dashboard's own
+  // (standup_run, the morning set), offered while no engine is open because it opens a sitting of its own; the evals are
+  // the ones a person scored by hand, read where the Evals page reads them.
   async ledgerHtml() {
     const w = Run.world || 'research';
     let kept = this._report || '';
@@ -1543,32 +1556,33 @@ const Agent = {
         if (k.text && (!k.session || k.session === Run.session) && Run.engineOpen) kept = k.text;
       } catch { /* none kept */ }
     }
-    let p = null;
-    try { p = JSON.parse(await App.tool('proofs', {}, true)); } catch { /* shown as unread below */ }
-    const rc = (p && p.record) || null;
-    const rows = rc && !rc.error ? (rc.recent || []).slice().reverse().map(r => `<tr>
-      <td>${escHtml(String(r.n))}</td><td>${escHtml(String(r.started || '').replace('T', ' ').slice(0, 16))}</td>
-      <td>${r.ended ? escHtml(String(r.ended).slice(11, 16)) : '<span style="color:var(--ag-rose)">open</span>'}</td>
-      <td>${escHtml(String(r.runs))}</td><td>${r.toll_paid ? 'tolled' : 'no toll'}</td></tr>`).join('') : '';
+    // The one read of the proof. App.paintProof draws it, a refusal included, once this is on the page (paintPane).
+    try { this._proofs = await App.tool('proofs', {}, true); } catch (e) { this._proofs = { err: e.message || 'unreadable' }; }
+    let scored = null, scoredErr = '';
+    try { scored = (await API.listEvals()).evals || []; } catch (e) { scoredErr = e.message || 'unreadable'; }
     const report = this.card('The engine\'s own report',
       kept ? `<pre>${escHtml(kept)}</pre>` : '<p>No report is kept for this sitting.</p>',
       kept ? 'what /status printed at boot, kept' : 'press the button to read it now') +
       `<div class="ag-btns"><button type="button" class="ag-btn" data-act="status"${Run.engineOpen ? '' : ' disabled'}>Read /status now</button></div>`;
-    const sit = this.card('Sittings',
-      rc && !rc.error
-        ? `<div class="ag-row"><span class="k">sittings</span><span class="v">${rc.sittings}</span></div>
-           <div class="ag-row"><span class="k">still open</span><span class="v">${rc.still_open || 0}</span></div>
-           <div class="ag-row"><span class="k">tolled</span><span class="v">${rc.tolled}</span></div>
-           <div class="ag-row"><span class="k">runs recorded</span><span class="v">${rc.runs}</span></div>
-           ${rows ? `<table><thead><tr><th>#</th><th>opened</th><th>closed</th><th>runs</th><th>toll</th></tr></thead><tbody>${rows}</tbody></table>` : ''}`
-        : `<p>The record could not be read${rc && rc.error ? ': ' + escHtml(rc.error) : ''}.</p>`,
-      'proofs, read from sessions/sessions.jsonl and never counted here');
+    const busy = !!this._checking;
+    const live = this.card('The live check',
+      '<p>tests/standup.py, the morning set: nine cases through the real council on the real rack, two to nine minutes. It opens and tolls a sitting of its own, so it runs only while no engine is open here.</p>' +
+      (this._checkSaid ? `<pre>${escHtml(this._checkSaid)}</pre>` : '') +
+      `<div class="ag-btns"><button type="button" class="ag-btn go" data-act="livecheck"${busy || Run.engineOpen || Run.unreachable ? ' disabled' : ''}>${busy ? 'Running... two to nine minutes' : 'Run the live check'}</button></div>` +
+      (Run.engineOpen && !busy ? `<p>An engine is open (sitting ${escHtml(String(Run.sitting || '?'))}): close it first, and the live check opens its own.</p>` : ''),
+      'standup_run - its tally comes back here, the report goes to logs/ and its line to tests/run_history.jsonl');
+    const hand = this.card('Scored by hand',
+      scoredErr ? `<p>The evals could not be read: ${escHtml(scoredErr)}</p>`
+        : !scored.length ? '<p>None scored yet. These are the scores a person gives a trace, not the suites or the standups above.</p>'
+        : `<table><thead><tr><th>eval</th><th>score</th><th></th><th>when</th></tr></thead><tbody>${scored.slice(0, 40).map(e =>
+            `<tr><td>${escHtml(e.name)}</td><td>${escHtml(String(e.score))}</td><td>${e.passed ? 'PASS' : '<span style="color:var(--ag-rose)">FAIL</span>'}</td><td>${escHtml(timeAgo(e.created_at))}</td></tr>`).join('')}</tbody></table>`,
+      'the glass\'s own store of hand-scored evals, as the Evals page reads it');
     const logs = this.card('Transcripts', '<div id="ag-logs"><p>Every run is written down in logs/ with a sha256 receipt.</p></div>' +
       '<div class="ag-btns"><button type="button" class="ag-btn" data-act="logs">List the newest</button></div>', 'records');
     const note = this.card('Chain verdicts',
       '<p>The door\'s own chain checker cannot read the pen\'s links yet, so it would call a whole chain FLIP (WHAT\'S LEFT H7). Until it can, the words to read are the engine\'s own, in the report above: its record, gate and memory lines say whether the law and the memory are whole.</p>',
       'verify_chain is not asked here on purpose');
-    return report + sit + logs + note;
+    return '<div class="ag-proof" id="ag-proof-led"></div>' + live + report + '<div class="ag-proof" id="ag-proof-estate"></div>' + hand + logs + note;
   },
 
   // ---- Aider Pair ---------------------------------------------------------------
@@ -1728,6 +1742,25 @@ const Agent = {
       const t = await this.stream('/status', () => {});
       this.keepBoot(t);
       this.paintPane();
+      return;
+    }
+    // THE LIVE CHECK, FROM THE TAB (2026-10-06; the Dashboard's own, D5). One press runs it, and its button stays grey
+    // through every redraw until it ends; the tally is kept for the tab, which reads the proof again, so the new standup
+    // is in the rows above it. The door refuses it while an engine is open, and the refusal is shown in its own words.
+    if (act === 'livecheck') {
+      if (this._checking) return;
+      this._checking = true;
+      this._checkSaid = '';
+      this.paintPane();
+      let said;
+      try { said = await App.tool('standup_run', { set: 'morning' }); }
+      catch (er) { said = 'REFUSED: ' + (er.message || 'refused'); }
+      this._checking = false;
+      this._checkSaid = String(said || '').split('\n')[0];
+      await Run.check();
+      this.paintTitle();
+      this.paintTop();
+      if (this.open && this.tab === 'ledger') this.paintPane();
       return;
     }
     if (act === 'logs') {

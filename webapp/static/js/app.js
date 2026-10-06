@@ -1087,6 +1087,7 @@ const App = {
   // Records. One reader, one `proofs` call, two placements.
   //   'scores' -- strokes, smoke, standup, standups run, parity
   //   'estate' -- sittings, tolls, runs, and the live standups table
+  //   'ledger' -- the deck's rows alone (proofLedger), for the front page's Audit Ledger tab
   //   omitted  -- both, as before
   //
   // `read` IS AN ANSWER THE CALLER ALREADY HOLDS (2026-09-15): the tool's text,
@@ -1247,6 +1248,7 @@ const App = {
 
     const scores = `<div class="stats">${cards.join('')}</div>`;
     box.innerHTML = only === 'deck' ? this.deck(p)
+                  : only === 'ledger' ? this.proofLedger(p)
                   : only === 'scores' ? scores
                   : only === 'estate' ? estate + standups
                   : estate + scores + standups;
@@ -1294,7 +1296,6 @@ const App = {
     const su = p.suites || {};
     const runs = p.standups || [];
     const last = runs.length ? runs[runs.length - 1] : null;
-    const par = p.parity || [];
 
     const red = [], absent = [];
     for (const name of ['strokes', 'smoke']) {
@@ -1322,6 +1323,29 @@ const App = {
             + `Not-tried is not the same as passed.</div>`;
     }
 
+    // THE IDS INSIDE THE HERO ARE THE ENGINE CARD'S OWN. Home.paintEngine
+    // writes into #home-engine and #home-engine-controls and is driven by a
+    // run-state event, not by this read -- so the sitting repaints on every
+    // boot, turn and close without re-reading `proofs` each time.
+    return `<div class="deck">
+      <div class="hero">
+        <div class="hero-kicker">The sitting</div>
+        <div id="home-engine" class="hero-body"></div>
+        <div id="home-engine-controls" class="hero-acts"></div>
+        ${alarm}
+      </div>
+      ${this.proofLedger(p)}
+    </div>`;
+  },
+
+  // WHAT THIS BUILD HAS PROVED, AS ROWS (2026-10-06: split out of the deck). The Dashboard draws them beside its hero
+  // and the front page's Audit Ledger tab draws them alone -- one reader of the proof, two placements, the way
+  // paintProof's `only` already places the scores and the estate.
+  proofLedger(p) {
+    const su = p.suites || {};
+    const runs = p.standups || [];
+    const last = runs.length ? runs[runs.length - 1] : null;
+    const par = p.parity || [];
     const rows = [];
     const row = (k, note, v, tone, delta) => rows.push(
       `<div class="led-row">
@@ -1364,23 +1388,11 @@ const App = {
       row('parity', p.parity_error || 'chain against bare calls', none, '');
     }
 
-    // THE IDS INSIDE THE HERO ARE THE ENGINE CARD'S OWN. Home.paintEngine
-    // writes into #home-engine and #home-engine-controls and is driven by a
-    // run-state event, not by this read -- so the sitting repaints on every
-    // boot, turn and close without re-reading `proofs` each time.
-    return `<div class="deck">
-      <div class="hero">
-        <div class="hero-kicker">The sitting</div>
-        <div id="home-engine" class="hero-body"></div>
-        <div id="home-engine-controls" class="hero-acts"></div>
-        ${alarm}
-      </div>
-      <div class="ledger">
+    return `<div class="ledger">
         <div class="led-head">What this build has proved</div>
         ${rows.join('')}
         <div class="led-foot"><span class="brief-src">proofs · read, never counted here</span></div>
-      </div>
-    </div>`;
+      </div>`;
   },
 
   // === RECORDS ===

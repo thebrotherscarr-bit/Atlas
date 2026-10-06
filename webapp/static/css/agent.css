@@ -325,6 +325,30 @@ body.is-agent .crumb { display: none; }
 .ag-wf .wf-pre { white-space: pre; max-height: 420px; }
 .ag-wf .wf-edge .select { width: auto; max-width: 150px; }
 
+/* WHAT THE BUILD HAS PROVED, IN THE AUDIT LEDGER TAB (2026-10-06). The tab draws the console's one reader of the proof
+   (App.paintProof: the deck's ledger rows, and the estate as Records draws it), so its furniture is app.css's --
+   .ledger and .led-*, .card, .stats and .stat -- and the wrapper points the tokens at this page's palette as .ag-wf
+   does. --muted is named again because :root works it out from its own tokens and a child inherits the answer;
+   --tint is cleared, since its wash is the console's and not this page's. */
+.ag-proof {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --accent-2: #f5f5f5; --tint: transparent;
+  --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 12px; --t-lg: 14px; --t-num: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.ag-proof:empty { display: none; }
+.ag-proof .card { margin: 0; padding: 14px; border-radius: 8px; }
+.ag-proof .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; margin-bottom: 8px; }
+.ag-proof .stats { gap: 8px; margin: 8px 0 12px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.ag-proof .stat { padding: 10px 12px; }
+.ag-proof .ledger { padding: 8px 14px 10px; border-radius: 8px; }
+.ag-proof .led-row { padding: 8px 6px; }
+/* a tile in the panel is too narrow for its source line to float beside the note, so the line sits under it */
+.ag-proof .stat .brief-src { float: none; display: block; margin-top: 4px; overflow-wrap: anywhere; }
+
 /* the six stages of a turn, read off the events the engine sent */
 .ag-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ag-st { border: 1px solid var(--ag-n800); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; color: var(--ag-n500); }

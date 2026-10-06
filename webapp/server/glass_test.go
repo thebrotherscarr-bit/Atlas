@@ -320,6 +320,47 @@ func TestARefusalReachesThePageInWords(t *testing.T) {
 	}
 }
 
+// THE AUDIT LEDGER TAB CARRIES RECORDS, EVALS AND THE LIVE CHECK (his word,
+// 2026-10-06: "go, next: audit ledger"). What the build has proved and the
+// estate behind it are drawn by the console's one reader of the proof, from the
+// one read the tab makes -- the Dashboard's ledger rows split out of its deck so
+// both draw one function; the live check is the Dashboard's own tool, run only
+// from the button he presses and offered only while no engine is open, since
+// the door refuses it then; and the hand-scored evals are read as Evals reads them.
+func TestTheAuditLedgerCarriesTheProofAndTheLiveCheck(t *testing.T) {
+	src := page(t, "js/agent.js")
+	app := page(t, "js/app.js")
+	css := page(t, "css/agent.css")
+	led := funcOf(src, "  async ledgerHtml(")
+	if strings.Count(led, "App.tool('proofs'") != 1 || !strings.Contains(led, `id="ag-proof-led"`) || !strings.Contains(led, `id="ag-proof-estate"`) {
+		t.Fatal("the ledger does not read the proof once and leave the two places it is drawn")
+	}
+	pane := funcOf(src, "  async paintPane(")
+	for _, want := range []string{"App.paintProof('ag-proof-led', 'ledger', this._proofs)", "App.paintProof('ag-proof-estate', 'estate', this._proofs)"} {
+		if !strings.Contains(pane, want) {
+			t.Fatalf("the ledger tab does not draw the proof with the console's own reader (wanted %s)", want)
+		}
+	}
+	deck := funcOf(app, "  deck(")
+	if !strings.Contains(funcOf(app, "  async paintProof("), "only === 'ledger' ? this.proofLedger(p)") ||
+		!strings.Contains(deck, "this.proofLedger(p)") || strings.Contains(deck, "led-row") {
+		t.Fatal("the deck and the ledger tab draw the proof's rows from two definitions, which drift")
+	}
+	if strings.Count(src, "App.tool('standup_run'") != 1 ||
+		!regexp.MustCompile(`(?s)act === 'livecheck'.{0,400}App\.tool\('standup_run', \{ set: 'morning' \}\)`).MatchString(funcOf(src, "  async paneClick(")) {
+		t.Fatal("the live check can be run from somewhere other than its button, or not as the morning set")
+	}
+	if !regexp.MustCompile(`data-act="livecheck"\$\{[^}]*Run\.engineOpen`).MatchString(led) {
+		t.Fatal("the live check is offered while an engine is open, which the door refuses")
+	}
+	if !strings.Contains(led, "API.listEvals()") {
+		t.Fatal("the hand-scored evals are not read")
+	}
+	if !regexp.MustCompile(`\.ag-proof \{[^}]*--muted:`).MatchString(css) {
+		t.Fatal("the proof in the panel does not take the page's look")
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his
