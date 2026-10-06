@@ -12,7 +12,7 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-## [v0.2.2] — 2026-10-05 20:51
+## [v0.2.2] — 2026-10-05 20:51 (tag on acdceb6)
 
 ### A gate's decision answers the gate it was shown at: the door refuses one while a run is moving, and the page greys its gate buttons at the first click (2026-10-05, found by the first release run)
 
