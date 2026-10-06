@@ -175,6 +175,9 @@ func (t Tool) WritesFor(args map[string]any) bool {
 type Registry struct {
 	order  []string
 	byName map[string]Tool
+	// tenants is the worlds this door resolves, kept from Build so a flow's
+	// `tool` node calls a tool exactly as the door's own wire does (2026-10-05).
+	tenants *tenant.Registry
 	// The hold queue and whether it is armed (holds.go).
 	holdState
 }
@@ -453,6 +456,17 @@ type handRegistry struct {
 	open map[string]hand
 }
 
+// grants is whether this hand carries the tool: what a `tool` node's call is
+// judged by (2026-10-05), the crossing of the nearest gate before it.
+func (h hand) grants(tool string) bool {
+	for _, t := range h.Tools {
+		if t == tool {
+			return true
+		}
+	}
+	return false
+}
+
 var hands = &handRegistry{open: map[string]hand{}}
 
 func (h *handRegistry) raise(home string, hd hand) {
@@ -487,7 +501,7 @@ func (h *handRegistry) covers(home, tool string) (hand, bool) {
 // Build wires the lawful surface onto a tenant registry. Landed tools run
 // for real; later-stone tools refuse honestly rather than fabricate.
 func Build(reg *tenant.Registry, opts Options) *Registry {
-	r := &Registry{byName: map[string]Tool{}}
+	r := &Registry{byName: map[string]Tool{}, tenants: reg}
 	r.holdWrites = opts.HoldWrites
 
 	str := func(args map[string]any, key string) string {
@@ -1304,6 +1318,23 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		},
 	})
 
+	// THE RELEASE'S OWN STEPS (2026-10-05, his word: "make the release one
+	// workflow"). The core's tests/cut.py in this world, with the python the
+	// door runs the engine with: `bump` moves the pins, atlas's version files
+	// and both changelogs to a mark; `index` rebuilds the toll index after a
+	// live check; `check` prints the status page and asks the release gate;
+	// `ci` waits for GitHub's runs and asks the gate again; `record` writes
+	// where a cut's marks sit. Every step writes, so a flow reaches it only
+	// past a gate that grants it -- flows/release.json is its caller.
+	r.add(Tool{
+		Name: "release_step", Writes: true, Tier: TierEngine,
+		Description: "one of the release's own steps, run by the core's tests/cut.py in this world: bump the pins, atlas's version files and both changelogs to a mark; rebuild the toll index; check the release gate; wait for GitHub's runs and check again; or record where a cut's marks sit",
+		Args:        []string{"step", "mark?", "project?"},
+		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
+			return toolReleaseStep(opts.CoreCmd, t, args)
+		},
+	})
+
 	r.add(Tool{
 		Name: "run_cancel", Writes: false, Tier: TierEngine,
 		Description: "interrupt the turn in flight; the sitting stays open",
@@ -1321,6 +1352,68 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	})
 
 	return r
+}
+
+// releaseSteps are what tests/cut.py takes, by its word, and whether the word
+// names the mark it moves to, checks for, waits on or records (2026-10-05).
+var releaseSteps = map[string]bool{"bump": true, "index": false, "check": true, "ci": true, "record": true}
+
+// releaseTimeout bounds one step: `ci` waits on GitHub for up to twenty
+// minutes for each commit it reads, and nothing else comes near it.
+const releaseTimeout = 45 * time.Minute
+
+// releaseMark is whether s is a mark as the release names one: v, then three
+// numbers joined by dots.
+func releaseMark(s string) bool {
+	parts := strings.Split(strings.TrimPrefix(s, "v"), ".")
+	if !strings.HasPrefix(s, "v") || len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if p == "" || strings.Trim(p, "0123456789") != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// toolReleaseStep runs one of the release's own steps (2026-10-05): the core's
+// tests/cut.py, in the world, with the python the door runs the engine with,
+// bounded, its words handed back whole. A step that refused (exit 1) is an
+// ERROR here and not an answer: a flow reads an error as its node failing, and
+// a release that carried on past a refused step would cut a mark the gate had
+// just refused.
+func toolReleaseStep(coreCmd string, t tenant.Tenant, args map[string]any) (string, error) {
+	step := strings.ToLower(strings.TrimSpace(str(args, "step")))
+	named, known := releaseSteps[step]
+	if !known {
+		return "", fmt.Errorf("refused: the release's steps are bump, index, check, ci and record; %q is none of them", step)
+	}
+	mark := strings.TrimSpace(str(args, "mark"))
+	if named && !releaseMark(mark) {
+		return "", fmt.Errorf("refused: %s names its mark as vX.Y.Z, and %q is not one", step, mark)
+	}
+	fields := splitCommand(coreCmd)
+	if len(fields) == 0 {
+		return "", fmt.Errorf("refused: the door was started without --manjuel, so it has no python to run the release's steps with")
+	}
+	script := filepath.Join(t.Home, "tests", "cut.py")
+	if st, err := os.Stat(script); err != nil || st.IsDir() {
+		return "", fmt.Errorf("refused: %q carries no tests/cut.py -- the release's steps are the core's own, and this world is not it", t.Name)
+	}
+	cmdArgs := []string{script, step}
+	if named {
+		cmdArgs = append(cmdArgs, mark)
+	}
+	res := spawn(fields[0], cmdArgs, spawnOpts{Dir: t.Home, Timeout: releaseTimeout})
+	if res.TimedOut {
+		return "", res.Err
+	}
+	out := strings.TrimSpace(strings.ReplaceAll(res.Combined, "\r\n", "\n"))
+	if res.Err != nil {
+		return "", fmt.Errorf("release step %s refused (%v):\n%s", step, res.Err, out)
+	}
+	return out, nil
 }
 
 // standupTimeout bounds one standup. The morning set runs in about two
@@ -2478,6 +2571,11 @@ type councilEngine struct {
 	// by flow on the way into the nodes after it (WithHand); the zero hand is
 	// none, and a turn under it parks every write as before.
 	hand hand
+	// door is what a `tool` node calls through (2026-10-05): the registry the
+	// flow tool was called on and the caller who fired or resumed the run, read
+	// off that call (councilAt), never off the spec. The zero door is none, and
+	// a tool node under it is refused.
+	door door
 }
 
 // WithHand is how flow hands a crossed gate's grants down to the council, on
@@ -2648,7 +2746,64 @@ func (c councilEngine) WithHead(head flow.Head) flow.Engine {
 }
 
 func council(home string) flow.Engine {
-	return councilEngine{flow.Production(home), home, flow.Head{}, hand{}}
+	return councilEngine{flow.Production(home), home, flow.Head{}, hand{}, door{}}
+}
+
+// door is the door a flow's `tool` nodes call through: the registry, and the
+// hand that fired or resumed the run.
+type door struct {
+	r      *Registry
+	caller Caller
+}
+
+// councilAt is the council for a flow fired or resumed by a call to this door:
+// the same engine, with the door that call came through bound on, so a `tool`
+// node calls the door's tools as that caller, through Call, judged as the
+// glass's own buttons are.
+func councilAt(home string, args map[string]any) flow.Engine {
+	c := council(home).(councilEngine)
+	c.door = door{r: regOf(args), caller: callerOf(args)}
+	return c
+}
+
+// flowFires are the door's verbs that fire a flow. A `tool` node never calls
+// one: the run it is in holds its world's flow lock, and a flow that fired a
+// flow would wait on itself for good.
+var flowFires = map[string]bool{"flow_run": true, "flow_resume": true, "flow_replay": true}
+
+// Tool is a `tool` node's call (2026-10-05, his word: "make the release one
+// workflow"). The door's own tool, by name, with the node's arguments, AS THE
+// CALLER WHO FIRED OR RESUMED THE RUN -- through Call, so RBAC, the holds and
+// the operator's-own-hand refusal judge it exactly as they judge a button on
+// his glass. AND A TOOL THAT WRITES RUNS ONLY UNDER THE GATE: the nearest gate
+// before the node must grant it, whoever fired the run, so a flow cannot write
+// past a gate that did not say so; a reader needs no grant, as it needs no
+// card. The tool runs whole: a cancel reaches the next node, not a call
+// already running (the door's tools take no context).
+func (c councilEngine) Tool(ctx context.Context, name string, args map[string]string) (string, error) {
+	if c.door.r == nil || c.door.r.tenants == nil {
+		return "", fmt.Errorf("refused: this flow was fired with no door to call %q through", name)
+	}
+	if flowFires[name] {
+		return "", fmt.Errorf("refused: a `tool` node does not fire a flow (%q) -- the run it is in "+
+			"holds this world's flow lock, and would wait on itself", name)
+	}
+	t, ok := c.door.r.Get(name)
+	if !ok {
+		return "", fmt.Errorf("refused: a `tool` node calls %q, which is not a tool this door carries", name)
+	}
+	call := make(map[string]any, len(args))
+	for k, v := range args {
+		call[k] = v
+	}
+	if t.WritesFor(call) && !c.hand.grants(name) {
+		return "", fmt.Errorf("refused: %q writes, and the gate before this node does not grant it -- a "+
+			"flow writes only past a gate that says so, and the nearest gate is the one that counts", name)
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	return c.door.r.Call(c.door.r.tenants, name, call, c.door.caller)
 }
 
 func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
@@ -2674,7 +2829,7 @@ func toolFlowRun(t tenant.Tenant, args map[string]any) (string, error) {
 	lock := flowLock(t.Home)
 	lock.Lock()
 	defer lock.Unlock()
-	res, err := flow.RunOn(t.Home, council(t.Home), s, inputs,
+	res, err := flow.RunOn(t.Home, councilAt(t.Home, args), s, inputs,
 		flow.Head{Voice: strings.TrimSpace(voice), Voices: voices})
 	if err != nil {
 		return "", err
@@ -2693,10 +2848,20 @@ func toolFlowResume(t tenant.Tenant, args map[string]any) (string, error) {
 	if strings.TrimSpace(run) == "" {
 		return "", fmt.Errorf("flow_resume needs a run — see flow_runs")
 	}
+	// A DECISION ANSWERS THE GATE IT WAS SHOWN AT (2026-10-05). This waited on
+	// the world's flow lock, so a click made while a run was still moving was
+	// held until the run reached its NEXT gate and then answered that one,
+	// unseen. The first release run was stopped that way at its save gate, in
+	// the second it paused; a "continue" held the same way would have saved and
+	// sent past a gate nobody had read. A run that is moving has no gate to
+	// answer, so the decision is refused and nothing is decided.
 	lock := flowLock(t.Home)
-	lock.Lock()
+	if !lock.TryLock() {
+		return "", fmt.Errorf("refused: a run is moving on this world, so there is no gate to answer -- " +
+			"a decision answers the gate it was shown at, once the run stops there; nothing was decided")
+	}
 	defer lock.Unlock()
-	res, err := flow.Resume(t.Home, council(t.Home), strings.TrimSpace(run), strings.TrimSpace(decision))
+	res, err := flow.Resume(t.Home, councilAt(t.Home, args), strings.TrimSpace(run), strings.TrimSpace(decision))
 	if err != nil {
 		return "", err
 	}
@@ -2736,7 +2901,7 @@ func toolFlowReplay(t tenant.Tenant, args map[string]any) (string, error) {
 	lock := flowLock(t.Home)
 	lock.Lock()
 	defer lock.Unlock()
-	res, err := flow.Replay(t.Home, council(t.Home), strings.TrimSpace(run))
+	res, err := flow.Replay(t.Home, councilAt(t.Home, args), strings.TrimSpace(run))
 	if err != nil {
 		return "", err
 	}

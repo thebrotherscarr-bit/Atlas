@@ -394,9 +394,11 @@ const Workflows = {
   // to come from outside.
   //
   // ONLY the fields the engine actually renders: a node's question, an eval's
-  // `expected`, and a prompt node's vars. A gate's title is still not one --
-  // gates never reach execNode, so a box for it would offer to fill something
-  // nothing substitutes.
+  // `expected`, a prompt node's vars, an aider node's files, a tool node's args,
+  // and a gate's title. The last three were missed: a gate's title is rendered
+  // at the pause (run.go), not by execNode, and the release flow's `mark` rides
+  // only in its tool nodes' args and its gates' titles -- so until 2026-10-05
+  // this page fired it with no mark, and its first step refused.
   //
   // `expected` WAS ON THAT LIST, and this comment said so, until the engine
   // started rendering it (2026-09-12) so a check could hold a node to an
@@ -407,7 +409,7 @@ const Workflows = {
     const own = new Set((s.nodes || []).map(n => 'out_' + n.name));
     const found = new Set();
     (s.nodes || []).forEach(n => {
-      [n.question, n.expected].concat(Object.values(n.vars || {})).forEach(v =>
+      [n.question, n.expected, n.title, n.files].concat(Object.values(n.vars || {}), Object.values(n.args || {})).forEach(v =>
         String(v || '').replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (_, k) => {
           if (!own.has(k)) found.add(k);
           return '';
@@ -486,9 +488,21 @@ const Workflows = {
           </div>` : ''}
         ${this.run ? `<div class="muted mt-16">run <span class="hash">${esc(this.run)}</span></div>` : ''}
       </div>`;
+    // ONE DECISION PER GATE (2026-10-05). The buttons stayed live while the
+    // run moved on to its next gate, and a click made then was held by the
+    // door and answered THAT gate, unseen: the first release run was stopped
+    // at its save gate that way. Both go grey at the first click, until the
+    // run stops and this panel is painted again; the door refuses a decision
+    // while a run moves, besides.
     if (paused) {
-      box.querySelector('#wf-cont').onclick = () => this.resume('continue');
-      box.querySelector('#wf-stop').onclick = () => this.resume('stop');
+      const decide = (d) => {
+        box.querySelectorAll('#wf-cont, #wf-stop').forEach(b => { b.disabled = true; });
+        const t = box.querySelector('.wf-gate-title');
+        if (t) t.textContent = 'Moving. The next gate, or the end, shows here when the run stops; nothing here can be clicked until then.';
+        this.resume(d);
+      };
+      box.querySelector('#wf-cont').onclick = () => decide('continue');
+      box.querySelector('#wf-stop').onclick = () => decide('stop');
     }
   },
 
@@ -500,7 +514,10 @@ const Workflows = {
       this.verdict = (text.match(/verdict:\s*([A-Z_]+)/) || [])[1] || this.verdict;
       this.paint(text);
       await this.runs();
-    } catch (e) { toast('The run could not be moved: ' + e.message); }
+    } catch (e) {
+      toast('The run could not be moved: ' + e.message);
+      document.querySelectorAll('#wf-cont, #wf-stop').forEach(b => { b.disabled = false; });
+    }
   },
 
   // ---- what already ran --------------------------------------------------

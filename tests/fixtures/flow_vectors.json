@@ -53,7 +53,8 @@
     "eval",
     "gate",
     "run",
-    "aider"
+    "aider",
+    "tool"
   ],
   "name_re": "^[a-z0-9][a-z0-9_-]{0,63}$",
   "receipt_example": {
@@ -602,6 +603,110 @@
         ]
       },
       "why": "aider node reached by a path around the granting gate"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "t",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "kind": "tool",
+            "name": "t"
+          }
+        ]
+      },
+      "why": "tool node that names no tool"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "t",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "kind": "tool",
+            "name": "t",
+            "tool": "Git Push"
+          }
+        ]
+      },
+      "why": "tool node whose name breaks the door's shape"
+    },
+    {
+      "spec": {
+        "edges": [],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q",
+            "tool": "git_push"
+          }
+        ]
+      },
+      "why": "tool on a node that is not a tool node"
+    },
+    {
+      "spec": {
+        "edges": [],
+        "nodes": [
+          {
+            "args": {
+              "project": "research"
+            },
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          }
+        ]
+      },
+      "why": "args on a node that is not a tool node"
+    },
+    {
+      "spec": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "t",
+            "when": "always"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "ask",
+            "name": "a",
+            "question": "Q"
+          },
+          {
+            "args": {
+              "__caller": "me"
+            },
+            "kind": "tool",
+            "name": "t",
+            "tool": "git_push"
+          }
+        ]
+      },
+      "why": "tool node passing an argument named as the door's own keys are"
     },
     {
       "spec": {

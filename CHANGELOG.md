@@ -12,6 +12,18 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.2.2] — 2026-10-05 20:51
+
+### A gate's decision answers the gate it was shown at: the door refuses one while a run is moving, and the page greys its gate buttons at the first click (2026-10-05, found by the first release run)
+
+The first run of the release flow stopped at its save gate in the second it paused there: a "Stop it here" made while the first part was still running (the first gate's buttons stayed live for those fifteen minutes) had waited on the world's flow lock and answered the next gate, which nobody had seen. A "Carry it on" made the same way would have saved and sent past it. `flow_resume` now refuses while a run is moving on the world ("a run is moving on this world, so there is no gate to answer"), and nothing is decided; the Workflows page greys both gate buttons at the first click until the run stops and the panel is painted again, and gives them back if the door refuses the move. Held by `TestADecisionIsRefusedWhileARunIsMoving` and `TestAGatesButtonsGoGreyAtTheFirstClick`.
+
+### The tool node: a flow calls the door's own tools by name, and the release's steps are one door tool (2026-10-05, the core's release workflow; his word: "make the release one workflow")
+
+A ninth node kind, `tool`, calls one of the door's tools by name with the arguments the node carries, each rendered like a question (`{{mark}}`, `{{out_x}}`). No model is asked and no engine is opened, so a flow of tool nodes runs where a sitting must not be open: the live check opens its own. The flow law judges the node's shape -- a tool named in the door's shape (`ToolRe`), arguments named the same way, and no other kind carrying `tool` or `args` -- restated in the vector oracle (five refusals and a lawful tool node). The door judges the call when it runs (`councilEngine.Tool`): through `Call`, as the caller who fired or resumed the run; a tool that writes runs only when the nearest gate before the node grants it, whoever fired the run; a flow verb is refused (the run holds its world's flow lock); and the bare engine refuses a tool node by name.
+
+`release_step` runs the core's `tests/cut.py` (`bump`, `index`, `check`, `ci`, `record`) in the world with the python the door runs the engine with, bounded at 45 minutes; a step that refused is an error, so its node fails and the release stops there. Held by `TestTheReleaseStepsRunFromTheCore`, `TestAToolNodesCallIsJudgedByTheDoor`, `TestAFlowsToolNodeCallsTheDoorItWasFiredThrough` (a reader answers the run; a writer past no granting gate fails it, fired from his glass) and the flow package's five tool strokes. The Workflows page fires a flow of tool nodes as it fires any other, and asks for every var the engine renders -- a tool node's `args` and a gate's `title` among them, which `openVars` did not read until the release flow's `mark` was found riding only there (held by `TestTheBuilderAsksForEveryVarTheEngineRenders`); its builder does not offer the kind yet.
+
 ## [v0.2.1] — 2026-10-05 15:16 (tag on 5c6beeb)
 
 ### The PowerShell tab: PowerShell 7 beside Bash, Python and Aider, every line on his card, and a shell line may run up to 300 s (2026-10-05, the core's WHAT'S LEFT H26; his word: "i should be able to run them in a tab alongside the agent, bash, python, and aider buttons or tabs. Let's get this done")

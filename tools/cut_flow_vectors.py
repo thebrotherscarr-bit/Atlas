@@ -7,7 +7,8 @@ The flow v1 contract (the oracle; the Go flow package must honor it):
 
   names         : ^[a-z0-9][a-z0-9_-]{0,63}$ for flows, nodes, runs carry
                   f-YYYYMMDD-HHMMSS-<8hex> (RUN_RE pinned below)
-  node kinds    : ask | prompt | seat | memory | eval | gate | run | aider —
+  node kinds    : ask | prompt | seat | memory | eval | gate | run | aider |
+                  tool —
                   a closed set. A `run` node drives a whole Manjuel turn (the
                   council), so it must carry an objective or it refuses; the
                   others reach one voice. An `aider` node (2026-10-05, H17) is
@@ -16,6 +17,11 @@ The flow v1 contract (the oracle; the Go flow package must honor it):
                   instruction (`question`) and `files`, no other kind names
                   files, and it is reached only through a gate whose `grants`
                   name `aider_run` on every path (the nearest gate wins)
+                  A `tool` node (2026-10-05) calls one of the door's own
+                  tools by name: it names the tool in the door's shape
+                  (TOOL_RE), its `args` are named the same way, and no
+                  other kind carries `tool` or `args`; which tools exist,
+                  and whether one that writes was granted, is the door's
   edges         : {from, to, when: always|pass|fail}; fail-edges only from
                   eval/gate nodes; everything else with when:fail refuses
   validation    : unique names, known kinds, refs resolve, no cycles,
@@ -53,8 +59,9 @@ FLOW = os.path.join(FIX, "flow_vectors.json")
 
 NAME_RE = r"^[a-z0-9][a-z0-9_-]{0,63}$"
 RUN_RE = r"^f-\d{8}-\d{6}-[0-9a-f]{8}$"
-KINDS = ["ask", "prompt", "seat", "memory", "eval", "gate", "run", "aider"]
+KINDS = ["ask", "prompt", "seat", "memory", "eval", "gate", "run", "aider", "tool"]
 AIDER_TOOL = "aider_run"    # flow.go AiderTool
+TOOL_RE = r"^[a-z][a-z0-9_]{0,63}$"    # flow.go ToolRe
 MAX_LOOPS = 5          # flow.go MaxLoops
 
 
@@ -92,6 +99,14 @@ def topo(nodes, edges):
             raise ValueError("aider node that names no files")
         if n["kind"] != "aider" and (n.get("files") or "").strip():
             raise ValueError("only an aider node names files")
+        # A `tool` NODE (2026-10-05): the tool and its arguments named in the
+        # door's shape, and no other kind calls a tool (flow.go Validate).
+        if n["kind"] == "tool" and not re.fullmatch(TOOL_RE, n.get("tool") or ""):
+            raise ValueError("a tool node that names no tool the door could carry")
+        if n["kind"] != "tool" and ((n.get("tool") or "").strip() or n.get("args")):
+            raise ValueError("only a tool node calls a tool")
+        if any(not re.fullmatch(TOOL_RE, k) for k in (n.get("args") or {})):
+            raise ValueError("an argument named outside the door's shape")
         k = n.get("loops") or 0
         if not isinstance(k, int) or k < 0 or k > MAX_LOOPS:
             raise ValueError("loops out of range: %r" % (k,))
@@ -339,6 +354,17 @@ def vectors():
             {"why": "aider node reached by a path around the granting gate",
              "spec": spec([ask("a"), granting("g", AIDER_TOOL), ask("c"), ask("d"), aider("w")],
                           [E("a", "g"), E("g", "c"), E("c", "w"), E("a", "d"), E("d", "w")])},
+            {"why": "tool node that names no tool",
+             "spec": spec([ask("a"), {"name": "t", "kind": "tool"}], [E("a", "t")])},
+            {"why": "tool node whose name breaks the door's shape",
+             "spec": spec([ask("a"), {"name": "t", "kind": "tool", "tool": "Git Push"}], [E("a", "t")])},
+            {"why": "tool on a node that is not a tool node",
+             "spec": spec([dict(ask("a"), tool="git_push")], [])},
+            {"why": "args on a node that is not a tool node",
+             "spec": spec([dict(ask("a"), args={"project": "research"})], [])},
+            {"why": "tool node passing an argument named as the door's own keys are",
+             "spec": spec([ask("a"), {"name": "t", "kind": "tool", "tool": "git_push",
+                                      "args": {"__caller": "me"}}], [E("a", "t")])},
             {"why": "loops on a check",
              "spec": spec([ask("a"),
                            {"name": "c1", "kind": "eval", "node": "a",
@@ -359,6 +385,14 @@ def lawful_aider():
                 [{"from": "a", "to": "g", "when": "always"},
                  {"from": "g", "to": "c", "when": "pass"},
                  {"from": "c", "to": "w", "when": "always"}])
+
+
+def lawful_tool():
+    """A tool node the law allows, for the verifier to prove the oracle does not
+    refuse every tool node: work, then a call with its argument templated."""
+    return spec([{"name": "a", "kind": "ask", "question": "plan"},
+                 {"name": "t", "kind": "tool", "tool": "git_push", "args": {"project": "{{world}}"}}],
+                [{"from": "a", "to": "t", "when": "always"}])
 
 
 def lawful_return():
@@ -428,6 +462,14 @@ def verify():
     except ValueError as ex:
         ok = False
         print("    [FAIL]  a lawful aider node is refused: %s" % ex)
+    try:
+        lawful = lawful_tool()
+        if topo(lawful["nodes"], lawful["edges"]) != ["a", "t"]:
+            ok = False
+            print("    [FAIL]  a lawful tool node is ordered wrongly")
+    except ValueError as ex:
+        ok = False
+        print("    [FAIL]  a lawful tool node is refused: %s" % ex)
     for b in want["budget_cases"]:
         if over(b["elapsed_ms"], b["budget_s"]) != b["over"]:
             ok = False

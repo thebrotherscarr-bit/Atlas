@@ -219,6 +219,33 @@ func TestTheBuilderOffersLoopsAndFindsAPausedRunAfterAReload(t *testing.T) {
 	}
 }
 
+// ONE DECISION PER GATE (2026-10-05): a gate's buttons go grey at the first
+// click and come back only if the door refuses the move. Live, a click made
+// while the run moved was held by the door and answered the next gate, unseen.
+func TestAGatesButtonsGoGreyAtTheFirstClick(t *testing.T) {
+	wf := page(t, "js/workflows.js")
+	paint := funcOf(wf, "  paint(")
+	if !strings.Contains(paint, "b.disabled = true") || strings.Contains(paint, "onclick = () => this.resume(") {
+		t.Fatal("a gate's buttons stay live while the run moves, so a second click answers the next gate unseen")
+	}
+	if !strings.Contains(funcOf(wf, "  async resume("), "b.disabled = false") {
+		t.Fatal("a refused move leaves the gate's buttons grey for good")
+	}
+}
+
+// THE PAGE ASKS FOR EVERY VAR THE ENGINE RENDERS (2026-10-05). The release
+// flow's `mark` rides only in its tool nodes' args and its gates' titles, and
+// openVars read neither: fired from this page, the flow had no mark and its
+// first step refused. Every field the engine renders is scanned.
+func TestTheBuilderAsksForEveryVarTheEngineRenders(t *testing.T) {
+	scan := funcOf(page(t, "js/workflows.js"), "  openVars(")
+	for _, field := range []string{"n.question", "n.expected", "n.vars", "n.files", "n.args", "n.title"} {
+		if !strings.Contains(scan, field) {
+			t.Fatalf("openVars no longer reads %s, so a var only it names is never asked for", field)
+		}
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his

@@ -37,6 +37,12 @@ type Engine interface {
 	// the door under the crossing the gate made, and the council's own turn when
 	// Aider cannot take it -- and the bare prodEngine refuses it as it does Turn.
 	Aider(ctx context.Context, instruction, files, feed string) (string, error)
+	// Tool is a `tool` node's call (2026-10-05): one of the door's own tools by
+	// name, with the node's arguments rendered. THE LINE supplies it -- the door
+	// judges the call, and runs a tool that writes only under the grant of the
+	// nearest gate before the node -- and the bare prodEngine refuses it as it
+	// does Turn: a flow with no door has no tools to call.
+	Tool(ctx context.Context, name string, args map[string]string) (string, error)
 	Ask(ctx context.Context, question, voice string) (string, error)
 	RunPrompt(name string, version int, vars map[string]string, voice string) (play.Run, error)
 	SeatAsk(seat, question, voice, method string) (play.Run, error)
@@ -61,6 +67,13 @@ func (p prodEngine) Turn(ctx context.Context, objective, feed, method string) (s
 func (p prodEngine) Aider(ctx context.Context, instruction, files, feed string) (string, error) {
 	return "", fmt.Errorf("refused: this flow has no door wired, so an `aider` node has " +
 		"no Aider to ask. Fire the flow through THE LINE (flow_run), with atlas-mcp started with --manjuel")
+}
+
+// Tool refuses on the bare engine, for the reason Aider does: the door's tools
+// are reached through the door, and a flow fired with no door has none.
+func (p prodEngine) Tool(ctx context.Context, name string, args map[string]string) (string, error) {
+	return "", fmt.Errorf("refused: this flow has no door wired, so a `tool` node has no %q to "+
+		"call. Fire the flow through THE LINE (flow_run)", name)
 }
 
 func (p prodEngine) Ask(ctx context.Context, question, voice string) (string, error) {
@@ -666,6 +679,23 @@ func execNode(ctx context.Context, eng Engine, nd Node, vars map[string]string,
 			return "", false, "fail", err
 		}
 		out, err := eng.Aider(ctx, q, files, vars["fail_"+nd.Name])
+		if err != nil {
+			return "", false, "fail", err
+		}
+		return out, true, "ok", nil
+	case "tool":
+		// THE ARGUMENTS ARE RENDERED, THE NAME IS NOT (2026-10-05): every value is
+		// templated like a question, so {{mark}} and {{out_x}} reach the call, and
+		// the tool is the spec's own word, never a template.
+		args := make(map[string]string, len(nd.Args))
+		for k, v := range nd.Args {
+			rv, err := play.Render(v, vars)
+			if err != nil {
+				return "", false, "fail", err
+			}
+			args[k] = rv
+		}
+		out, err := eng.Tool(ctx, nd.Tool, args)
 		if err != nil {
 			return "", false, "fail", err
 		}

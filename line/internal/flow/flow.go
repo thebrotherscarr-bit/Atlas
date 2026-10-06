@@ -4,9 +4,10 @@
 // Specs live in <home>/flows/<name>.json — {name, version, budget_s,
 // nodes, edges}; history folds as <name>.v<k>.json, never rewritten.
 // Node kinds are a closed set: ask | prompt | seat | memory | eval | gate |
-// run | aider -- `run` drives a whole Manjuel turn (the council), `aider` is an
-// attempt by Aider on the files it is handed (and the council's own turn when
-// Aider cannot take it), the others one voice.
+// run | aider | tool -- `run` drives a whole Manjuel turn (the council),
+// `aider` is an attempt by Aider on the files it is handed (and the council's
+// own turn when Aider cannot take it), `tool` calls one of the door's own tools
+// by name, the others one voice.
 // Branches declare parallelism but run sequentially in topo order — one
 // rack queue, no interleaved output, the queue visible in the waterfall.
 // There is no verb here that finishes a task, lands a memory, or closes a
@@ -50,6 +51,15 @@ var Kinds = map[string]bool{
 	// council's own turn, as a `run` node would have made it. It is reached only
 	// through a gate whose `grants` name AiderTool, refused at the save otherwise.
 	"aider": true,
+	// `tool` is one of the door's own tools, called by name with the arguments
+	// the node carries (2026-10-05, his word: "make the release one workflow").
+	// No model is asked and no engine is opened: the release's steps -- the
+	// bump, the live check, the suites, the saves, the marks -- are door tools
+	// already, and a flow of them is the release as one run with his gates
+	// between. THE DOOR judges each call when it runs: a tool that writes runs
+	// only when the nearest gate before the node grants it (ToolRe pins the
+	// name here; which tools exist is the door's to say).
+	"tool": true,
 }
 
 // AiderTool is the door tool an `aider` node asks. A gate must grant it on every
@@ -57,6 +67,13 @@ var Kinds = map[string]bool{
 // beside his own glass, may reach it -- a stroke there holds the two names to
 // each other, so a rename on one side is loud on the other.
 const AiderTool = "aider_run"
+
+// ToolRe pins a `tool` node's name and the names of its arguments (2026-10-05):
+// the door names its tools in lower case, words joined by underscores, and its
+// arguments the same way, so a name outside that shape is nothing the door
+// could carry -- and an argument can never be one of the door's own reserved
+// keys, which begin with an underscore.
+var ToolRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 // Verdicts. COMPLETE means every reached node came back ok; the rest name
 // exactly how a run stopped. No verdict here finishes anyone's task.
@@ -108,6 +125,11 @@ type Node struct {
 	// question, one path to a line or separated by commas; the door judges every
 	// path. Only an aider node carries it.
 	Files string `json:"files,omitempty"`
+	// Tool and Args are a `tool` node's call (2026-10-05): the door tool's name
+	// and its arguments, each value templated like a question. Only a tool node
+	// carries them.
+	Tool string            `json:"tool,omitempty"`
+	Args map[string]string `json:"args,omitempty"`
 }
 
 // MaxLoops caps how many times a node may be returned to. BOUNDED EVERYTHING
@@ -229,6 +251,22 @@ func Validate(s Spec) ([]string, error) {
 		if n.Kind != "aider" && strings.TrimSpace(n.Files) != "" {
 			return nil, fmt.Errorf("refused: node %q is a %s and names no files for Aider, so "+
 				"`files` means nothing on it", n.Name, n.Kind)
+		}
+		// A `tool` NODE (2026-10-05): a tool named in the door's own shape, and
+		// arguments named the same way; no other kind calls a tool.
+		if n.Kind == "tool" && !ToolRe.MatchString(n.Tool) {
+			return nil, fmt.Errorf("refused: tool node %q names no tool the door could carry (%q); "+
+				"a tool is named in lower case, words joined by underscores", n.Name, n.Tool)
+		}
+		if n.Kind != "tool" && (strings.TrimSpace(n.Tool) != "" || len(n.Args) > 0) {
+			return nil, fmt.Errorf("refused: node %q is a %s and calls no tool, so `tool` and "+
+				"`args` mean nothing on it", n.Name, n.Kind)
+		}
+		for k := range n.Args {
+			if !ToolRe.MatchString(k) {
+				return nil, fmt.Errorf("refused: tool node %q passes an argument named %q; "+
+					"an argument is named as a tool is", n.Name, k)
+			}
 		}
 		if n.Kind == "eval" && strings.TrimSpace(n.Ref) == "" {
 			return nil, fmt.Errorf("refused: eval node %q names no node to check", n.Name)
