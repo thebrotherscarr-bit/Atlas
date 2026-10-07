@@ -27,6 +27,14 @@
 // WHICH ONE IS IN HAND comes from the engine's own delivery (`project`), the
 // only place it lives. It is kept where both browsers can read it, keyed to
 // the sitting, the way the boot report and the thread are kept.
+//
+// AND IN THE FRONT PAGE'S RUN TAB (2026-10-07; his word, "go, next: run", and
+// on his card a pick plays "Beside the terminal"). The tab draws this same
+// object, told it stands in the panel (render(el, inPanel)), so there is one
+// Projects and not two. There it draws no frame of its own: picking a project,
+// or a version of one, plays it in the front page's one play frame beside the
+// terminal; and "Work on this" and "Put it down" go to the council through the
+// terminal's Agent tab, exactly as if he had typed them there.
 const Projects = {
   list: [],
   error: '',
@@ -35,14 +43,21 @@ const Projects = {
   inHand: '',
   session: null,
   bound: false,
+  el: null,            // where it was drawn: the Dashboard's card, or the Run tab's
+  inPanel: false,
 
-  async render() {
-    if (!document.getElementById('home-projects')) return;
+  async render(el, inPanel) {
+    this.el = el || document.getElementById('home-projects');
+    this.inPanel = !!inPanel;
+    if (!this.el) return;
     if (!this.bound) { Run.on((w) => this.onRun(w)); this.bound = true; }
     this.paint();
     await this.readHeld();
     await this.read();
   },
+
+  // The element it was last drawn into, while that is still on the page.
+  box() { return this.el && this.el.isConnected ? this.el : null; },
 
   // One read of the list. A background read: the glass answers it and keeps
   // no trace of it, as it does for the Dashboard's other reads (D1 b).
@@ -78,7 +93,7 @@ const Projects = {
   },
 
   onRun(what) {
-    if (!document.getElementById('home-projects')) return;
+    if (!this.box()) return;
     if (what === 'state') {
       // A sitting opened or closed: what was in hand went with the old one.
       if ((Run.session || '') !== this.session) this.readHeld().then(() => this.paint());
@@ -94,12 +109,19 @@ const Projects = {
     this.read();
   },
 
-  // "Work on this" and "Put it down": words in the box, run as his own.
+  // "Work on this" and "Put it down": words in the box, run as his own. On the
+  // front page the council's box is the terminal's Agent tab.
   say(words) {
+    if (this.inPanel) { Agent.council(words); return; }
     const input = document.getElementById('home-input');
     if (!input) return;
     input.value = words;
     Home.go();
+  },
+
+  // A pick in the Run tab plays beside the terminal, in the front page's one play frame.
+  play() {
+    if (this.inPanel && this.selected) Agent.pickProject(this.selected, this.version);
   },
 
   pageUrl(name, version) {
@@ -108,7 +130,7 @@ const Projects = {
   },
 
   paint() {
-    const box = document.getElementById('home-projects');
+    const box = this.box();
     if (!box) return;
     const held = this.inHand
       ? '<span class="badge badge-green">in hand: ' + escHtml(this.inHand) + '</span>'
@@ -160,6 +182,18 @@ const Projects = {
       ? '<button class="btn btn-sm" type="button" id="proj-down">Put it down</button>'
       : '<button class="btn btn-sm btn-primary" type="button" id="proj-up">Work on this</button>';
     const url = this.pageUrl(p.name, this.version);
+    // THE PAGE ITSELF. On the Dashboard it is framed here. In the Run tab it is not: a pick plays it in the front
+    // page's one play frame, beside the terminal, so a made page never runs in two frames at once.
+    const look = this.inPanel
+      ? '<div class="muted" style="font-size:var(--t-sm);margin-top:var(--s1)">' +
+        'Pick one, or a version of it, and it plays beside the terminal, sandboxed: it cannot reach this glass. It is also ' +
+        '<code>projects\\' + escHtml(p.name) + '\\index.html</code>, to open in any browser.</div>'
+      : '<iframe id="proj-frame" title="' + escHtml(p.name) + ', version ' + shown + '" ' +
+        'referrerpolicy="no-referrer" src="' + escHtml(url) + '" ' +
+        'style="width:100%;height:440px;border:1px solid var(--border-2);border-radius:var(--radius);background:#fff"></iframe>' +
+        '<div class="muted" style="font-size:var(--t-sm);margin-top:var(--s1)">' +
+        'Shown sandboxed: it runs here and cannot reach this glass. It is also ' +
+        '<code>projects\\' + escHtml(p.name) + '\\index.html</code>, to open in any browser.</div>';
 
     box.innerHTML = head +
       '<div style="display:flex;gap:var(--s4);flex-wrap:wrap;align-items:flex-start">' +
@@ -169,21 +203,15 @@ const Projects = {
       '<select class="select" id="proj-version" style="flex:1 1 220px;min-width:0">' + options.join('') + '</select>' +
       act +
       '<a class="btn btn-sm" href="' + escHtml(url) + '" target="_blank" rel="noopener noreferrer">Open in its own tab</a>' +
-      '</div>' +
-      '<iframe id="proj-frame" title="' + escHtml(p.name) + ', version ' + shown + '" ' +
-      'referrerpolicy="no-referrer" src="' + escHtml(url) + '" ' +
-      'style="width:100%;height:440px;border:1px solid var(--border-2);border-radius:var(--radius);background:#fff"></iframe>' +
-      '<div class="muted" style="font-size:var(--t-sm);margin-top:var(--s1)">' +
-      'Shown sandboxed: it runs here and cannot reach this glass. It is also ' +
-      '<code>projects\\' + escHtml(p.name) + '\\index.html</code>, to open in any browser.</div>' +
-      '</div></div>';
+      '</div>' + look + '</div></div>';
 
     box.querySelectorAll('.proj-row').forEach(el => {
-      el.onclick = () => { this.selected = el.dataset.name; this.version = 0; this.paint(); };
+      el.onclick = () => { this.selected = el.dataset.name; this.version = 0; this.paint(); this.play(); };
     });
     document.getElementById('proj-version').onchange = (e) => {
       this.version = Number(e.target.value) || 0;
       this.paint();
+      this.play();
     };
     const up = document.getElementById('proj-up');
     if (up) up.onclick = () => this.say('work on the ' + p.name + ' project');

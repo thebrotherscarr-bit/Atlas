@@ -725,7 +725,7 @@ const Agent = {
       this.tick(false);
       this.paintOut();
       this.paintTop();
-      if (this.open && this.tab === 'run') this.paintPane();
+      if (this.open && this.tab === 'run') this.paintRun();
       Home.keepThread();
       const made = Run.turn && Run.turn.delivery;
       if (made && typeof made.project === 'string' && made.project) this.playProject(made.project);
@@ -754,6 +754,16 @@ const Agent = {
     this.play = { name, version, closed: false };
     this.paintPlay();
     this.stick();   // the frame took room from the terminal: its newest line (the reply she asked for) stays in view
+  },
+
+  // HIS PICK (2026-10-07; on his card, a pick in the Run tab's Projects plays "Beside the terminal"). The one other way onto the play frame: the page
+  // and version he picked there, brought back even if he had put that same one away. A seat's words never reach it.
+  pickProject(name, version) {
+    const s = this.play;
+    if (s && s.name === name && s.version === version && !s.closed) return;
+    this.play = { name, version, closed: false };
+    this.paintPlay();
+    this.stick();
   },
 
   paintPlay() {
@@ -798,7 +808,7 @@ const Agent = {
 
   schedulePane() {
     if (this._sp) return;
-    this._sp = setTimeout(() => { this._sp = null; if (this.open && this.tab === 'run') this.paintPane(); }, 250);
+    this._sp = setTimeout(() => { this._sp = null; if (this.open && this.tab === 'run') this.paintRun(); }, 250);
   },
 
   // ---- sending ------------------------------------------------------------
@@ -1191,6 +1201,13 @@ const Agent = {
     this.paintOut();
   },
 
+  // WORDS FOR THE COUNCIL FROM A BUTTON (2026-10-07: the Run tab's Projects, "Work on this" and "Put it down"). The terminal goes to the Agent
+  // tab and they run there exactly as if he had typed them: the same checks, the same refusals, the same thread.
+  council(words) {
+    if (this.mode !== 'agent') { this.mode = 'agent'; this.paintMode(); this.paintTitle(); this.paintOut(); }
+    this.go(words);
+  },
+
   send(raw) {
     const him = { who: 'him', text: raw };
     const cn = { who: 'council', text: '', live: true };
@@ -1454,7 +1471,14 @@ const Agent = {
     const id = this.tab;
     const stamp = ++this._pane;
     const put = (html) => { if (this._pane === stamp && this.tab === id && $ag('ag-pane')) $ag('ag-pane').innerHTML = html; };
-    if (id === 'run') { put(this.runHtml()); return; }
+    if (id === 'run') {
+      // THE TURN, AND UNDER IT THE PROJECTS (2026-10-07). The turn is drawn again on its own as its events arrive (paintRun);
+      // the projects are the Projects card's own object, told it stands in the panel, and read themselves again when a turn ends.
+      put('<div id="ag-run"></div><div class="ag-proj" id="ag-proj"></div>');
+      this.paintRun();
+      if (this._pane === stamp && this.tab === id && $ag('ag-proj')) await Projects.render($ag('ag-proj'), true);
+      return;
+    }
     if (id === 'flows') { put('<div class="ag-wf" id="ag-wf"></div>'); await this.flowsPane(stamp); return; }
     put('<div class="ag-empty">Reading...</div>');
     try {
@@ -1514,26 +1538,15 @@ const Agent = {
     ];
   },
 
-  evRow(d) {
-    const k = d._kind;
-    const e = escHtml;
-    switch (k) {
-      case 'opened': return `<div class="ag-ev"><b>opened</b> sitting ${e(String(d.sitting ?? ''))} &middot; session ${e(d.session || '')}</div>`;
-      case 'run': return `<div class="ag-ev"><b>run</b> pipeline ${e(d.pipeline || '')}${d.review_only ? ' &middot; review only' : ''}${d.transcript ? '<br><span class="ag-src">transcript ' + e(d.transcript) + '</span>' : ''}</div>`;
-      case 'seat': return `<div class="ag-ev"><b>${e(d.seat || 'seat')}</b> ${e(d.model || '')}${d.timeout ? ' &middot; timeout ' + e(String(d.timeout)) + 's' : ''}</div>`;
-      case 'token': return '';
-      case 'text': return '';
-      case 'tool': return `<div class="ag-ev"><b>skill</b> ${e(d.action || d.tool || d.name || '?')}${d.seat ? ' <span class="ag-src">called by ' + e(d.seat) + '</span>' : ''}</div>`;
-      case 'tool_result': return `<div class="ag-ev ${d.failed ? 'bad' : 'ok'}"><b>${d.failed ? 'FAILED' : 'ok'}</b> ${e(d.action || d.tool || d.name || '?')}${d.error ? ' - ' + e(d.error) : ''}${d.failed && d.text ? ' - ' + e(String(d.text).slice(0, 240)) : ''}</div>`;
-      case 'report': case 'note': return `<div class="ag-ev"><b>${k}</b> ${e((d.text || '').trim().slice(0, 300))}</div>`;
-      case 'needs_answer': return `<div class="ag-ev gate"><b>THE COUNCIL IS ASKING</b> ${e(d.prompt || '')}</div>`;
-      case 'delivery': return `<div class="ag-ev ok"><b>DELIVERY</b> ${e(d.pipeline || '')}${d.elapsed != null ? ' &middot; ' + e(String(d.elapsed)) + 's' : ''}</div>`;
-      case 'refused': case 'aborted': case 'cancelled': case 'unreachable': case 'error':
-        return `<div class="ag-ev bad"><b>${e(String(k).toUpperCase())}</b> ${e(d.text || d.error || '')}</div>`;
-      case 'closed': return `<div class="ag-ev"><b>closed</b> ${e(d.text || 'the sitting is tolled')}</div>`;
-      case 'command': return `<div class="ag-ev"><b>command</b> ${e(d.text || '')} <span class="ag-src">finished without running a pipeline</span></div>`;
-      default: return `<div class="ag-ev"><b>${e(String(k))}</b> ${e(JSON.stringify(d).slice(0, 300))}</div>`;
-    }
+  // THE WATCHBOARD'S WIRE, IN THE TAB (2026-10-07; his word, "go, next: run", and on his card the wire replaces the tab's own list of the
+  // turn's events). The turn's events are drawn by the Watchboard's own wire (Chat.paintWire), handed this tab's box, with its one raw
+  // switch: folded is a line per event with the tokens counted, raw is every frame whole. The failures stay on the face, in the stages
+  // and NOT EVERYTHING RAN. Only this is drawn again as a turn's events arrive, never the projects under it.
+  paintRun() {
+    const box = $ag('ag-run');
+    if (!box) return;
+    box.innerHTML = this.runHtml();
+    Chat.paintWire($ag('ag-wire'), $ag('ag-wire-n'));
   },
 
   runHtml() {
@@ -1549,8 +1562,9 @@ const Agent = {
         (fails.length ? `<div class="ag-notrun"><b>NOT EVERYTHING RAN</b><br>${fails.map(escHtml).join('<br>')}</div>` : ''),
         'read off the events the engine sent; nothing here is inferred from a seat\'s own words') +
       (stepRows ? this.card('Seats', `<table><thead><tr><th>seat</th><th>model</th><th>elapsed</th><th></th></tr></thead><tbody>${stepRows}</tbody></table>`, 'the delivery\'s own per-seat facts') : '') +
-      this.card('Events', (t.events || []).map(d => this.evRow(d)).join('') || '<div class="ag-empty">No events yet.</div>',
-        (t.events || []).length + ' events kept' + (t.thinned ? ' - this turn came back from storage without its record' : ''));
+      this.card('The wire <span class="ag-wire-h"><span id="ag-wire-n"></span><button type="button" class="ag-btn" data-act="wire-raw" title="raw shows every frame whole; folded shows a line per event, the tokens counted">' + (Chat.raw ? 'folded' : 'raw') + '</button></span>',
+        '<div class="ag-wire" id="ag-wire"></div>',
+        'every event of the turn, in order, drawn by the Watchboard\'s own wire' + (t.thinned ? ' - this turn came back from storage without its record' : ''));
   },
 
   // ---- Audit Ledger -----------------------------------------------------------
@@ -1805,6 +1819,8 @@ const Agent = {
     if (!b) return;
     const act = b.dataset.act;
     if (act === 'goto') { history.pushState(null, '', b.dataset.path); App.router(); return; }
+    // The wire's raw switch is the Watchboard's own: one switch, drawn in both places.
+    if (act === 'wire-raw') { Chat.raw = !Chat.raw; this.paintRun(); return; }
     // A tool is called by the Tools page's own Call: its form in the modal, with the tool's arguments listed over the box.
     // The form reads its list off App._tools, so it is handed the one this tab read.
     if (act === 'tool-call') { App._tools = this._tools || []; App.invokeTool(b.dataset.tool); return; }

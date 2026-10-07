@@ -492,6 +492,59 @@ func TestAiderPairCarriesVersionControl(t *testing.T) {
 	}
 }
 
+// RUN CARRIES THE WATCHBOARD'S WIRE AND THE DASHBOARD'S PROJECTS (his word, 2026-10-06: "go, next: run"; on his
+// cards, 2026-10-07, the wire replaces the tab's own list of events, and a pick plays "Beside the terminal"). The
+// turn's events are drawn by the Watchboard's own wire, handed the tab's box, with its one raw switch; the projects
+// are the Projects card's own object, told it stands in the panel, with no frame of its own -- a pick plays in the
+// front page's one play frame -- and its words go to the council through the terminal's Agent tab; an event draws
+// the turn again alone, never the projects; and the Watchboard and the Dashboard still draw theirs whole.
+func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
+	src := page(t, "js/agent.js")
+	chat := page(t, "js/chat.js")
+	proj := page(t, "js/projects.js")
+	css := page(t, "css/agent.css")
+	if !strings.Contains(funcOf(src, "  paintRun("), "Chat.paintWire($ag('ag-wire'), $ag('ag-wire-n'))") || strings.Contains(src, "evRow") {
+		t.Fatal("the Run tab draws the turn's events its own way, not with the Watchboard's own wire")
+	}
+	if !strings.Contains(chat, "paintWire(box = document.getElementById('wb-wire'), n = document.getElementById('wb-wire-n')) {") {
+		t.Fatal("the Watchboard's wire cannot be handed a box, or no longer draws its own when it is handed none")
+	}
+	if !strings.Contains(funcOf(src, "  async paneClick("), "if (act === 'wire-raw') { Chat.raw = !Chat.raw; this.paintRun(); return; }") ||
+		!strings.Contains(chat, "type=\"button\">${this.raw ? 'folded' : 'raw'}</button>") {
+		t.Fatal("the Run tab's raw switch is not the Watchboard's own, or the Watchboard's button does not say which way it stands")
+	}
+	pane := funcOf(src, "  async paintPane(")
+	if !strings.Contains(pane, `id="ag-proj"`) || !strings.Contains(pane, "await Projects.render($ag('ag-proj'), true)") {
+		t.Fatal("the Run tab does not draw the Projects card's own object")
+	}
+	sched := funcOf(src, "  schedulePane(")
+	if !strings.Contains(sched, "this.paintRun()") || strings.Contains(sched, "this.paintPane()") ||
+		!strings.Contains(funcOf(src, "  onRun("), "if (this.open && this.tab === 'run') this.paintRun();") {
+		t.Fatal("a turn's event draws the whole Run tab again, so the projects would be read again with every token")
+	}
+	if !strings.Contains(funcOf(proj, "  async render("), "this.inPanel = !!inPanel") || !strings.Contains(page(t, "js/home.js"), "Projects.render();") {
+		t.Fatal("the Projects card is not told where it stands, or the Dashboard no longer draws it whole")
+	}
+	paint := funcOf(proj, "  paint(")
+	look, beside, frame := strings.Index(paint, "const look = this.inPanel"), strings.Index(paint, "it plays beside the terminal"), strings.Index(paint, "<iframe")
+	if look < 0 || beside < look || frame < beside || strings.Count(proj, "<iframe") != 1 {
+		t.Fatal("the Projects card draws a frame of its own in the panel, where a pick plays beside the terminal")
+	}
+	if !strings.Contains(funcOf(proj, "  say("), "if (this.inPanel) { Agent.council(words); return; }") ||
+		!regexp.MustCompile(`(?s)this\.mode = 'agent';.*this\.go\(words\);`).MatchString(funcOf(src, "  council(")) {
+		t.Fatal("Work on this and Put it down in the Run tab do not go to the council as if typed in the Agent tab")
+	}
+	if !strings.Contains(funcOf(proj, "  play("), "if (this.inPanel && this.selected) Agent.pickProject(this.selected, this.version);") ||
+		strings.Count(proj, "Agent.pickProject(") != 1 || strings.Count(src, "pickProject(") != 1 ||
+		strings.Count(src, "this.play = { name, version, closed: false };") != 2 {
+		t.Fatal("a project reaches the play frame from something other than a turn's delivery or his pick in the Run tab")
+	}
+	if !regexp.MustCompile(`\.ag-proj \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-proj .btn {") ||
+		!strings.Contains(css, ".ag-wire {") || strings.Contains(css, ".ag-ev") {
+		t.Fatal("the projects or the wire in the panel do not take the page's look, or the old list of events left its rules behind")
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his
@@ -884,7 +937,7 @@ func TestTheFrontPagePlaysWhatTheMakerMade(t *testing.T) {
 		t.Fatal("what is played is not read off the turn's delivery (`project`), or is played when the delivery names none")
 	}
 	if strings.Count(src, "this.playProject(") != 1 {
-		t.Fatal("something other than a delivery puts a project on the play frame")
+		t.Fatal("playProject is called from somewhere other than a turn's delivery (his pick in the Run tab has its own way, held by TestRunCarriesTheWireAndTheProjects)")
 	}
 
 	// Which version it is comes from the door: a quiet read of the read-only `projects` tool (the glass keeps no trace of a quiet read).

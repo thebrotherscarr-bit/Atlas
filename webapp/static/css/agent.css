@@ -414,6 +414,36 @@ body.is-agent .crumb { display: none; }
 .ag-vc .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
 .ag-vc .btn:disabled { opacity: .4; cursor: default; }
 
+/* THE WATCHBOARD'S WIRE, IN THE RUN TAB (2026-10-07). The tab hands its box to the Watchboard's own paintWire, so the rows
+   are app.css's .wb-ev, .wb-kind and .wb-dim, with the tokens pointed at this page's palette; the box scrolls on its own. */
+.ag-wire {
+  --accent: var(--ag-cyan); --text-3: var(--ag-n500); --t-xs: 10px;
+  max-height: 46vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ag-n800) transparent;
+}
+.ag-wire .wb-ev { grid-template-columns: 84px 1fr; gap: 8px; border-bottom: 1px solid rgba(38,38,38,.5); }
+.ag-wire .wb-ev code { color: var(--ag-n400); }
+.ag-wire-h { display: flex; align-items: center; gap: 8px; font-weight: 400; color: var(--ag-n500); }
+
+/* THE PROJECTS, IN THE RUN TAB (2026-10-07). The Projects card's own object (projects.js), told it stands in the panel: its
+   furniture is app.css's -- .card-header, .badge, .btn, .select, .muted -- with the tokens pointed at this page's palette, as
+   .ag-vc does, and the box drawn as one of the panel's cards; the buttons alone need rules, since the page's own button rule
+   (.ag button) strips every button bare. */
+.ag-proj {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --accent-2: #f5f5f5; --accent-dim: rgba(34,211,238,.08);
+  --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 12px;
+  border: 1px solid var(--ag-n800); border-radius: 8px; padding: 14px; color: var(--ag-n300);
+}
+.ag-proj:empty { display: none; }
+.ag-proj .card-header { margin-bottom: 8px; padding-bottom: 8px; }
+.ag-proj .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; }
+.ag-proj .btn { padding: 3px 10px; background: var(--ag-n900); border: 1px solid var(--ag-n700); border-radius: 4px; color: var(--ag-n200); font-size: 11px; text-decoration: none; }
+.ag-proj .btn:hover { background: var(--ag-n800); }
+.ag-proj .btn-primary { border-color: rgba(52,211,153,.5); color: var(--ag-green); }
+
 /* the six stages of a turn, read off the events the engine sent */
 .ag-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ag-st { border: 1px solid var(--ag-n800); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; color: var(--ag-n500); }
@@ -424,13 +454,6 @@ body.is-agent .crumb { display: none; }
 .ag-st.wait { color: var(--ag-amber); border-color: rgba(251,191,36,.6); background: rgba(251,191,36,.06); }
 .ag-st.bad { color: var(--ag-rose); border-color: rgba(244,63,94,.55); background: rgba(76,5,25,.2); }
 .ag-st.skip { color: var(--ag-n600); }
-.ag-ev { font-size: 11px; padding: 3px 0; color: var(--ag-n400); border-bottom: 1px solid rgba(38,38,38,.5); word-break: break-word; }
-.ag-ev b { color: var(--ag-n200); font-weight: 500; }
-.ag-ev.bad { color: var(--ag-rose); }
-.ag-ev.bad b { color: var(--ag-rose); }
-.ag-ev.ok b { color: var(--ag-green); }
-.ag-ev.gate { color: var(--ag-amber); }
-.ag-ev.gate b { color: var(--ag-amber); }
 .ag-voice { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 11px; }
 .ag-voice i { display: block; height: 4px; background: var(--ag-n600); border-radius: 2px; }
 .ag-voice span { color: var(--ag-n300); min-width: 120px; }

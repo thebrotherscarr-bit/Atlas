@@ -88,7 +88,7 @@ const Chat = {
       <div class="card mt-16 wb-panel">
         <div class="card-header"><span class="card-title">The wire</span>
           <span class="flex"><span class="muted" id="wb-wire-n"></span>
-            <button class="btn btn-sm" id="wb-raw" type="button">raw</button></span></div>
+            <button class="btn btn-sm" id="wb-raw" type="button">${this.raw ? 'folded' : 'raw'}</button></span></div>
         <div id="wb-wire" class="wb-scroll wb-wire"></div>
       </div>
 
@@ -309,12 +309,15 @@ const Chat = {
   // listed when folded — a turn carries hundreds and they are shown whole on
   // the floor — but `raw` lists them too, because "every event" has to mean
   // every event or this panel is only another summary.
-  paintWire() {
-    const box = document.getElementById('wb-wire');
+  //
+  // ONE WIRE, TWO PLACES (2026-10-07). The front page's Run tab draws the
+  // turn's wire with this same function, into the box it hands over, and its
+  // raw switch is this one (this.raw), so the two cannot drift. Handed no box,
+  // it draws into the Watchboard's own.
+  paintWire(box = document.getElementById('wb-wire'), n = document.getElementById('wb-wire-n')) {
     if (!box) return;
     const t = Run.turn;
     const evs = (t && t.events) || [];
-    const n = document.getElementById('wb-wire-n');
     if (n) n.textContent = evs.length ? evs.length + ' events' : '';
     if (!evs.length) {
       box.innerHTML = `<div class="empty-text">The wire is quiet.</div>`;
