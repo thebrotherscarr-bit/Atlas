@@ -17,7 +17,19 @@ const Flows = {
   // a loaded button somewhere off screen.
   arming: null,
 
-  async render(el) {
+  // THE SAME VERSION CONTROL IN TWO PLACES (2026-10-06, his word: "go, next: aider pair"). The front page's Aider Pair tab
+  // draws THIS object under Aider -- `inPanel`, the repositories alone -- and the page under Pages draws it whole. In the
+  // panel the page's other parts are left to the front page's own: the hold queue is Guardrails', the way through the
+  // council is the terminal itself, and Recent is the terminal's own history.
+  async render(el, inPanel) {
+    this.inPanel = !!inPanel;
+    const repos = `<div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
+        <div id="repo-watch"><div class="skel skel-60"></div><div class="skel skel-80"></div><div class="skel skel-40"></div></div>
+        <div class="muted mt-16">Every button here is your hand, not the machine's.
+        Nothing fires on its own, nothing sends while the wall is shut, and
+        nothing is thrown away without saying so first.</div>
+      </div>`;
+    if (inPanel) { el.innerHTML = repos; await this.repos(); return; }
     el.innerHTML = `
       <div class="page-header"><div><div class="page-title">Version control</div>
       <div class="page-subtitle">What is saved, what is not, and every way to move it</div></div></div>
@@ -31,12 +43,7 @@ const Flows = {
         <div id="holds-box"></div>
       </div>
 
-      <div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
-        <div id="repo-watch"><div class="skel skel-60"></div><div class="skel skel-80"></div><div class="skel skel-40"></div></div>
-        <div class="muted mt-16">Every button here is your hand, not the machine's.
-        Nothing fires on its own, nothing sends while the wall is shut, and
-        nothing is thrown away without saying so first.</div>
-      </div>
+      ${repos}
 
       <!-- THE SAME REPOSITORY, THE OTHER WAY IN. The buttons above call the
            door directly and work with no engine standing. This card sends the

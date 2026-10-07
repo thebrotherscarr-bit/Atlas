@@ -395,6 +395,25 @@ body.is-agent .crumb { display: none; }
 .ag-laws .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
 .ag-laws .btn:disabled { opacity: .4; cursor: default; }
 
+/* VERSION CONTROL, IN THE AIDER PAIR TAB (2026-10-06). The tab draws Version control's own object (flows.js) under Aider,
+   the repositories alone, so its furniture is app.css's -- .card, .btn, .input and its tables -- with the tokens pointed
+   at this page's palette, as .ag-wf does; the buttons alone need rules, since `.ag button` strips every button bare. */
+.ag-vc {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --accent-2: #f5f5f5;
+  --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 12px;
+}
+.ag-vc:empty { display: none; }
+.ag-vc .card { margin: 0; padding: 14px; border-radius: 8px; }
+.ag-vc .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; margin-bottom: 8px; }
+.ag-vc .btn { padding: 3px 10px; background: var(--ag-n900); border: 1px solid var(--ag-n700); border-radius: 4px; color: var(--ag-n200); font-size: 11px; }
+.ag-vc .btn:hover { background: var(--ag-n800); }
+.ag-vc .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
+.ag-vc .btn:disabled { opacity: .4; cursor: default; }
+
 /* the six stages of a turn, read off the events the engine sent */
 .ag-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ag-st { border: 1px solid var(--ag-n800); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; color: var(--ag-n500); }

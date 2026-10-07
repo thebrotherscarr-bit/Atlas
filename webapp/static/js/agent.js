@@ -1458,7 +1458,11 @@ const Agent = {
     if (id === 'flows') { put('<div class="ag-wf" id="ag-wf"></div>'); await this.flowsPane(stamp); return; }
     put('<div class="ag-empty">Reading...</div>');
     try {
-      if (id === 'aider') put(await this.aiderHtml());
+      if (id === 'aider') {
+        put(await this.aiderHtml());
+        // Version control is drawn by its own object, under Aider, in the panel's own shape.
+        if (this._pane === stamp && this.tab === id && $ag('ag-vc')) await Flows.render($ag('ag-vc'), true);
+      }
       else if (id === 'ledger') {
         put(await this.ledgerHtml());
         // The proof is drawn by the console's one reader of it, from the one read the tab just made.
@@ -1599,8 +1603,8 @@ const Agent = {
   // ---- Aider Pair ---------------------------------------------------------------
 
   // The Inspector's side of the tab: what the door says of Aider now, the files in the chat (each can be dropped), the
-  // runs this world kept (each can be taken back), and where each world's work stands -- its branch and what changed --
-  // because an edit is unsaved work on a line, and Version control is where it is saved.
+  // runs this world kept (each can be taken back), and Version control's own panel under them, because an edit is unsaved
+  // work on a line and that is where it is saved.
   async aiderHtml() {
     await this.readAider();
     const s = this.aiderSt || {};
@@ -1630,25 +1634,22 @@ const Agent = {
     const runs = (s.runs || []).map(r => `<div class="ag-row"><span class="k">${escHtml(r.run)}<br><span class="ag-src">${escHtml((r.files || []).join(', '))}${r.line ? ' &middot; ' + escHtml(r.line) : ''}</span></span>
       <span class="v">${r.undone ? 'taken back' : `<button type="button" class="ag-btn no" data-act="aider-undo" data-run="${escHtml(r.run)}">Undo</button>`}</span></div>`).join('');
     parts.push(this.card('Recent runs', runs || '<p>No run yet.</p>', 'the last runs this world kept; an older one is git\'s to take back'));
+    // VERSION CONTROL, IN THE TAB (2026-10-06, his word: "go, next: aider pair"; the design pass put Version control's
+    // buttons here). Drawn by its own object (Flows) once this is on the page (paintPane): each world in plain words, with
+    // Save, Send, Take, its lines of work, its marks and its changed files, in place of the small world cards this tab drew
+    // itself. Under it, every change in a world at once -- the cards' Show the diff, kept on his card.
     let worlds = [];
     let said = '';
     try {
       const m = await App.tool('muster', {}, true);
       worlds = String(m).split('\n').map(x => x.trim()).filter(x => x && !x.endsWith(':'));
     } catch (e) { said = e.message || 'unreadable'; }
-    for (const wd of worlds) {
-      let d = null;
-      try { d = JSON.parse(await App.tool('git', { project: wd })); } catch (e) { d = { error: e.message || 'unreadable' }; }
-      const keys = ['branch', 'changed', 'untracked', 'ahead', 'behind'].filter(k => d && d[k] != null && d[k] !== '');
-      parts.push(this.card(escHtml(wd),
-        d && d.error ? `<p>${escHtml(d.error)}</p>`
-          : d && d.is_repo === false ? '<p>Not a repository.</p>'
-          : keys.map(k => `<div class="ag-row"><span class="k">${escHtml(k)}</span><span class="v">${escHtml(String(d[k]))}</span></div>`).join('') || '<p>Nothing to report.</p>',
-        'git') + `<div class="ag-btns"><button type="button" class="ag-btn" data-act="diff" data-world="${escHtml(wd)}">Show the diff</button></div>`);
-    }
-    if (said) parts.push(this.card('The worlds could not be read', `<p>${escHtml(said)}</p>`, 'muster'));
+    parts.push('<div class="ag-vc" id="ag-vc"></div>');
+    parts.push(this.card('Every change in a world',
+      said ? `<p>The worlds could not be read: ${escHtml(said)}</p>`
+        : `<div class="ag-btns">${worlds.map(wd => `<button type="button" class="ag-btn" data-act="diff" data-world="${escHtml(wd)}">${escHtml(wd)}</button>`).join('')}</div>`,
+      'git_diff - all of a world\'s changes at once; the panel above opens one file at a time'));
     parts.push('<div id="ag-diff"></div>');
-    parts.push(`<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">Version control</button></div>`);
     return parts.join('');
   },
 

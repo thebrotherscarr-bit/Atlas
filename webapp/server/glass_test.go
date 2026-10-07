@@ -458,6 +458,40 @@ func TestGuardrailsCarriesTheLaws(t *testing.T) {
 	}
 }
 
+// AIDER PAIR CARRIES VERSION CONTROL (his word, 2026-10-06: "go, next: aider pair";
+// the design pass put Version control's buttons here). Under Aider the tab draws
+// Version control's own object, told it stands in the panel -- the repositories
+// alone, one object so the two cannot drift -- in place of the small world cards it
+// drew itself; the whole-world diff stays, on his card; and the page under Pages
+// still draws it whole.
+func TestAiderPairCarriesVersionControl(t *testing.T) {
+	src := page(t, "js/agent.js")
+	fl := page(t, "js/flows.js")
+	app := page(t, "js/app.js")
+	css := page(t, "css/agent.css")
+	aider := funcOf(src, "  async aiderHtml(")
+	if !strings.Contains(aider, `id="ag-vc"`) || !strings.Contains(funcOf(src, "  async paintPane("), "await Flows.render($ag('ag-vc'), true)") {
+		t.Fatal("the Aider Pair tab does not draw Version control's own object")
+	}
+	if strings.Contains(aider, "App.tool('git'") || strings.Contains(aider, `data-path="/flows"`) {
+		t.Fatal("the tab still draws its own world cards, or sends him to the page for what it draws")
+	}
+	if !strings.Contains(aider, `data-act="diff"`) || !strings.Contains(funcOf(src, "  async paneClick("), "App.tool('git_diff', { project: b.dataset.world })") {
+		t.Fatal("the whole-world diff he kept is gone")
+	}
+	render := funcOf(fl, "  async render(")
+	i, j := strings.Index(render, "if (inPanel) { el.innerHTML = repos; await this.repos(); return; }"), strings.Index(render, "await this.holds()")
+	if !strings.Contains(render, "this.inPanel = !!inPanel") || i < 0 || j < 0 || i > j {
+		t.Fatal("in the panel Version control draws more than its repositories, or draws the page whole")
+	}
+	if !strings.Contains(app, "case 'flows': await Flows.render(el); break;") {
+		t.Fatal("the page under Pages no longer draws Version control whole")
+	}
+	if !regexp.MustCompile(`\.ag-vc \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-vc .btn {") {
+		t.Fatal("Version control in the panel does not take the page's look")
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his
