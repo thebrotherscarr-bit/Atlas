@@ -283,11 +283,13 @@ func TestTheGlassSendsItsServiceWireAndOnlyWhenItHasOne(t *testing.T) {
 	}
 }
 
-// THE WHAT'S-LEFT PAGE IS FIVE THINGS THAT MUST AGREE (2026-09-29, his word:
-// "write a page on the webapp"): a line in the panel, a case in the router, a
-// script the page loads BEFORE the router that calls it, a glyph for the line,
-// and the one document the page reads. Any one of them missing is a link that
-// goes nowhere or a page that draws nothing, and the binary builds either way.
+// THE WHAT'S-LEFT PAGE IS FOUR THINGS THAT MUST AGREE (2026-09-29, his word:
+// "write a page on the webapp"): a line in the one page list, a case in the
+// router, a script the page loads BEFORE the router that calls it, and the one
+// document the page reads. Any one of them missing is a link that goes nowhere
+// or a page that draws nothing, and the binary builds either way. (Until
+// 2026-10-07 the line was the sidebar's, with a glyph of its own; the sidebar
+// retired, and its links became App.PAGES.)
 func TestTheWhatsLeftPageIsWired(t *testing.T) {
 	read := func(path string) string {
 		t.Helper()
@@ -300,17 +302,14 @@ func TestTheWhatsLeftPageIsWired(t *testing.T) {
 	index := read("../static/index.html")
 	app := read("../static/js/app.js")
 	left := read("../static/js/left.js")
-	icons := read("../static/css/icons.css")
 
 	for _, c := range []struct{ in, want, why string }{
-		{index, `<a href="/left" class="nav-link" data-page="left">`,
-			"the panel has no line for What's left"},
+		{app, `{ page: 'left', href: '/left', label: "What's left" }`,
+			"the page list has no line for What's left, so neither Pages nor the palette offers it"},
 		{index, `<script src="/js/left.js"></script>`,
 			"index.html does not load the page's script"},
 		{app, `case 'left': await Left.render(el); break;`,
 			"the router has no case for the page, so /left answers Page not found"},
-		{icons, `.nav-link[data-page="left"]`,
-			"the panel line has no glyph"},
 		{left, `DOC: 'WHATS_LEFT.md'`,
 			"the page no longer names the document it reads"},
 		{left, `App.tool('records', { name: this.DOC })`,

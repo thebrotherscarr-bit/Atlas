@@ -5,8 +5,8 @@
 // shown a page out of his own AI Studio project, "that's what I am looking
 // for". This is that page in this console's own plain JavaScript: a top bar
 // with six doors, ONE terminal, and an Inspector that opens beside it when a
-// door is pressed. Nothing else is on the page. The old Dashboard is still
-// here, at /dashboard.
+// door is pressed. Nothing else is on the page. The old Dashboard and the
+// sidebar retired on 2026-10-07; every other page is under Pages.
 //
 // WHAT IT TOOK FROM THAT PAGE, AND WHAT IT LEFT. The layout, the four mode
 // tabs, the prompt line with its history, the five doors and the Inspector are
@@ -156,14 +156,18 @@ const Agent = {
     const input = $ag('ag-input');
     // An objective staged from Version control's Recent lands in the line,
     // unrun, for him to read and press.
-    if (Home.pending) { input.value = Home.pending; Home.pending = ''; }
+    if (Chat.pending) { input.value = Chat.pending; Chat.pending = ''; }
     input.focus();
     this.who();
     this.version();
+    // What the retired sidebar carried, where the front page shows it (2026-10-07, on his cards): the covenant in the
+    // footer, and unsent work as a number on the Aider Pair door, both painted from what the glass already read.
+    App.paintCovenant();
+    App.showOwed();
     // STATE FIRST, then what needs it: the kept conversation is restored only
     // while an engine stands, so the check must come back before it is asked.
     await Run.check();
-    try { await Home.showKeptThread(); } catch { /* nothing kept yet */ }
+    try { await Chat.showKept(); } catch { /* nothing kept yet */ }
     this.adopt();
     this.paintTitle();
     this.paintTop();
@@ -175,7 +179,7 @@ const Agent = {
 
   shell() {
     const doors = this.DOORS.map(d =>
-      `<button type="button" data-door="${d.id}">${escHtml(d.label)}</button>`).join('');
+      `<button type="button" data-door="${d.id}">${escHtml(d.label)}${d.id === 'aider' ? '<span class="ag-owed" id="ag-owed" hidden></span>' : ''}</button>`).join('');
     const tabs = this.TABS.map(t =>
       `<button type="button" data-tab="${t.id}">${escHtml(t.label)}</button>`).join('');
     return `<div class="ag" id="ag">
@@ -220,7 +224,7 @@ const Agent = {
           <div class="ag-pane" id="ag-pane"></div>
         </aside>
       </main>
-      <footer class="ag-foot"><div class="ag-foot-in"><span>ATLAS - sovereign agent harness</span><span>Offline-first &middot; Local runtime</span></div></footer>
+      <footer class="ag-foot"><div class="ag-foot-in"><span>ATLAS - sovereign agent harness<span class="ag-cov" id="covenant">covenant: reading the record...</span></span><span>Offline-first &middot; Local runtime</span></div></footer>
     </div>`;
   },
 
@@ -322,11 +326,13 @@ const Agent = {
     } catch { /* the lock screen says the rest */ }
   },
 
-  version() {
-    const v = document.getElementById('version');
-    const el = $ag('ag-ver');
-    if (el && v && v.textContent && v.textContent !== 'loading...') el.textContent = v.textContent;
-    else setTimeout(() => { const e2 = $ag('ag-ver'); const v2 = document.getElementById('version'); if (e2 && v2 && v2.textContent !== 'loading...') e2.textContent = v2.textContent; }, 1500);
+  // The version, as the glass's own health check states it. It was copied off the sidebar's line until the sidebar retired.
+  async version() {
+    try {
+      const h = await API.health();
+      const el = $ag('ag-ver');
+      if (el && h && h.version) el.textContent = h.version;
+    } catch { /* the bar shows no version it was not told */ }
   },
 
   // THE STATUS LINE SAYS ONLY WHAT A READ ANSWERED: the door and the engine
@@ -358,8 +364,9 @@ const Agent = {
   menu() {
     const m = $ag('ag-menu');
     if (!m.hidden) { m.hidden = true; return; }
-    const links = [...document.querySelectorAll('.nav-link')].filter(a => a.dataset.page !== 'agent');
-    m.innerHTML = links.map(a => `<a href="${escHtml(a.getAttribute('href'))}">${escHtml((a.childNodes[0].textContent || '').trim())}</a>`).join('');
+    // Every other page, from the one page list (App.PAGES) the sidebar's links became when it retired (2026-10-07).
+    const links = App.PAGES.filter(p => p.page !== 'agent');
+    m.innerHTML = links.map(p => `<a href="${escHtml(p.href)}">${escHtml(p.label)}</a>`).join('');
     m.querySelectorAll('a').forEach(a => {
       a.onclick = (e) => { e.preventDefault(); m.hidden = true; history.pushState(null, '', a.getAttribute('href')); App.router(); };
     });
@@ -435,8 +442,10 @@ const Agent = {
     } else if (!Run.engineOpen) {
       state = '<span class="ag-warn">no engine</span><button type="button" class="ag-link" data-act="boot">Boot</button>';
     } else {
+      const idle = this.idle();
       state = '<span title="' + (Run.runs || 0) + ' turn' + (Run.runs === 1 ? '' : 's') + ' run in this sitting">sitting ' +
         escHtml(String(Run.sitting || '?')) + ' &middot; ' + escHtml(this.age()) + '</span>' +
+        (idle ? '<span class="ag-warn" title="The core closes a sitting nobody has used for ' + this.IDLE_CLOSE_MIN + ' minutes between turns">' + escHtml(idle) + '</span>' : '') +
         (Run.stale ? '<span class="ag-warn" title="' + escHtml((Run.staleFile || 'manjuel') + ' changed after this engine started; a reboot picks it up (seats, skills and pipelines reload without one)') + '">old code</span>' : '') +
         '<button type="button" class="ag-link" data-act="close">Close</button>';
     }
@@ -452,6 +461,23 @@ const Agent = {
     if (!isFinite(ms) || ms < 0) return '';
     const s = Math.floor(ms / 1000);
     return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm' : Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+  },
+
+  // WHAT IDLE COSTS, SAID WHERE THE SITTING IS SHOWN (WHAT'S LEFT C17, carried over from the Dashboard on his card when
+  // it retired, 2026-10-07). The core closes a sitting nobody has used for IDLE_CLOSE_MIN minutes between turns
+  // (serve.py's IDLE_CLOSE; the wire does not carry the number, so this is a copy of the core's constant, said to be
+  // one). IDLE IS MEASURED FROM THE LAST TURN, never from before this engine began: the door's last run, this tab's
+  // last turn, or the engine's start, whichever is latest. A running turn is never idle; five minutes is the threshold.
+  IDLE_CLOSE_MIN: 30,
+  idle() {
+    if (Run.running || !Run.started) return '';
+    const born = new Date(Run.started).getTime();
+    const since = Math.max(born || 0, Run.lastRun ? new Date(Run.lastRun).getTime() : 0, (Run.turn && Run.turn.ended) || 0);
+    const idleS = Math.floor((Date.now() - since) / 1000);
+    if (!isFinite(idleS) || idleS < 300) return '';
+    const idleM = Math.floor(idleS / 60);
+    const left = this.IDLE_CLOSE_MIN - idleM;
+    return 'idle ' + idleM + 'm, closes itself at ' + this.IDLE_CLOSE_MIN + 'm idle' + (left > 0 ? ' (' + left + 'm left)' : ' (any moment now)');
   },
 
   bannerHtml() {
@@ -726,7 +752,7 @@ const Agent = {
       this.paintOut();
       this.paintTop();
       if (this.open && this.tab === 'run') this.paintRun();
-      Home.keepThread();
+      Chat.keep();
       const made = Run.turn && Run.turn.delivery;
       if (made && typeof made.project === 'string' && made.project) this.playProject(made.project);
       Run.check().then(() => { this.paintTitle(); this.paintTop(); this.paintOut(false); });
@@ -1473,10 +1499,10 @@ const Agent = {
     const put = (html) => { if (this._pane === stamp && this.tab === id && $ag('ag-pane')) $ag('ag-pane').innerHTML = html; };
     if (id === 'run') {
       // THE TURN, AND UNDER IT THE PROJECTS (2026-10-07). The turn is drawn again on its own as its events arrive (paintRun);
-      // the projects are the Projects card's own object, told it stands in the panel, and read themselves again when a turn ends.
+      // the projects are the Projects card's own object, and read themselves again when a turn ends.
       put('<div id="ag-run"></div><div class="ag-proj" id="ag-proj"></div>');
       this.paintRun();
-      if (this._pane === stamp && this.tab === id && $ag('ag-proj')) await Projects.render($ag('ag-proj'), true);
+      if (this._pane === stamp && this.tab === id && $ag('ag-proj')) await Projects.render($ag('ag-proj'));
       return;
     }
     if (id === 'flows') { put('<div class="ag-wf" id="ag-wf"></div>'); await this.flowsPane(stamp); return; }

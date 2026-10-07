@@ -77,41 +77,69 @@ func TestNoPageOpensABrowserPopUp(t *testing.T) {
 	}
 }
 
-// THE SIDEBAR READS THE COVENANT OFF THE RECORD (C29). It carried the house
-// covenant as a literal, one of the 59 copies the door stopped minting from on
-// 2026-09-25; the operator's own declaration says it, and us_to_vc mints from
-// that declaration in exactly that namespace. The TUI's half is in
+// THE FRONT PAGE'S FOOTER READS THE COVENANT OFF THE RECORD (C29). The sidebar
+// carried the house covenant as a literal, one of the 59 copies the door
+// stopped minting from on 2026-09-25; the operator's own declaration says it,
+// and us_to_vc mints from that declaration in exactly that namespace. Since the
+// sidebar retired (2026-10-07, on his card: "Front page footer") the line is
+// the front page's footer, drawn every time the page is. The TUI's half is in
 // cmd/atlas-tui's own stroke.
-func TestTheSidebarReadsTheCovenantOffTheRecord(t *testing.T) {
+func TestTheFooterReadsTheCovenantOffTheRecord(t *testing.T) {
 	index := page(t, "index.html")
 	app := page(t, "js/app.js")
-	if strings.Contains(index, "1512741580b7239b") {
-		t.Fatal("index.html carries the covenant as a literal again")
+	src := page(t, "js/agent.js")
+	if strings.Contains(index, "1512741580b7239b") || strings.Contains(src, "1512741580b7239b") {
+		t.Fatal("the glass carries the covenant as a literal again")
 	}
-	if !strings.Contains(index, `id="covenant"`) {
-		t.Fatal("index.html has no element for the covenant to be read into")
+	shell := funcOf(src, "  shell(")
+	if foot, el := strings.Index(shell, `<footer class="ag-foot">`), strings.Index(shell, `id="covenant"`); foot < 0 || el < foot {
+		t.Fatal("the front page's footer has no element for the covenant to be read into")
 	}
 	paint := funcOf(app, "  async paintCovenant(")
 	for _, want := range []string{`'us_to_vc'`, `'agents/operator.us'`, `project: 'atlas'`, `.covenant`} {
 		if !strings.Contains(paint, want) {
-			t.Fatalf("the sidebar no longer reads the covenant off the operator's declaration (wanted %s)", want)
+			t.Fatalf("the footer no longer reads the covenant off the operator's declaration (wanted %s)", want)
 		}
 	}
-	if !strings.Contains(funcOf(app, "  async loadHealth("), "this.paintCovenant()") {
-		t.Fatal("nothing calls paintCovenant, so the sidebar would read 'reading the record...' for good")
+	if !strings.Contains(funcOf(src, "  async render("), "App.paintCovenant()") {
+		t.Fatal("nothing calls paintCovenant, so the footer would read 'reading the record...' for good")
+	}
+}
+
+// UNSENT WORK IS A NUMBER ON THE AIDER PAIR DOOR (2026-10-07, on his card: "On
+// the Aider Pair door"). The sidebar's warning badge on Version control moved
+// with Version control when the sidebar retired: the glass reads the number as
+// it loads and after every act on Version control, and the front page draws it
+// on the door Version control stands under, hidden while nothing is owed.
+func TestUnsentWorkIsANumberOnTheAiderPairDoor(t *testing.T) {
+	src := page(t, "js/agent.js")
+	app := page(t, "js/app.js")
+	if !strings.Contains(funcOf(src, "  shell("), `d.id === 'aider' ? '<span class="ag-owed" id="ag-owed" hidden></span>'`) {
+		t.Fatal("the Aider Pair door has no place for the count of unsent work")
+	}
+	show := funcOf(app, "  showOwed(")
+	if !strings.Contains(show, "getElementById('ag-owed')") || !strings.Contains(show, "el.hidden = true") {
+		t.Fatal("the count is not drawn on the door, or is not hidden while nothing is owed")
+	}
+	if !strings.Contains(funcOf(app, "  async paintOwed("), "this.showOwed()") ||
+		!strings.Contains(funcOf(app, "  init("), "this.paintOwed()") ||
+		!strings.Contains(page(t, "js/flows.js"), "App.paintOwed()") ||
+		!strings.Contains(funcOf(src, "  async render("), "App.showOwed()") {
+		t.Fatal("the count is not read as the glass loads and after an act on Version control, or not drawn when the front page is")
 	}
 }
 
 // A WATCHED TURN ENDS THE WAY EVERY TURN ENDS (C27). endWatched emitted 'done'
 // while Home and Chat listen for 'end', so a turn started in another window
-// kept its bubble marked live after the delivery had landed.
+// kept its bubble marked live after the delivery had landed. Home retired on
+// 2026-10-07; the pages that listen now are the Watchboard and the front page.
 func TestAWatchedTurnEndsTheWayEveryTurnEnds(t *testing.T) {
 	council := page(t, "js/council.js")
 	end := funcOf(council, "  endWatched(")
 	if !strings.Contains(end, "this.emit('end')") || strings.Contains(end, "this.emit('done')") {
 		t.Fatalf("endWatched does not end the turn with 'end', the word the pages listen for:\n%s", end)
 	}
-	for _, f := range []string{"js/home.js", "js/chat.js"} {
+	for _, f := range []string{"js/chat.js", "js/agent.js"} {
 		if !strings.Contains(page(t, f), "what === 'end'") {
 			t.Fatalf("%s no longer finishes a bubble on 'end'", f)
 		}
@@ -132,36 +160,35 @@ func TestRunCheckTellsASilentDoorFromAWorldWithNoEngine(t *testing.T) {
 	}
 }
 
-// THE DASHBOARD OFFERS THE LIVE CHECK (D5) AND SAYS WHAT IDLE COSTS (C17).
-func TestTheDashboardOffersTheLiveCheckAndSaysWhatIdleCosts(t *testing.T) {
-	home := page(t, "js/home.js")
-	if !strings.Contains(funcOf(home, "  async standup("), `App.tool('standup_run'`) {
-		t.Fatal("the Dashboard has no way to run the live check")
-	}
-	if !strings.Contains(funcOf(home, "  paintEngine("), `id="eng-standup"`) {
-		t.Fatal("the live check has no button on the hero")
-	}
-	age := funcOf(home, "  age(")
-	if !strings.Contains(age, "IDLE_CLOSE_MIN") || !strings.Contains(age, "closes itself") {
+// THE FRONT PAGE SAYS WHAT IDLE COSTS (C17). The Dashboard said it on its hero
+// until it retired (2026-10-07, on his card: "Carry it over"); the terminal's
+// title on the front page says it now. The Dashboard's live check (D5) is the
+// Audit Ledger tab's, held by TestTheAuditLedgerCarriesTheProofAndTheLiveCheck.
+func TestTheFrontPageSaysWhatIdleCosts(t *testing.T) {
+	src := page(t, "js/agent.js")
+	idle := funcOf(src, "  idle(")
+	if !strings.Contains(idle, "IDLE_CLOSE_MIN") || !strings.Contains(idle, "closes itself") {
 		t.Fatal("the idle line no longer says that the engine closes itself, or at what")
 	}
-	if !strings.Contains(home, "IDLE_CLOSE_MIN: 30,") {
+	if !strings.Contains(src, "IDLE_CLOSE_MIN: 30,") {
 		t.Fatal("the idle close is not thirty minutes here, or is not named; serve.py's IDLE_CLOSE is thirty")
+	}
+	if !strings.Contains(funcOf(src, "  paintTitle("), "this.idle()") {
+		t.Fatal("the front page's title does not say the idle line")
 	}
 }
 
 // CLOSING SAYS WHEN NO TOLL IS OWED (C28). Three places said closing "pays its
 // toll"; the core pays one only when a turn ran (serve.py: "the toll is paid
-// unattended if runs happened").
+// unattended if runs happened"). Since the sidebar and the Dashboard retired
+// (2026-10-07) the places that say it are the palette and the front page.
 func TestClosingSaysWhenNoTollIsOwed(t *testing.T) {
-	for _, f := range []string{"js/app.js", "js/palette.js"} {
-		if !strings.Contains(page(t, f), "no toll is owed") {
-			t.Fatalf("%s says closing always pays its toll", f)
-		}
+	if !strings.Contains(page(t, "js/palette.js"), "no toll is owed") {
+		t.Fatal("palette.js says closing always pays its toll")
 	}
-	home := page(t, "js/home.js")
-	if strings.Contains(home, "closing pays its toll.") || !strings.Contains(home, "pays the toll if a turn ran") {
-		t.Fatal("home.js says closing always pays its toll")
+	src := page(t, "js/agent.js")
+	if strings.Contains(src, "closing pays its toll.") || !strings.Contains(src, "pays the toll if a turn ran") {
+		t.Fatal("agent.js says closing always pays its toll")
 	}
 }
 
@@ -323,10 +350,12 @@ func TestARefusalReachesThePageInWords(t *testing.T) {
 // THE AUDIT LEDGER TAB CARRIES RECORDS, EVALS AND THE LIVE CHECK (his word,
 // 2026-10-06: "go, next: audit ledger"). What the build has proved and the
 // estate behind it are drawn by the console's one reader of the proof, from the
-// one read the tab makes -- the Dashboard's ledger rows split out of its deck so
-// both draw one function; the live check is the Dashboard's own tool, run only
-// from the button he presses and offered only while no engine is open, since
-// the door refuses it then; and the hand-scored evals are read as Evals reads them.
+// one read the tab makes -- the Dashboard's ledger rows were split out of its
+// deck so both drew one function, and since the Dashboard retired (2026-10-07)
+// the tab is the rows' one placement; the live check, once the Dashboard's own
+// tool, is run only from the button he presses and offered only while no engine
+// is open, since the door refuses it then; and the hand-scored evals are read as
+// Evals reads them.
 func TestTheAuditLedgerCarriesTheProofAndTheLiveCheck(t *testing.T) {
 	src := page(t, "js/agent.js")
 	app := page(t, "js/app.js")
@@ -341,10 +370,8 @@ func TestTheAuditLedgerCarriesTheProofAndTheLiveCheck(t *testing.T) {
 			t.Fatalf("the ledger tab does not draw the proof with the console's own reader (wanted %s)", want)
 		}
 	}
-	deck := funcOf(app, "  deck(")
-	if !strings.Contains(funcOf(app, "  async paintProof("), "only === 'ledger' ? this.proofLedger(p)") ||
-		!strings.Contains(deck, "this.proofLedger(p)") || strings.Contains(deck, "led-row") {
-		t.Fatal("the deck and the ledger tab draw the proof's rows from two definitions, which drift")
+	if !strings.Contains(funcOf(app, "  async paintProof("), "only === 'ledger' ? this.proofLedger(p)") {
+		t.Fatal("the ledger tab does not draw the proof's rows with the console's one definition of them, proofLedger")
 	}
 	if strings.Count(src, "App.tool('standup_run'") != 1 ||
 		!regexp.MustCompile(`(?s)act === 'livecheck'.{0,400}App\.tool\('standup_run', \{ set: 'morning' \}\)`).MatchString(funcOf(src, "  async paneClick(")) {
@@ -495,9 +522,10 @@ func TestAiderPairCarriesVersionControl(t *testing.T) {
 // RUN CARRIES THE WATCHBOARD'S WIRE AND THE DASHBOARD'S PROJECTS (his word, 2026-10-06: "go, next: run"; on his
 // cards, 2026-10-07, the wire replaces the tab's own list of events, and a pick plays "Beside the terminal"). The
 // turn's events are drawn by the Watchboard's own wire, handed the tab's box, with its one raw switch; the projects
-// are the Projects card's own object, told it stands in the panel, with no frame of its own -- a pick plays in the
-// front page's one play frame -- and its words go to the council through the terminal's Agent tab; an event draws
-// the turn again alone, never the projects; and the Watchboard and the Dashboard still draw theirs whole.
+// are the Projects card's own object, with no frame of its own -- a pick plays in the front page's one play frame --
+// and its words go to the council through the terminal's Agent tab; an event draws the turn again alone, never the
+// projects; and the Watchboard still draws its wire whole. Since the Dashboard retired (2026-10-07) the Run tab is
+// the one place the Projects card stands.
 func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
 	src := page(t, "js/agent.js")
 	chat := page(t, "js/chat.js")
@@ -514,7 +542,7 @@ func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
 		t.Fatal("the Run tab's raw switch is not the Watchboard's own, or the Watchboard's button does not say which way it stands")
 	}
 	pane := funcOf(src, "  async paintPane(")
-	if !strings.Contains(pane, `id="ag-proj"`) || !strings.Contains(pane, "await Projects.render($ag('ag-proj'), true)") {
+	if !strings.Contains(pane, `id="ag-proj"`) || !strings.Contains(pane, "await Projects.render($ag('ag-proj'))") {
 		t.Fatal("the Run tab does not draw the Projects card's own object")
 	}
 	sched := funcOf(src, "  schedulePane(")
@@ -522,19 +550,14 @@ func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
 		!strings.Contains(funcOf(src, "  onRun("), "if (this.open && this.tab === 'run') this.paintRun();") {
 		t.Fatal("a turn's event draws the whole Run tab again, so the projects would be read again with every token")
 	}
-	if !strings.Contains(funcOf(proj, "  async render("), "this.inPanel = !!inPanel") || !strings.Contains(page(t, "js/home.js"), "Projects.render();") {
-		t.Fatal("the Projects card is not told where it stands, or the Dashboard no longer draws it whole")
+	if strings.Contains(proj, "inPanel") || strings.Contains(proj, "<iframe") || !strings.Contains(funcOf(proj, "  paint("), "it plays beside the terminal") {
+		t.Fatal("the Projects card draws a frame of its own, or still asks where it stands, where a pick plays beside the terminal")
 	}
-	paint := funcOf(proj, "  paint(")
-	look, beside, frame := strings.Index(paint, "const look = this.inPanel"), strings.Index(paint, "it plays beside the terminal"), strings.Index(paint, "<iframe")
-	if look < 0 || beside < look || frame < beside || strings.Count(proj, "<iframe") != 1 {
-		t.Fatal("the Projects card draws a frame of its own in the panel, where a pick plays beside the terminal")
-	}
-	if !strings.Contains(funcOf(proj, "  say("), "if (this.inPanel) { Agent.council(words); return; }") ||
+	if !strings.Contains(funcOf(proj, "  say("), "Agent.council(words);") ||
 		!regexp.MustCompile(`(?s)this\.mode = 'agent';.*this\.go\(words\);`).MatchString(funcOf(src, "  council(")) {
 		t.Fatal("Work on this and Put it down in the Run tab do not go to the council as if typed in the Agent tab")
 	}
-	if !strings.Contains(funcOf(proj, "  play("), "if (this.inPanel && this.selected) Agent.pickProject(this.selected, this.version);") ||
+	if !strings.Contains(funcOf(proj, "  play("), "if (this.selected) Agent.pickProject(this.selected, this.version);") ||
 		strings.Count(proj, "Agent.pickProject(") != 1 || strings.Count(src, "pickProject(") != 1 ||
 		strings.Count(src, "this.play = { name, version, closed: false };") != 2 {
 		t.Fatal("a project reaches the play frame from something other than a turn's delivery or his pick in the Run tab")
@@ -548,51 +571,90 @@ func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his
-// page and not that project's: it is routed at / with the old launchpad kept
-// whole at /dashboard; it asks the door only for tools the door carries, and
-// asks quietly only where the glass will let it; it fakes nothing; and a tab
-// that is not wired says so when it is pressed. The binary embeds these files
-// and builds whether or not a page keeps any of this.
-func TestTheFrontPageIsRoutedAndTheLaunchpadIsKept(t *testing.T) {
+// page and not that project's: it is routed at /; it asks the door only for
+// tools the door carries, and asks quietly only where the glass will let it; it
+// fakes nothing; and a tab that is not wired says so when it is pressed. The
+// binary embeds these files and builds whether or not a page keeps any of this.
+//
+// THE SIDEBAR AND THE OLD DASHBOARD RETIRED (his word, 2026-10-07: "go, next:
+// retire the sidebar and the old dashboard"). The launchpad kept whole at
+// /dashboard is gone and the address opens the front page; the sidebar's links
+// became one list (App.PAGES) that the front page's Pages menu, the palette and
+// each page's crumb read, and every line on it is a page the router draws; Boot
+// and Close, which the sidebar carried, act through the front page.
+func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 	index := page(t, "index.html")
 	app := page(t, "js/app.js")
 	pal := page(t, "js/palette.js")
+	src := page(t, "js/agent.js")
 	for _, want := range []string{
 		`<link rel="stylesheet" href="/css/agent.css">`,
 		`<script src="/js/agent.js"></script>`,
-		`href="/" class="nav-link active" data-page="agent"`,
-		`href="/dashboard" class="nav-link" data-page="dashboard"`,
 	} {
 		if !strings.Contains(index, want) {
 			t.Fatalf("index.html no longer carries %s", want)
 		}
 	}
+	for _, bad := range []string{`class="sidebar"`, `class="nav-link`, `/js/home.js`, `/css/icons.css`} {
+		if strings.Contains(index, bad) {
+			t.Fatalf("index.html still carries %s, which retired with the sidebar and the Dashboard", bad)
+		}
+	}
 	router := funcOf(app, "  router(")
-	for _, want := range []string{`|| 'agent'`, `classList.toggle('is-agent'`} {
+	for _, want := range []string{`|| 'agent'`, `classList.toggle('is-agent'`, `if (location.pathname === '/dashboard') history.replaceState(null, '', '/');`} {
 		if !strings.Contains(router, want) {
-			t.Fatalf("the router no longer sends / to the front page and takes the sidebar off it (wanted %s)", want)
+			t.Fatalf("the router no longer sends / and /dashboard to the front page (wanted %s)", want)
 		}
 	}
 	render := funcOf(app, "  async render(")
-	for _, want := range []string{`case 'agent': await Agent.render(el)`, `case 'dashboard': await Home.render(el)`} {
-		if !strings.Contains(render, want) {
-			t.Fatalf("the page table lost %s", want)
+	if !strings.Contains(render, `case 'agent': await Agent.render(el)`) {
+		t.Fatal("the page table lost the front page")
+	}
+	if strings.Contains(render, `case 'dashboard'`) || strings.Contains(app, "Home.render(") {
+		t.Fatal("the page table still draws the Dashboard")
+	}
+	// EVERY LINE ON THE LIST IS A PAGE THE ROUTER DRAWS, at the address the router reads it from: a line that is not
+	// goes to Page not found from the Pages menu, the palette and the crumb alike.
+	list := regexp.MustCompile(`(?s)  PAGES: \[(.*?)\n  \],`).FindStringSubmatch(app)
+	if list == nil {
+		t.Fatal("the one page list (App.PAGES) is gone")
+	}
+	pages := regexp.MustCompile(`\{ page: '([a-z]+)', href: '(/[a-z]*)', label: `).FindAllStringSubmatch(list[1], -1)
+	if len(pages) < 10 {
+		t.Fatalf("read %d pages off App.PAGES; this stroke is reading the wrong thing", len(pages))
+	}
+	for _, p := range pages {
+		if !strings.Contains(render, "case '"+p[1]+"':") {
+			t.Fatalf("App.PAGES offers %s and the router draws no such page", p[1])
+		}
+		href := "/" + p[1]
+		if p[1] == "agent" {
+			href = "/"
+		}
+		if p[2] != href {
+			t.Fatalf("App.PAGES sends %s to %s, which the router reads as another page", p[1], p[2])
+		}
+	}
+	for _, c := range []struct{ who, in, want string }{
+		{"the front page's Pages menu", funcOf(src, "  menu("), "App.PAGES.filter("},
+		{"the palette", funcOf(pal, "  build("), "App.PAGES.map("},
+		{"each page's crumb", funcOf(app, "  paintCrumb("), "this.PAGES.find("},
+	} {
+		if !strings.Contains(c.in, c.want) {
+			t.Fatalf("%s no longer reads the one page list (wanted %s)", c.who, c.want)
 		}
 	}
 	// BOOT AND CLOSE ARE THE FRONT PAGE'S. They navigate to / and then act; if
 	// they went on calling Home, the engine would open under a page that has
 	// no boot report to show, and say nothing.
-	side := funcOf(app, "  bindSidebar(")
-	for name, src := range map[string]string{"the sidebar button": side, "the palette": pal} {
-		for _, want := range []string{"Agent.boot()", "Agent.closeSitting()"} {
-			if !strings.Contains(src, want) {
-				t.Fatalf("%s no longer calls %s", name, want)
-			}
+	for _, want := range []string{"Agent.boot()", "Agent.closeSitting()"} {
+		if !strings.Contains(pal, want) {
+			t.Fatalf("the palette no longer calls %s", want)
 		}
-		for _, bad := range []string{"Home.boot()", "Home.closeSitting()"} {
-			if strings.Contains(src, bad) {
-				t.Fatalf("%s still boots through %s, on a page that has no Dashboard under it", name, bad)
-			}
+	}
+	for _, bad := range []string{"Home.boot()", "Home.closeSitting()"} {
+		if strings.Contains(pal, bad) || strings.Contains(app, bad) {
+			t.Fatalf("%s is still called, and there is no Dashboard under it", bad)
 		}
 	}
 }
@@ -926,10 +988,10 @@ func TestTheFrontPagePlaysWhatTheMakerMade(t *testing.T) {
 		t.Fatal("the page builds a frame somewhere other than paintPlay, or more than one")
 	}
 
-	// The frame is the glass's own sandboxed page, framed as the Dashboard frames it: the url is Projects.pageUrl's, there is no `sandbox` attribute (the app's
+	// The frame is the glass's own sandboxed page, framed as the Dashboard framed it: the url is Projects.pageUrl's, there is no `sandbox` attribute (the app's
 	// own browser pane refuses any frame that carries one, measured 2026-09-21; the header the page is served under is the wall), and no referrer goes out.
 	if !strings.Contains(paint, "Projects.pageUrl(s.name, s.version)") || strings.Contains(paint, "sandbox") || !strings.Contains(paint, `referrerpolicy="no-referrer"`) {
-		t.Fatal("the frame is not the glass's own sandboxed project page, framed as the Dashboard frames it")
+		t.Fatal("the frame is not the glass's own sandboxed project page, framed as the Dashboard framed it")
 	}
 
 	// The project named is the delivery's and nobody else's, as a string, only when it names one.

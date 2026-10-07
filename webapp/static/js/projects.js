@@ -1,5 +1,6 @@
-// Projects -- what the maker made, on the Dashboard beside the run (the maker's
-// piece 2, 2026-09-21; the operator: "go on piece 2").
+// Projects -- what the maker made, in the front page's Run tab (the maker's
+// piece 2, 2026-09-21; the operator: "go on piece 2"; on the Dashboard beside
+// the run until the Dashboard retired, 2026-10-07).
 //
 // THE LIST IS READ OFF EACH PROJECT'S OWN HISTORY, by the door's `projects`
 // tool: its versions and the maker's own notes for them. Nothing here keeps a
@@ -28,12 +29,12 @@
 // only place it lives. It is kept where both browsers can read it, keyed to
 // the sitting, the way the boot report and the thread are kept.
 //
-// AND IN THE FRONT PAGE'S RUN TAB (2026-10-07; his word, "go, next: run", and
-// on his card a pick plays "Beside the terminal"). The tab draws this same
-// object, told it stands in the panel (render(el, inPanel)), so there is one
-// Projects and not two. There it draws no frame of its own: picking a project,
-// or a version of one, plays it in the front page's one play frame beside the
-// terminal; and "Work on this" and "Put it down" go to the council through the
+// IN THE FRONT PAGE'S RUN TAB (2026-10-07; his word, "go, next: run", and on
+// his card a pick plays "Beside the terminal"), and only there since the
+// Dashboard retired the same day. It draws no frame of its own: picking a
+// project, or a version of one, plays it in the front page's one play frame
+// beside the terminal (agent.js, paintPlay, which keeps the frame rule above);
+// and "Work on this" and "Put it down" go to the council through the
 // terminal's Agent tab, exactly as if he had typed them there.
 const Projects = {
   list: [],
@@ -43,12 +44,10 @@ const Projects = {
   inHand: '',
   session: null,
   bound: false,
-  el: null,            // where it was drawn: the Dashboard's card, or the Run tab's
-  inPanel: false,
+  el: null,            // where it was drawn: the Run tab's box
 
-  async render(el, inPanel) {
-    this.el = el || document.getElementById('home-projects');
-    this.inPanel = !!inPanel;
+  async render(el) {
+    this.el = el;
     if (!this.el) return;
     if (!this.bound) { Run.on((w) => this.onRun(w)); this.bound = true; }
     this.paint();
@@ -109,19 +108,15 @@ const Projects = {
     this.read();
   },
 
-  // "Work on this" and "Put it down": words in the box, run as his own. On the
-  // front page the council's box is the terminal's Agent tab.
+  // "Work on this" and "Put it down": words for the council, run as his own,
+  // in the terminal's Agent tab.
   say(words) {
-    if (this.inPanel) { Agent.council(words); return; }
-    const input = document.getElementById('home-input');
-    if (!input) return;
-    input.value = words;
-    Home.go();
+    Agent.council(words);
   },
 
-  // A pick in the Run tab plays beside the terminal, in the front page's one play frame.
+  // A pick plays beside the terminal, in the front page's one play frame.
   play() {
-    if (this.inPanel && this.selected) Agent.pickProject(this.selected, this.version);
+    if (this.selected) Agent.pickProject(this.selected, this.version);
   },
 
   pageUrl(name, version) {
@@ -172,7 +167,6 @@ const Projects = {
         '</div></div>';
     }).join('');
 
-    const shown = this.version || vs.length;
     const options = ['<option value="0"' + (this.version ? '' : ' selected') + '>as it stands' +
       (vs.length ? ' (version ' + vs.length + ')' : '') + '</option>']
       .concat(vs.slice().reverse().map(v => '<option value="' + v.n + '"' +
@@ -182,18 +176,11 @@ const Projects = {
       ? '<button class="btn btn-sm" type="button" id="proj-down">Put it down</button>'
       : '<button class="btn btn-sm btn-primary" type="button" id="proj-up">Work on this</button>';
     const url = this.pageUrl(p.name, this.version);
-    // THE PAGE ITSELF. On the Dashboard it is framed here. In the Run tab it is not: a pick plays it in the front
-    // page's one play frame, beside the terminal, so a made page never runs in two frames at once.
-    const look = this.inPanel
-      ? '<div class="muted" style="font-size:var(--t-sm);margin-top:var(--s1)">' +
-        'Pick one, or a version of it, and it plays beside the terminal, sandboxed: it cannot reach this glass. It is also ' +
-        '<code>projects\\' + escHtml(p.name) + '\\index.html</code>, to open in any browser.</div>'
-      : '<iframe id="proj-frame" title="' + escHtml(p.name) + ', version ' + shown + '" ' +
-        'referrerpolicy="no-referrer" src="' + escHtml(url) + '" ' +
-        'style="width:100%;height:440px;border:1px solid var(--border-2);border-radius:var(--radius);background:#fff"></iframe>' +
-        '<div class="muted" style="font-size:var(--t-sm);margin-top:var(--s1)">' +
-        'Shown sandboxed: it runs here and cannot reach this glass. It is also ' +
-        '<code>projects\\' + escHtml(p.name) + '\\index.html</code>, to open in any browser.</div>';
+    // THE PAGE ITSELF is not framed here: a pick plays it in the front page's one play frame, beside the terminal, so
+    // a made page never runs in two frames at once.
+    const look = '<div class="muted" style="font-size:var(--t-sm);margin-top:var(--s1)">' +
+      'Pick one, or a version of it, and it plays beside the terminal, sandboxed: it cannot reach this glass. It is also ' +
+      '<code>projects\\' + escHtml(p.name) + '\\index.html</code>, to open in any browser.</div>';
 
     box.innerHTML = head +
       '<div style="display:flex;gap:var(--s4);flex-wrap:wrap;align-items:flex-start">' +

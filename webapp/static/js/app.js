@@ -3,21 +3,30 @@ const App = {
   currentPage: 'agent',
   data: {},
 
+  // EVERY PAGE, IN ONE LIST (2026-10-07: the sidebar retired at his word, "go, next: retire the sidebar and the old
+  // dashboard"). The sidebar's links were the list until then; now the front page's Pages menu, the palette and the
+  // crumb all read this one. The old Dashboard is not on it: /dashboard opens the front page.
+  PAGES: [
+    { page: 'agent', href: '/', label: 'Home' },
+    { page: 'left', href: '/left', label: "What's left" },
+    { page: 'chat', href: '/chat', label: 'Watchboard' },
+    { page: 'agents', href: '/agents', label: 'Agents' },
+    { page: 'workflows', href: '/workflows', label: 'Workflows' },
+    { page: 'laws', href: '/laws', label: 'Laws' },
+    { page: 'evals', href: '/evals', label: 'Evals' },
+    { page: 'records', href: '/records', label: 'Records' },
+    { page: 'flows', href: '/flows', label: 'Version control' },
+    { page: 'tools', href: '/tools', label: 'Tools' },
+    { page: 'settings', href: '/settings', label: 'Settings' }
+  ],
+
   init() {
     this.router();
     window.addEventListener('popstate', () => this.router());
-    document.querySelectorAll('.nav-link').forEach(a => {
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        history.pushState(null, '', a.href);
-        this.router();
-      });
-    });
-    this.loadHealth();
     // Ctrl+K / Cmd+K, anywhere. The one global key this console binds.
     Palette.bind();
-    this.bindSidebar();
-    this.paintBadges();
+    // Unsent work, read once as the glass loads (it was the sidebar's badge); the front page's Aider Pair door shows it.
+    this.paintOwed();
     API.sse((e) => this.onEvent(e));
     // Every page follows a turn started in another browser, not just the
     // one that asked for it. Idempotent: mirror() returns at once if it is
@@ -26,34 +35,32 @@ const App = {
   },
 
   router() {
+    // THE OLD DASHBOARD IS RETIRED (2026-10-07): a bookmark to it opens the front page, which carries what it had.
+    if (location.pathname === '/dashboard') history.replaceState(null, '', '/');
     const path = location.pathname.slice(1) || 'agent';
     const parts = path.split('/');
     this.currentPage = parts[0];
     this.pageParam = parts[1] || null;
-    // THE FRONT PAGE HAS NO SIDEBAR (agent.css hides it under this class and
-    // nowhere else), and every other page gets it back the moment the route
-    // leaves.
+    // THE FRONT PAGE IS DRAWN ON ITS OWN GROUND (agent.css, under this class); every other page is the console's.
     document.body.classList.toggle('is-agent', this.currentPage === 'agent');
-    document.querySelectorAll('.nav-link').forEach(a => {
-      a.classList.toggle('active', a.dataset.page === this.currentPage);
-    });
     this.paintCrumb();
     this.render();
   },
 
   // THE CRUMB SAYS THE ESTATE AND THE PAGE, AND STOPS -- unless the path
   // really is deeper, which is the only case where a third step is a fact
-  // rather than furniture. The page's NAME comes off the nav link itself, so
-  // a label renamed in the panel (Flows -> Version control, 2026-09-10) is
-  // renamed here in the same stroke and cannot drift.
+  // rather than furniture. The page's NAME comes off the one page list
+  // (PAGES), so a label renamed there (Flows -> Version control, 2026-09-10)
+  // is renamed here in the same stroke and cannot drift. With the sidebar
+  // retired (2026-10-07) the crumb's ATLAS is every page's way home.
   paintCrumb() {
     const el = document.getElementById('crumb');
     if (!el) return;
-    const link = document.querySelector(`.nav-link[data-page="${this.currentPage}"]`);
-    // A page off the panel (traces, messages, playground) still routes, so it
-    // still gets a crumb -- titled from the path when the nav has no line.
+    const link = this.PAGES.find(p => p.page === this.currentPage);
+    // A page off the list (traces, messages, playground) still routes, so it
+    // still gets a crumb -- titled from the path when the list has no line.
     const name = link
-      ? (link.childNodes[0].textContent || '').trim()
+      ? link.label
       : this.currentPage.charAt(0).toUpperCase() + this.currentPage.slice(1);
     const home = this.currentPage === 'agent';
     const parts = [`<a href="/" onclick="event.preventDefault();history.pushState(null,'','/');App.router();">ATLAS</a>`];
@@ -72,87 +79,14 @@ const App = {
     el.hidden = home;
   },
 
-  // The two buttons above the nav. The primary one is context-aware, and it
-  // reads Run's LIVE state each time rather than a remembered one -- a button
-  // offering to close a sitting that already closed is the class of lie this
-  // console keeps removing.
-  bindSidebar() {
-    const search = document.getElementById('side-search');
-    if (search) search.onclick = () => Palette.show();
-    const prim = document.getElementById('side-primary');
-    if (prim) prim.onclick = () => {
-      history.pushState(null, '', '/');
-      this.router();
-      setTimeout(() => (Run.engineOpen ? Agent.closeSitting() : Agent.boot()), 60);
-    };
-    // Repainted on every run event, because a turn can open or close a sitting
-    // and the button must not go on offering the thing that already happened.
-    if (!this._sideBound) {
-      this._sideBound = true;
-      Run.on(() => this.paintSidebar());
-    }
-    this.paintSidebar();
-  },
-
-  paintSidebar() {
-    const prim = document.getElementById('side-primary');
-    if (!prim) return;
-    prim.textContent = Run.engineOpen ? 'Close the sitting' : 'Boot an engine';
-    // THE TOLL IS OWED ONLY WHEN A TURN RAN (2026-09-29, WHAT'S LEFT C28): the
-    // core pays one unattended "if runs happened" (serve.py), and three places
-    // here said closing always pays it. The door counts the runs; this reads
-    // the count.
-    prim.title = Run.engineOpen
-      ? (Run.runs ? 'pays its toll and reaps the engine' : 'reaps the engine; no turn ran, so no toll is owed')
-        + ' · sitting ' + (Run.sitting || '?')
-      : 'opens a sitting on ' + (Run.world || 'this world');
-  },
-
-  // A BADGE IS A NUMBER THE RECORD CAN PROVE. Each is read from the tool that
-  // owns it and stays hidden until that tool answers; a count this page worked
-  // out for itself would be the same fault the dashboard carried until P0-11.
-  // Each is allowed to fail on its own -- one silent tool must not blank three
-  // true numbers.
-  async paintBadges() {
-    const put = (page, text, warn) => {
-      const el = document.getElementById('badge-' + page);
-      if (!el) return;
-      if (text == null) { el.hidden = true; return; }
-      el.textContent = String(text);
-      el.className = 'nav-badge' + (warn ? ' warn' : '');
-      el.hidden = false;
-    };
-    const quiet = async (fn) => { try { return await fn(); } catch { return null; } };
-
-    put('agents', await quiet(async () => {
-      const d = JSON.parse(await this.tool('seats', {}));
-      return (d.seats || []).length || null;
-    }));
-    put('records', await quiet(async () => {
-      const d = JSON.parse(await this.tool('records', {}));
-      return d.count || null;
-    }));
-    put('tools', await quiet(async () => {
-      const r = await API.tools();
-      return (r.tools || []).length || null;
-    }));
-    // UNSENT WORK IS A WARNING, not a tally: it is the one number here that
-    // means something is OWED rather than something exists.
-    //
-    // ACROSS EVERY CARRIED WORLD, because that is what the page it badges
-    // shows. A first cut read the default world alone and said 2 while atlas
-    // sat clean beside it -- a true number about one world, standing in for
-    // two, which is the shape of every wrong count this console has removed.
-    await this.paintOwed();
-  },
-
-  // THE OWED BADGE ON ITS OWN, because it is the only one an act on Version
-  // control can change, and repainting all four costs six tool calls in a row
-  // — long enough that the panel visibly kept the old number for several
-  // seconds after a save. Same shape as paintProof(box, only).
+  // UNSENT WORK, ON THE AIDER PAIR DOOR (2026-10-07, on his card: "On the Aider Pair door"). The sidebar's badge on
+  // Version control moved with Version control: a number on the front page's Aider Pair door, shown only while some
+  // world holds work GitHub does not have -- a WARNING rather than a tally, so the sidebar's three plain counts did
+  // not come with it. A NUMBER THE RECORD CAN PROVE: read off the tools that own it, across every carried world, and
+  // hidden when the read fails rather than guessed. Read when the glass loads and after every act on Version control
+  // (flows.js), the one place the number moves -- the same reads the sidebar made -- and kept, so the front page,
+  // drawn again on every visit, shows it without asking again (showOwed).
   async paintOwed() {
-    const el = document.getElementById('badge-flows');
-    if (!el) return;
     let owed = null;
     try {
       const m = await this.tool('muster', {});
@@ -167,63 +101,46 @@ const App = {
       }
       owed = n;
     } catch { owed = null; }
-    if (!owed) { el.hidden = true; return; }
-    el.textContent = String(owed);
-    el.className = 'nav-badge warn';
-    el.hidden = false;
+    this._owed = owed;
+    this.showOwed();
   },
 
-  // PAUSED WHILE THE TAB IS HIDDEN, the rule Home.watch already keeps
-  // (2026-09-15). This asked every five seconds on every page for the life of
-  // the tab, looked at or not: 17,280 requests a day for a dot in a sidebar
-  // nobody could see. A hidden tab asks nothing; coming back checks at once,
-  // because that is the moment the dot is read, and resumes the cycle.
-  //
-  // ONE CYCLE, however the checks overlap. The return to the tab can start a
-  // check while a timed one still waits on its answer, so the timer is cleared
-  // again before the next is set -- two cycles would halve the interval for
-  // good.
-  async loadHealth() {
-    if (!this._healthVis) {
-      this._healthVis = () => { if (!document.hidden) this.loadHealth(); };
-      document.addEventListener('visibilitychange', this._healthVis);
-    }
-    clearTimeout(this._health);
-    this._health = null;
-    if (document.hidden) return;        // resumed by the listener above
-    try {
-      const h = await API.health();
-      document.getElementById('version').textContent = h.version;
-      document.getElementById('operator-status').textContent = 'active';
-      document.getElementById('status-dot').className = 'status-dot green';
-      this.paintCovenant();
-    } catch {
-      document.getElementById('operator-status').textContent = 'offline';
-      document.getElementById('status-dot').className = 'status-dot red';
-    }
-    clearTimeout(this._health);
-    this._health = document.hidden ? null : setTimeout(() => this.loadHealth(), 5000);
+  showOwed() {
+    const el = document.getElementById('ag-owed');
+    if (!el) return;
+    if (!this._owed) { el.hidden = true; return; }
+    el.textContent = String(this._owed);
+    el.title = this._owed + ' unsaved or unsent across the worlds: Version control is under this door';
+    el.hidden = false;
   },
 
   // THE COVENANT IS READ OFF THE RECORD, NEVER TYPED HERE (2026-09-29, WHAT'S
   // LEFT C29). The sidebar carried the house covenant as a literal, one of the
   // 59 copies the door stopped minting from on 2026-09-25; the operator's own
   // declaration says it, and us_to_vc mints a credential from that declaration
-  // in exactly that namespace. Read once, as a background read; a door that
-  // cannot serve it leaves the line saying so rather than a number from
-  // memory, and the next health tick asks again.
+  // in exactly that namespace. Read once, as a background read, and kept; a
+  // door that cannot serve it leaves the line saying so rather than a number
+  // from memory, and the next drawing asks again. Since the sidebar retired
+  // (2026-10-07, on his card: "Front page footer") the line is the front
+  // page's footer, drawn again on every visit and painted from the keeping.
   async paintCovenant() {
     const el = document.getElementById('covenant');
-    if (!el || this._covenantRead) return;
+    if (!el) return;
+    if (this._covenant) { el.textContent = this._covenant; return; }
+    if (this._covenantRead) return;
     this._covenantRead = true;
     try {
       const vc = JSON.parse(await this.tool('us_to_vc', { path: 'agents/operator.us', project: 'atlas' }, true));
       const c = (vc.credentialSubject || {}).covenant || '';
-      el.textContent = c ? 'covenant: ' + c : 'covenant: none declared in the record';
+      this._covenant = c ? 'covenant: ' + c : 'covenant: none declared in the record';
     } catch (e) {
       this._covenantRead = false;
-      el.textContent = 'covenant: not read (the door did not answer)';
+      const now = document.getElementById('covenant');
+      if (now) now.textContent = 'covenant: not read (the door did not answer)';
+      return;
     }
+    const now = document.getElementById('covenant');
+    if (now) now.textContent = this._covenant;
   },
 
   onEvent(e) {
@@ -249,10 +166,7 @@ const App = {
     switch (this.currentPage) {
       // THE FRONT PAGE (agent.js): one terminal, five doors, an Inspector.
       case 'agent': await Agent.render(el); break;
-      // The launchpad (home.js), moved here from / on 2026-10-02 when the front
-      // page replaced it, and kept whole until he says its fate.
-      // renderDashboard below is the old estate readout -- no longer routed.
-      case 'dashboard': await Home.render(el); break;
+      // The launchpad (home.js) retired on 2026-10-07 at his word; the router sends /dashboard to the front page.
       // Everything still open, read from WHATS_LEFT.md (left.js).
       case 'left': await Left.render(el); break;
       // The laws, and how far each is sealed (laws.js).
@@ -276,16 +190,14 @@ const App = {
     }
   },
 
-  // === DASHBOARD ===
-  // Every row on this page names the tool it was read from. A number the
-  // record cannot prove is not shown -- SPEC 3 invariant 10, and the reason
-  // this page used to read Agents 0 / Traces 0 / Evals 0 on a full estate:
-  // it was counting its own store instead of asking the record (P0-11).
+  // === THE DOOR'S TOOLS, AS THE PAGES ASK THEM ===
+  // A number the record cannot prove is not shown -- SPEC 3 invariant 10.
   //
-  // `background` IS FOR THE DASHBOARD'S OWN READS AND NOTHING ELSE (2026-09-16).
-  // Home.read passes it, and the glass answers such a read without keeping it
-  // as a trace (handlers.go, backgroundReads). Every other caller leaves it
-  // off, so whatever he asks for himself is kept as before.
+  // `background` IS FOR THE POLLING READS AND NOTHING ELSE (2026-09-16). The
+  // front page's quiet reads pass it (the Dashboard's did, until it retired on
+  // 2026-10-07), and the glass answers such a read without keeping it as a
+  // trace (handlers.go, backgroundReads). Every other caller leaves it off, so
+  // whatever he asks for himself is kept as before.
   async tool(name, args, background) {
     const r = await API.callTool(name, args || {}, background);
     try {
@@ -296,122 +208,6 @@ const App = {
       if (env.result && env.result.isError) throw new Error(text || 'refused');
       return text;
     } catch (e) { throw new Error(e.message || 'unreadable answer'); }
-  },
-
-  async renderDashboard(el) {
-    el.innerHTML = '<div class="loading">Reading the record...</div>';
-
-    // Ask the record. Each one is allowed to fail on its own; a silent organ
-    // is reported silent, never guessed at.
-    const ask = async (n, a) => { try { return await this.tool(n, a); }
-                                  catch (e) { return { err: e.message }; } };
-    const [muster, rack, matrix, tenants, health] = await Promise.all([
-      ask('muster'), ask('rack_list'), ask('state_matrix'), ask('tenant_list'),
-      API.health().catch(() => null)
-    ]);
-
-    const bad = v => v && typeof v === 'object';
-    const worlds = bad(muster) ? [] :
-      muster.split('\n').slice(1).map(l => l.trim()).filter(Boolean);
-
-    // the rack, parsed into its own tiers -- the ladder the card actually holds
-    const tiers = [];
-    if (!bad(rack)) {
-      let cur = null;
-      for (const line of rack.split('\n')) {
-        let m = /^\s{2}(\S+) \(([^)]+)\):/.exec(line);
-        if (m) { cur = { name: m[1], cap: m[2], voices: [] }; tiers.push(cur); continue; }
-        m = /^\s{4}- (\S+) · ([0-9.]+)GB · (\S+)/.exec(line);
-        if (m && cur) cur.voices.push({ tag: m[1], gb: parseFloat(m[2]), family: m[3] });
-      }
-    }
-    const voiceCount = tiers.reduce((a, t) => a + t.voices.length, 0);
-    const biggest = Math.max(1, ...tiers.flatMap(t => t.voices.map(v => v.gb)));
-
-    // open mode is not a state to report calmly: it means RBAC allows all
-    const openMode = !bad(tenants) && /open mode/.test(tenants);
-    const rackOut = bad(rack) || /nothing fabricated/.test(rack);
-
-    const organ = (name, ok, said, src) => `
-      <div class="organ${ok === false ? ' organ-bad' : ok === null ? ' organ-quiet' : ''}">
-        <div class="organ-name">${name}</div>
-        <div class="organ-said">${said}</div>
-        <div class="organ-src"><code>${src}</code></div>
-      </div>`;
-
-    const standing = rackOut
-      ? 'The estate holds its record, but no voice can answer.'
-      : 'The estate is standing.';
-
-    el.innerHTML = `
-      <div class="page-header">
-        <div>
-          <div class="page-title">${standing}</div>
-          <div class="page-subtitle">Read from the record just now. Every line below names where it came from.</div>
-        </div>
-        <div class="flex"><button class="btn" id="dash-again">Read it again</button></div>
-      </div>
-
-      <div class="organs">
-        ${organ('Ground', worlds.length > 0,
-            worlds.length ? worlds.join(', ') + ` carried` : 'no project carried',
-            'muster')}
-        ${organ('Rack', !rackOut,
-            rackOut ? 'unreachable — start <code>ollama serve</code>'
-                    : `${voiceCount} local voices across ${tiers.length} tiers, loopback only`,
-            'rack_list')}
-        ${organ('Record', !bad(matrix),
-            bad(matrix) ? matrix.err
-              : (matrix.match(/\b(road|state|log)\s+(\d+) bytes/g) || ['nothing folded'])
-                  .map(x => x.replace(/\s+/, ' ')).join(' · '),
-            'state_matrix')}
-        ${organ('Access', !openMode,
-            bad(tenants) ? tenants.err
-              : openMode
-                ? 'a carried project is in <b>open mode</b> — every tool allowed to anyone'
-                : tenants.split('\n').slice(1).map(l => l.trim()).join(' · '),
-            'tenant_list')}
-        ${organ('Door', true,
-            `${(await API.tools().catch(() => ({tools:[]}))).tools.length} tools, no forbidden verb among them`,
-            'tools/list')}
-        ${organ('Gate', true,
-            'can_approve is false in every declaration — approval is your hand alone',
-            'by construction')}
-      </div>
-
-      ${rackOut ? '' : `
-      <div class="card mt-16">
-        <div class="card-header"><span class="card-title">The rack</span>
-          <span class="muted">what one card can hold, largest ${biggest.toFixed(1)}GB</span></div>
-        <div class="ladder">
-          ${tiers.map(t => `
-            <div class="rung">
-              <div class="rung-name">${escHtml(t.name)}<span class="muted"> ${escHtml(t.cap)}</span></div>
-              <div class="rung-voices">
-                ${t.voices.map(v => `
-                  <div class="voice">
-                    <div class="voice-bar" style="width:${Math.max(4,(v.gb/biggest)*100)}%"></div>
-                    <div class="voice-tag">${escHtml(v.tag)}</div>
-                    <div class="voice-gb">${v.gb.toFixed(1)}GB</div>
-                  </div>`).join('')}
-              </div>
-            </div>`).join('')}
-        </div>
-      </div>`}
-
-      <div class="card mt-16">
-        <div class="card-header"><span class="card-title">Not shown, and why</span></div>
-        <div class="notshown">
-          <div>Runs, seats and quality checks are the chain's record, and THE LINE
-          has no tool that reads them yet (<code>env_*</code>, <code>run_*</code>).
-          This page used to show counts from the webapp's own store instead —
-          four zeros on a full estate. It shows nothing rather than something
-          it cannot source.</div>
-          ${health ? `<div class="muted">Version ${escHtml(health.version)} · glass on :8091 · line on :8090</div>` : ''}
-        </div>
-      </div>`;
-
-    document.getElementById('dash-again').onclick = () => this.renderDashboard(el);
   },
 
   // === AGENTS ===
@@ -906,7 +702,7 @@ const App = {
         <div class="page-header">
           <div>
             <div class="page-title">Evaluations</div>
-            <div class="page-subtitle">${evals.length} scored evals, ${passed} passed, ${failed} failed. The last run, whole, is on the <a href="/dashboard" onclick="event.preventDefault();history.pushState(null,'','/dashboard');App.router();">Dashboard</a>; the suites, standups and sittings are on <a href="/records" onclick="event.preventDefault();history.pushState(null,'','/records');App.router();">Records</a>.</div>
+            <div class="page-subtitle">${evals.length} scored evals, ${passed} passed, ${failed} failed. The last run, whole, is in the front page's Run tab; the suites, standups and sittings are on <a href="/records" onclick="event.preventDefault();history.pushState(null,'','/records');App.router();">Records</a>.</div>
           </div>
           <!-- #ev-run-state and #ev-run-cancel WERE HERE and were dead. The
                run card moved to the Dashboard on 2026-09-10 and took the
@@ -1085,7 +881,8 @@ const App = {
   // says so rather than rendering as a zero, because "zero passed" and "never
   // run" are opposite claims.
   // Paints into whichever box it is given -- it lived on Evals, then Records,
-  // and the scores now open the Dashboard. The id is the caller's business.
+  // then the Dashboard, and now the front page's Audit Ledger tab. The id is
+  // the caller's business.
   //
   // `only` SPLITS THE TWO HALVES, because they answer different questions and
   // they belong on different pages now (the operator, 2026-09-10): the SCORES
@@ -1094,7 +891,7 @@ const App = {
   // Records. One reader, one `proofs` call, two placements.
   //   'scores' -- strokes, smoke, standup, standups run, parity
   //   'estate' -- sittings, tolls, runs, and the live standups table
-  //   'ledger' -- the deck's rows alone (proofLedger), for the front page's Audit Ledger tab
+  //   'ledger' -- the proof's rows (proofLedger), for the front page's Audit Ledger tab
   //   omitted  -- both, as before
   //
   // `read` IS AN ANSWER THE CALLER ALREADY HOLDS (2026-09-15): the tool's text,
@@ -1228,7 +1025,7 @@ const App = {
         <div class="stat-note" style="margin-top:10px">
           ${escHtml((rc.counted_by_the_engine || []).join(' and '))} are counted by the core's own rules
           (memory.py's entry pattern; a SELECT against index/vectors.db) and are shown whole in the
-          boot report on the Dashboard. They are not recounted here: a second definition of "an entry"
+          boot report in the front page's Audit Ledger tab. They are not recounted here: a second definition of "an entry"
           would drift from the core's the first time it changed.
         </div></div>`;
     }
@@ -1254,100 +1051,15 @@ const App = {
         `</div>` : '';
 
     const scores = `<div class="stats">${cards.join('')}</div>`;
-    box.innerHTML = only === 'deck' ? this.deck(p)
-                  : only === 'ledger' ? this.proofLedger(p)
+    box.innerHTML = only === 'ledger' ? this.proofLedger(p)
                   : only === 'scores' ? scores
                   : only === 'estate' ? estate + standups
                   : estate + scores + standups;
-    // THE DECK CREATES THE HERO'S SLOTS, SO THE DECK FILLS THEM. This read is
-    // async and lands after Home.read() has already painted the engine once,
-    // into elements this line then replaced -- the hero came up with its
-    // kicker and nothing under it. Calling from here rather than from each of
-    // the three sites that ask for a deck makes the order right by
-    // construction instead of by remembering.
-    // `window.Home` is NOT how to ask. Home is declared `const` at the top of
-    // home.js, and a top-level const in a classic script binds in the global
-    // LEXICAL scope, never as a property of window -- so `window.Home` was
-    // undefined and this line silently did nothing. The hero came up with its
-    // kicker and an empty body, which looked exactly like a failed read.
-    if (only === 'deck' && typeof Home !== 'undefined' && Home.paintEngine) Home.paintEngine();
   },
 
-  // THE DECK -- the Dashboard's top third, and the page's answer to the only
-  // two questions that gate the next move.
-  //
-  // WHAT THIS PAGE IS FOR, worked out from what he actually does on it. He
-  // sits down and asks, in this order: can I work at all, what do I want
-  // done, what is happening, is the ground sound, is anything waiting on me.
-  // The page answered them in almost the reverse order -- the scores held the
-  // top-left, and the ENGINE CARD, which gates every other thing on the page,
-  // sat BELOW the box it gates. Nothing typed into that box runs without an
-  // engine, and the card saying so was three scrolls down.
-  //
-  // SO THE HERO IS THE SITTING. Open or not, on which world, how long it has
-  // stood, and the one button that changes it. The engine card is folded in
-  // here and gone as a card -- its whole content was one sentence, which is
-  // the complaint its own comment made about the card above it.
-  //
-  // WITH ONE OVERRIDE: A RED BUILD OUTRANKS AN UNOPENED ENGINE. Booting onto
-  // a broken build without being told is worse than not knowing the engine is
-  // shut, so red anywhere flips the hero to the verdict and NAMES what fell.
-  // A measure that was never run is not green either: "nothing failed" and
-  // "nothing was tried" are different claims and only the first is good news.
-  //
-  // THE PROOF DROPS TO THE LEDGER beside it -- rows, not cards. Five cards of
-  // identical weight made the eye do the ranking; a ruled list puts the values
-  // in one column where they can be compared in a single sweep, which is the
-  // only reason to show them together at all.
-  deck(p) {
-    const su = p.suites || {};
-    const runs = p.standups || [];
-    const last = runs.length ? runs[runs.length - 1] : null;
-
-    const red = [], absent = [];
-    for (const name of ['strokes', 'smoke']) {
-      const r = su[name];
-      if (!r) { absent.push(name); continue; }
-      if (!r.green) red.push(name);
-    }
-    if (!last) absent.push('the live standup');
-    else if (!last.green) red.push('the live standup');
-
-    // The alarm is rendered ONLY when the build is not wholly proven. A green
-    // build says nothing here; the ledger beside it already carries the
-    // numbers, and a banner that is always on is a banner nobody reads.
-    let alarm = '';
-    if (red.length) {
-      const which = red.join(red.length === 2 ? ' and ' : ', ');
-      const fell = (su.strokes && !su.strokes.green && (su.strokes.failures || [])[0])
-                || (last && !last.green && (last.failed || [])[0]) || '';
-      alarm = `<div class="hero-alarm red"><b>RED</b> ${escHtml(which)} did not pass`
-            + (fell ? ` · first to fall: <code>${escHtml(fell)}</code>` : '') + `</div>`;
-    } else if (absent.length) {
-      alarm = `<div class="hero-alarm yellow"><b>PARTLY PROVEN</b> `
-            + `${escHtml(absent.join(' and '))} `
-            + `${absent.length === 1 ? 'has' : 'have'} never run here. `
-            + `Not-tried is not the same as passed.</div>`;
-    }
-
-    // THE IDS INSIDE THE HERO ARE THE ENGINE CARD'S OWN. Home.paintEngine
-    // writes into #home-engine and #home-engine-controls and is driven by a
-    // run-state event, not by this read -- so the sitting repaints on every
-    // boot, turn and close without re-reading `proofs` each time.
-    return `<div class="deck">
-      <div class="hero">
-        <div class="hero-kicker">The sitting</div>
-        <div id="home-engine" class="hero-body"></div>
-        <div id="home-engine-controls" class="hero-acts"></div>
-        ${alarm}
-      </div>
-      ${this.proofLedger(p)}
-    </div>`;
-  },
-
-  // WHAT THIS BUILD HAS PROVED, AS ROWS (2026-10-06: split out of the deck). The Dashboard draws them beside its hero
-  // and the front page's Audit Ledger tab draws them alone -- one reader of the proof, two placements, the way
-  // paintProof's `only` already places the scores and the estate.
+  // WHAT THIS BUILD HAS PROVED, AS ROWS (2026-10-06: split out of the Dashboard's deck, which retired with the
+  // Dashboard on 2026-10-07). The front page's Audit Ledger tab draws them -- one reader of the proof, the way
+  // paintProof's `only` places the scores and the estate.
   proofLedger(p) {
     const su = p.suites || {};
     const runs = p.standups || [];

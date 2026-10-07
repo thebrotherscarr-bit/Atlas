@@ -71,22 +71,20 @@ const Flows = {
     await this.repos();
     await this.readGit();
     // THE THREAD IS RESTORED BEFORE IT IS READ. Chat.thread is per-tab and
-    // empty on a fresh load; the Dashboard refills it from the settings store
+    // empty on a fresh load; the front page refills it from the settings store
     // on render, so Recent was full there and blank here for anyone who landed
-    // on this page first. Home's own restore is reused rather than copied --
-    // it is a no-op when the thread is already held, and its render guard
-    // means the dashboard element it usually paints is simply not found.
-    await Home.showKeptThread();
+    // on this page first. Chat's own restore is reused rather than copied --
+    // it is a no-op when the thread is already held.
+    await Chat.showKept();
     this.paintRecent();
   },
 
   // The last few things he asked for, read off Chat's own thread.
   //
-  // CLICKING ONE STILL FILLS THE BOX, and the box is on the Dashboard now.
-  // It used to write straight into `home-input`, which does not exist on this
-  // page -- so the objective is stashed on Home and the router is sent there,
-  // and Home's render picks it up. Nothing is RUN by a click: it lands in the
-  // box for him to read and press, exactly as it did before it moved.
+  // CLICKING ONE STILL FILLS THE BOX, and the box is the front page's terminal
+  // (the Dashboard's, until it retired on 2026-10-07). The objective is staged
+  // on Chat and the router is sent home, where the terminal picks it up.
+  // Nothing is RUN by a click: it lands in the line for him to read and press.
   paintRecent() {
     const said = (Chat.thread || []).filter(m => m.who === 'him').slice(-5).reverse();
     const card = document.getElementById('flow-recent-card');
@@ -99,7 +97,7 @@ const Flows = {
       </div>`).join('');
     box.querySelectorAll('[data-say]').forEach(r => {
       r.onclick = () => {
-        Home.pending = r.dataset.say;
+        Chat.pending = r.dataset.say;
         history.pushState(null, '', '/');
         App.router();
       };
@@ -740,7 +738,7 @@ const Flows = {
 
     const where = Run.engineOpen
       ? `the council is standing · sitting ${escHtml(String(Run.sitting || '?'))}`
-      : 'no engine is open, so this path cannot run · boot one on the Dashboard';
+      : 'no engine is open, so this path cannot run · boot one on the front page';
     box.innerHTML = `<div class="eng-row">
       Same repository, sent through the council instead of straight to the door:
       the law gate stamps the objective, the Router runs the skill, and the turn
@@ -757,12 +755,12 @@ const Flows = {
     const commit = bar.querySelector('#git-commit');
     const push = bar.querySelector('#git-push');
     if (!commit || !push) return;
-    commit.title = !Run.engineOpen ? 'no engine is open — boot one on the Dashboard'
+    commit.title = !Run.engineOpen ? 'no engine is open — boot one on the front page'
       : g.dirty ? 'send the commit through the council' : 'nothing to commit';
     commit.onclick = () => this.commit();
     push.title = !g.remote_allowed
       ? 'sending is walled by MANJUEL_GIT_REMOTE (the estate, not your credentials)'
-      : !Run.engineOpen ? 'no engine is open — boot one on the Dashboard'
+      : !Run.engineOpen ? 'no engine is open — boot one on the front page'
       : (g.ahead ? 'send ' + g.ahead + ' save(s) to the remote' : 'nothing to send');
     push.onclick = () => this.push();
   },
@@ -786,15 +784,15 @@ const Flows = {
   },
 
   // One objective, into the same loop as anything he types. The thread is
-  // Chat's, shared: the Dashboard and Chat both render it, so the turn is
+  // Chat's, shared: the front page and the Watchboard both render it, so the turn is
   // watchable from either even though it was started here.
   ask(objective) {
-    if (!Run.engineOpen) { toast('No engine is open — boot one on the Dashboard', 'error'); return; }
+    if (!Run.engineOpen) { toast('No engine is open — boot one on the front page', 'error'); return; }
     if (Run.running) { toast('A turn is already running', 'error'); return; }
     Chat.thread.push({ who: 'him', text: objective });
     Chat.thread.push({ who: 'council', text: '', live: true });
     Run.start({ objective });
-    toast('Sent to the council — the run is on the Dashboard');
+    toast('Sent to the council — the run is in the Run tab on the front page');
   },
 
   // THE FLOW BUILDER CAME OFF, 2026-09-10 ("not used, wipe it"). The

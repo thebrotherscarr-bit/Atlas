@@ -5,122 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ATLAS — Sovereign Agent Harness</title>
   <link rel="stylesheet" href="/css/app.css">
-  <link rel="stylesheet" href="/css/icons.css">
   <link rel="stylesheet" href="/css/agent.css">
 </head>
 <body>
   <div class="app">
-    <nav class="sidebar" id="sidebar">
-      <div class="logo">
-        <span class="logo-mark" aria-hidden="true"></span>
-        <span class="logo-words"><b>ATLAS</b><span id="version">loading...</span></span>
-      </div>
-
-      <!-- THE ONE ACTION, PINNED. Booting is the most-pressed thing in this
-           console and it lived three cards down a page. It is context-aware:
-           with an engine standing it becomes Close, because closing PAYS THE
-           TOLL and that is the act the record depends on. -->
-      <button class="side-primary" id="side-primary" type="button">Boot an engine</button>
-
-      <!-- THE PALETTE, MADE VISIBLE. Ctrl+K has worked since it was built and
-           nothing on screen said so, which is the same as not having it. This
-           is a button that looks like a search field because that is what it
-           does; the palette itself is the input. -->
-      <button class="side-search" id="side-search" type="button">
-        <span>Search</span><kbd>Ctrl K</kbd>
-      </button>
-      <div class="nav" id="nav">
-        <!-- data-icon is GONE from these lines. It carried six characters
-             from four different Unicode families (BLACK SQUARE, PENCIL,
-             FISHEYE, CHECK MARK, TRIGRAM FOR HEAVEN, ATOM SYMBOL), each
-             drawn by whatever font owned it, at its own weight and baseline
-             -- which is why they never looked like a set. The glyphs now
-             come from css/icons.css, keyed off data-page, one grid and one
-             stroke, masked over currentColor so they take the link's own
-             colour through idle, hover and active. -->
-        <div class="nav-section">Work</div>
-        <!-- THE FRONT PAGE (2026-10-02, his word, shown a page from his own AI
-             Studio project: "that's what I am looking for", then "replace the
-             Dashboard now"): one terminal, five doors, an Inspector. It is /
-             and it has no sidebar -- body.is-agent hides this panel there and
-             nowhere else, so this link is how every other page comes back to
-             it. The launchpad it replaced is kept whole at /dashboard. -->
-        <a href="/" class="nav-link active" data-page="agent">Home</a>
-        <a href="/dashboard" class="nav-link" data-page="dashboard">Dashboard</a>
-        <!-- WHAT'S LEFT (2026-09-29, his word: "write a page on the webapp"):
-             everything still open, numbered, read from WHATS_LEFT.md at the
-             root of the ground -- js/left.js. Second in the panel because it
-             is the second thing asked on sitting down: what is there to do. -->
-        <a href="/left" class="nav-link" data-page="left">What's left</a>
-        <!-- THE LABEL is Watchboard; the route and data-page stay "chat" on
-             purpose, exactly as flows did when it became Version control: the
-             route is what every link, bookmark and history entry points at,
-             and data-page is the key css/icons.css draws the glyph from.
-             Renaming the label is the operator's word (2026-09-10); renaming
-             the route would break things for a word. -->
-        <a href="/chat" class="nav-link" data-page="chat">Watchboard</a>
-        <a href="/agents" class="nav-link" data-page="agents">Agents<span class="nav-badge" id="badge-agents" hidden></span></a>
-        <a href="/workflows" class="nav-link" data-page="workflows">Workflows</a>
-        <div class="nav-section">Record</div>
-        <!-- THE LAWS (2026-10-05, his word: "a LAWS page! great idea, Add it."):
-             what every hand and every agent reads first, how far each law is
-             sealed on the chain, and the one place he sets a law or seals the
-             ledger -- js/laws.js, through the door's law_status, law_add and
-             law_seal. First under Record because it is what binds a hand
-             before anything that happened. -->
-        <a href="/laws" class="nav-link" data-page="laws">Laws</a>
-        <a href="/evals" class="nav-link" data-page="evals">Evals</a>
-        <a href="/records" class="nav-link" data-page="records">Records<span class="nav-badge" id="badge-records" hidden></span></a>
-        <!-- The LABEL is Version control; the route and data-page stay
-             "flows" on purpose -- the route is what every existing link,
-             bookmark and history entry points at, and data-page is the key
-             css/icons.css draws the glyph from. Renaming the label is the
-             operator's word (2026-09-10); renaming the route would break
-             things for a word. -->
-        <a href="/flows" class="nav-link" data-page="flows">Version control<span class="nav-badge" id="badge-flows" hidden></span></a>
-        <!-- TOOLS IS BACK, 2026-09-10, at the operator's word: the skills
-             ARE the useful part, and this is "a platform for writing stuff
-             up as markdown skills". Its route, page and handler never left.
-             Traces and Playground stay parked by the same ruling in the
-             same breath -- Traces has no job yet ("i dont know what that
-             would even be"), and Playground waits on the coding space. -->
-        <div class="nav-section">System</div>
-        <a href="/tools" class="nav-link" data-page="tools">Tools<span class="nav-badge" id="badge-tools" hidden></span></a>
-        <a href="/settings" class="nav-link" data-page="settings">Settings</a>
-        <!-- FLOWS IS BACK ON THE PANEL, 2026-09-10, at the operator's word
-             ("flows.. put it in there"). Version control IS a flow, and the
-             kinds already say so: a `gate` node holds the six proofs and
-             PAUSES for him -- RULE 6 by construction rather than by a button
-             -- a `run` node puts git_cycle through the council, and the run
-             persists in flows/runs.jsonl, which is the tracking and the
-             review he asked for. Nothing new was built to reach it: flows.js
-             was already loaded below and every /api/flows route already
-             stood. The page was one uncomment from being back, exactly as
-             the note beneath says. -->
-        <!-- OFF THE PANEL, not removed. The routes, pages and handlers all
-             stand; each line below is one uncomment from being back. -->
-        <!-- <a href="/messages" class="nav-link" data-page="messages" data-icon="&#9993;">Messages</a>  (off the panel 2026-09-09 at the operator's word: "we can talk about what they are for later"; the pages and their routes are untouched) -->
-        <!-- <a href="/traces" class="nav-link" data-page="traces" data-icon="&#9656;">Traces</a>  (off the panel 2026-09-09 at the operator's word: "we can talk about what they are for later"; the pages and their routes are untouched) -->
-        <!-- Tools came back on 2026-09-10 and now sits above, before Settings. -->
-        <!-- <a href="/playground" class="nav-link" data-page="playground" data-icon="&#9874;">Playground</a>  (parked 2026-09-09; kept parked 2026-09-10: "playground could be the coding space, once that is built") -->
-        <!-- Flows came back on 2026-09-10 and now sits above, with Settings. -->
-      </div>
-      <div class="sidebar-footer">
-        <div class="status-dot" id="status-dot"></div>
-        <span id="operator-status">connecting...</span>
-        <!-- READ OFF THE RECORD (2026-09-29): app.js paints the covenant the
-             operator's own declaration carries, through the door; it is not
-             typed here. -->
-        <div class="covenant" id="covenant">covenant: reading the record...</div>
-        <!-- THE LOCK (2026-09-21): who is signed in, and the button that locks
-             the dashboard again. Hidden until lock.js knows who it is. -->
-        <div id="lock-line" hidden style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:var(--t-sm);color:var(--text-2)">
-          <span id="lock-who"></span>
-          <button type="button" id="lock-now" onclick="Lock.lock()"
-            style="margin-left:auto;background:none;border:1px solid var(--border-2);color:var(--text-2);border-radius:var(--radius);padding:2px 10px;font:inherit;cursor:pointer">Lock</button>
-        </div>
-      </div>
-    </nav>
+    <!-- THE SIDEBAR IS RETIRED (2026-10-07, his word: "go, next: retire the sidebar and the old dashboard").
+         Every page is one list (App.PAGES, js/app.js), read by the front page's Pages menu, the palette
+         (Ctrl K, on every page) and each page's crumb, whose ATLAS leads home. What the sidebar carried is on
+         the front page's bar: the version, Boot and Close, the door's state, and who is signed in with Lock;
+         the covenant is in its footer, and unsent work is a number on its Aider Pair door. -->
     <main class="main">
       <!-- ONE CRUMB, PAINTED BY THE ROUTER. It lives here rather than in each
            page's own header because the router is the only thing that knows
@@ -139,7 +32,6 @@
   </div>
   <script src="/js/api.js"></script>
   <script src="/js/lock.js"></script>
-  <script src="/js/home.js"></script>
   <script src="/js/left.js"></script>
   <script src="/js/laws.js"></script>
   <script src="/js/projects.js"></script>

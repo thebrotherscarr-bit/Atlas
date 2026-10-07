@@ -10,21 +10,13 @@ const Lock = {
   timer: null,
 
   // On load: signed in, or locked? /api/me answers 401 when the lock is shut.
+  // Who is signed in is said on the front page's bar, beside its Lock button (agent.js, who); the sidebar's own line
+  // retired with the sidebar on 2026-10-07.
   async boot() {
     try {
       const r = await fetch('/api/me');
       if (r.status === 401) { this.show(); return; }
-      this.paintWho(await r.json());
-    } catch { /* the glass itself is unreachable; app.js says so */ }
-  },
-
-  // The sidebar says who is signed in, beside the button that locks it again.
-  paintWho(me) {
-    const line = document.getElementById('lock-line');
-    const who = document.getElementById('lock-who');
-    if (!line || !who || !me || !me.user) return;
-    who.textContent = me.user;
-    line.hidden = false;
+    } catch { /* the glass itself is unreachable; the front page says so */ }
   },
 
   async show() {
@@ -153,7 +145,7 @@ const Lock = {
     });
   },
 
-  // The sidebar's Lock button: the session ends here and on the server.
+  // The front page's Lock button: the session ends here and on the server.
   async lock() {
     try { await fetch('/api/logout', { method: 'POST' }); } catch {}
     location.reload();

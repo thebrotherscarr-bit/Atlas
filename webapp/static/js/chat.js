@@ -46,13 +46,59 @@
 //   · that no engine is open: a disabled box with the reason written out
 //
 // The object is still called Chat because it still owns the conversation with
-// the council — home.js and flows.js both read `Chat.thread` — and the thread
-// is genuinely the chat. The PAGE it draws is the watchboard.
+// the council: the front page and Version control read `Chat.thread`, and since
+// the Dashboard retired (2026-10-07) Chat also keeps it (keep, showKept) and
+// holds an objective staged for the terminal (pending). The PAGE it draws is
+// the watchboard.
 const Chat = {
   thread: [],          // [{who:'him'|'council', text, turn?}] — shared with Home
   bound: false,
   shut: {},            // seats folded shut by hand, by index; open by default
   raw: false,          // the wire: every frame, or tokens folded
+  // An objective staged from another page (Version control's Recent), waiting for
+  // the front page's terminal to put it in the line. Never run on its own.
+  pending: '',
+  TAIL: 6,             // how many exchanges are kept for another browser
+
+  // ---- THE CONVERSATION IS KEPT WHERE BOTH BROWSERS CAN READ IT ----------
+  //
+  // Moved here from the Dashboard (home.js) when it retired, 2026-10-07: the
+  // thread is Chat's, so keeping it is too. `Chat.thread` is in-memory per tab,
+  // so a browser that reloaded after a turn showed an empty conversation; what
+  // renders -- who spoke and what was said -- goes to the settings store, which
+  // both browsers read. The events, seats and tokens behind a turn stay in the
+  // transcript on disk, the real record. KEYED TO THE SESSION, like the boot
+  // report, so one engine's conversation is never painted under another's.
+  keep() {
+    clearTimeout(this._keep);
+    this._keep = setTimeout(() => {
+      // A COUNCIL BUBBLE'S WORDS ARE IN `turn.answer`, NOT IN `text`.
+      const said = (this.thread || [])
+        .slice(-this.TAIL)
+        .map(m => ({
+          who: m.who,
+          text: m.who === 'him' ? (m.text || '')
+            : ((m.turn && (m.turn.answer || m.turn.refusal)) || m.text || '')
+        }))
+        .filter(m => m.text.trim());
+      if (!said.length) return;
+      API.setSetting('thread.' + (Run.world || 'research'),
+        JSON.stringify({ session: Run.session || '', said })).catch(() => {});
+    }, 600);
+  },
+
+  // Restored only while the engine that wrote it stands, and only into a tab
+  // that holds no conversation of its own.
+  async showKept() {
+    if ((this.thread || []).length) return;
+    try {
+      const r = await API.getSetting('thread.' + (Run.world || 'research'));
+      const kept = JSON.parse((r && r.value) || '{}');
+      if (!kept.said || !kept.said.length) return;
+      if (!Run.engineOpen || (kept.session && kept.session !== Run.session)) return;
+      this.thread = kept.said.map(m => ({ who: m.who, text: m.text }));
+    } catch { /* nothing kept yet */ }
+  },
 
   async render(el) {
     this.el = el;
@@ -187,7 +233,7 @@ const Chat = {
     if (foot) foot.textContent = Run.engineOpen ? '' :
       'No engine is open on this world. This page will not start one behind ' +
       'your back — that opens a sitting you never opened, and the sitting line ' +
-      'is the lock. Boot one from the Dashboard.';
+      'is the lock. Boot one from the front page.';
   },
 
   // THE TURN: what was asked, under what, and what came back. The delivery's

@@ -13,15 +13,14 @@
    in ONE variable (--ag-line) so softening it is one edit.
 
    EVERYTHING IS SCOPED to .ag or to body.is-agent, which the router sets on
-   the front page only. No other page's rule is touched, and the sidebar is
-   hidden here and nowhere else. */
+   the front page only. No other page's rule is touched. (The sidebar this
+   page once hid retired on 2026-10-07.) */
 
 body.is-agent {
   background: #0a0a0a;
   background-attachment: scroll;
 }
-body.is-agent .sidebar { display: none; }
-body.is-agent .main { margin-left: 0; padding: 0; min-height: 100vh; overflow: visible; }
+body.is-agent .main { padding: 0; min-height: 100vh; overflow: visible; }
 body.is-agent .crumb { display: none; }
 
 .ag {
@@ -78,6 +77,13 @@ body.is-agent .crumb { display: none; }
 .ag-nav button { padding: 4px 0; display: flex; align-items: center; gap: 6px; transition: color .15s; white-space: nowrap; }
 .ag-nav button:hover { color: var(--ag-n200); }
 .ag-nav button.on { color: #f5f5f5; font-weight: 500; }
+/* UNSENT WORK, ON THE AIDER PAIR DOOR (2026-10-07, on his card: "On the Aider Pair door"). The sidebar's warning badge,
+   moved: the count of work across the worlds that is unsaved or unsent (App.paintOwed), amber because it is owed, and
+   drawn only while it is. */
+.ag-owed {
+  padding: 0 6px; border-radius: 999px; font-size: 10px; line-height: 16px; font-variant-numeric: tabular-nums;
+  background: rgba(251,191,36,.14); color: var(--ag-amber); border: 1px solid rgba(251,191,36,.4);
+}
 .ag-right { display: flex; align-items: center; gap: 12px; flex: none; }
 .ag-stat { display: flex; align-items: center; gap: 8px; color: var(--ag-n500); font-variant-numeric: tabular-nums; }
 .ag-sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--ag-n600); }
@@ -463,6 +469,9 @@ body.is-agent .crumb { display: none; }
   border-top: 1px solid var(--ag-dim); background: var(--ag-bg); padding: 8px 0; font-size: 11px; color: var(--ag-n600); flex: none;
 }
 .ag-foot-in { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
+/* THE COVENANT, IN THE FOOTER (2026-10-07, on his card: "Front page footer"). What the sidebar's foot carried, read off
+   the record (App.paintCovenant): quiet, set off by a hairline, a step brighter than the footer around it. */
+.ag-cov { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--ag-n800); color: var(--ag-n500); letter-spacing: .02em; overflow-wrap: anywhere; }
 
 /* THE BAR SHEDS ITS LEAST IMPORTANT PARTS FIRST, so it never makes the page
    scroll sideways: the version, then the rack word, then the six doors (all

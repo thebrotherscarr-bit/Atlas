@@ -169,30 +169,17 @@ body {
 /* Layout */
 .app { display: flex; min-height: 100vh; }
 
-.sidebar {
-  width: 220px;
-  min-width: 220px;
-  background: var(--bg-2);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 100;
-  transition: transform var(--transition);
-}
-
+/* THE SIDEBAR RETIRED (2026-10-07, his word: "go, next: retire the sidebar
+   and the old dashboard"), and its column, head, nav and foot with it. Every
+   page is reached from the front page's Pages menu, the palette (Ctrl K) and
+   each page's crumb, all read off one list (App.PAGES, js/app.js), so the
+   main area has the whole width. */
 .main {
   flex: 1;
-  margin-left: 220px;
   padding: 32px;
   overflow-y: auto;
   min-height: 100vh;
 }
-
-/* Logo */
 
 /* ---- THE DECK -----------------------------------------------------------
    The Dashboard's top third, rebuilt 2026-09-10 at the operator's word
@@ -437,148 +424,6 @@ body {
                 border-top: 1px solid var(--border); }
 
 @media (max-width: 900px) { .wb-grid { grid-template-columns: 1fr; } }
-
-/* ---- THE SIDEBAR'S HEAD -------------------------------------------------
-   A lockup, the one action worth pinning, and the palette made visible. The
-   nav used to start at the top of the panel with nothing above it, so the
-   most-pressed thing in the console (boot) was three cards down a page and
-   the keyboard path was invisible. */
-.logo {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s4) var(--s4) var(--s3);
-}
-/* A mark, not a logo: two strokes that read as a door. It carries the accent
-   so the eye has one fixed point when the nav highlight moves around it. */
-.logo-mark {
-  width: 26px; height: 26px; flex: 0 0 26px; border-radius: var(--radius-lg);
-  background: linear-gradient(140deg, var(--accent), var(--yellow));
-  box-shadow: 0 0 16px rgba(77,224,208,0.30);
-  position: relative;
-}
-.logo-mark::after {
-  content: ''; position: absolute; inset: 8px 10px 8px 8px;
-  border-left: 2px solid var(--bg); border-top: 2px solid var(--bg);
-  border-bottom: 2px solid var(--bg); border-radius: 2px 0 0 2px;
-}
-.logo-words { display: flex; flex-direction: column; line-height: 1.25; }
-/* Aurora's brand is tracked hard and lit: `.brand { letter-spacing:.28em;
-   text-shadow: 0 0 10px }`. At .28em a five-letter word becomes a device
-   rather than a word, which is the intent — it is the only place in this
-   console that is allowed to be styling. */
-.logo-words b { font-size: var(--t-base); font-weight: 700; letter-spacing: 0.22em;
-                color: var(--accent); text-shadow: 0 0 10px rgba(77,224,208,.5); }
-.logo-words span { font-size: var(--t-xs); color: var(--muted); font-family: var(--mono); }
-
-.side-primary {
-  display: block; width: calc(100% - var(--s4) * 2);
-  margin: 0 var(--s4) var(--s2);
-  padding: var(--s2) var(--s3);
-  border: 0; border-radius: var(--radius);
-  /* AMBER, NOT VIOLET. In Aurora the seal amber marks the acts that move the
-     record — it is the colour on Manjuel's orb and on every gate button —
-     while cyan is for reading. Booting opens a sitting and closing pays its
-     toll: both change the record, so the one pinned action wears the seal. */
-  background: var(--yellow); color: #0a0503;
-  box-shadow: 0 0 18px rgba(232,165,68,0.28);
-  font-family: var(--font); font-size: var(--t-md); font-weight: 600;
-  cursor: pointer;
-  transition: filter var(--transition);
-}
-.side-primary:hover { filter: brightness(1.08); }
-.side-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* It looks like a field and it is a button, because the palette owns the
-   input. Pretending otherwise would mean two places to type. */
-.side-search {
-  display: flex; align-items: center; justify-content: space-between;
-  width: calc(100% - var(--s4) * 2);
-  margin: 0 var(--s4) var(--s3);
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--border-2); border-radius: var(--radius);
-  background: var(--bg); color: var(--muted);
-  font-family: var(--font); font-size: var(--t-md);
-  cursor: pointer; text-align: left;
-}
-.side-search:hover { border-color: var(--accent); color: var(--text-2); }
-.side-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.side-search kbd {
-  font-family: var(--mono); font-size: var(--t-xs);
-  background: var(--bg-3); border: 1px solid var(--border);
-  border-radius: 4px; padding: 1px 5px; color: var(--muted);
-}
-
-/* ---- THE NAV, IN SECTIONS ----------------------------------------------
-   Eight flat links asked the eye to read all eight every time. Three groups
-   name what each is FOR, so the scan is to a group and then to a line. */
-.nav-section {
-  padding: var(--s3) var(--s4) var(--s1);
-  font-size: var(--t-xs); font-weight: 600;
-  color: var(--text-3); letter-spacing: 0.06em;
-}
-.nav-section:first-child { padding-top: var(--s1); }
-
-/* A BADGE IS A NUMBER THE RECORD CAN PROVE, or it is not shown. Same rule
-   the dashboard is held to (SPEC 3 invariant 10): these are filled from the
-   tools -- seats, records, git, the registry -- and stay hidden until one
-   answers. A decorative count would be the one lie on the furniture. */
-.nav-badge {
-  margin-left: auto;
-  font-family: var(--mono); font-size: var(--t-xs);
-  font-variant-numeric: tabular-nums;
-  background: var(--bg-4); color: var(--muted);
-  border-radius: 10px; padding: 1px 7px;
-}
-.nav-link.active .nav-badge { background: rgba(77,224,208,0.18); color: var(--accent); }
-/* Unsent work is the one badge that is a WARNING rather than a count. */
-.nav-badge.warn { background: rgba(232,165,68,0.16); color: var(--yellow); }
-
-/* Navigation */
-.nav { flex: 1; padding: 12px 0; overflow-y: auto; }
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  color: var(--text-3);
-  text-decoration: none;
-  font-size: var(--t-md);
-  font-weight: 500;
-  transition: all var(--transition);
-  border-left: 3px solid transparent;
-}
-.nav-link:hover {
-  color: var(--text);
-  background: var(--bg-3);
-}
-.nav-link.active {
-  color: var(--accent);
-  background: rgba(77,224,208,0.08);
-  border-left-color: var(--accent);
-}
-/* The nav glyph now lives in css/icons.css -- one grid, one stroke, masked
-   over currentColor. What stood here rendered `attr(data-icon)`, six
-   characters from four Unicode families at four optical weights. */
-
-/* Sidebar footer */
-.sidebar-footer {
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  color: var(--text-3);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.status-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  background: var(--green); box-shadow: 0 0 8px var(--green);
-}
-.status-dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
-.status-dot.red { background: var(--red); }
-/* .covenant was declared TWICE in this file — here, and again under THE
-   SIDEBAR FOOTER below, which sets every one of the same properties and wins
-   on source order. The dead one is gone: two rules for one class is exactly
-   how `.muted` came to steal the hero verdict's font-size. */
 
 /* Page header */
 .page-header {
@@ -983,9 +828,7 @@ pre { overflow-x: auto; max-width: 100%; }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
-  .main { margin-left: 0; padding: 16px; }
+  .main { padding: 16px; }
   .stats { grid-template-columns: 1fr 1fr; }
   .agent-grid { grid-template-columns: 1fr; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
@@ -1290,7 +1133,6 @@ pre { overflow-x: auto; max-width: 100%; }
    :focus-visible, not :focus -- a ring on every mouse click is noise, and it
    is the reason the outline was removed in the first place. */
 .btn:focus-visible,
-.nav-link:focus-visible,
 .chat-session:focus-visible,
 .tab:focus-visible,
 .input:focus-visible,
@@ -1301,26 +1143,6 @@ pre { overflow-x: auto; max-width: 100%; }
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--radius);
-}
-
-/* ---- THE SIDEBAR FOOTER EARNS ITS SPACE --------------------------------
-   `active` and the covenant hash are the estate's identity, rendered at 10px
-   in the dimmest colour the palette has -- the treatment you give a legal
-   footer you hope nobody reads. The covenant is the precondition of every
-   identity operation in the spine. It can be quiet without being furtive. */
-.sidebar-footer { font-size: var(--t-xs); gap: var(--s1); }
-.covenant {
-  font-family: var(--mono);
-  font-size: var(--t-xs);
-  /* THE RULE ABOVE IT IS WHAT LIFTS IT, not the colour. On Aurora's darker
-     ground --text-2 is a blue-grey bright enough to compete with the nav;
-     the hairline and the space do the separating, and the hash stays quiet
-     without being furtive — which was this rule's point when it was written. */
-  color: var(--text-3);
-  letter-spacing: 0.04em;
-  margin-top: var(--s2);
-  padding-top: var(--s2);
-  border-top: 1px solid var(--border);
 }
 
 /* ---- THE PALETTE -------------------------------------------------------

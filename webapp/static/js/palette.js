@@ -7,7 +7,7 @@
 //
 // IT NAVIGATES AND IT BOOTS. Nothing else. A palette that can run anything is a
 // second command surface to learn and a second place for a destructive verb to
-// hide; the box on the Dashboard is where objectives go, and it already takes
+// hide; the front page's terminal is where objectives go, and it already takes
 // words. Close is here because it PAYS THE TOLL, which is the one routine act
 // the record depends on and the easiest to forget.
 //
@@ -44,10 +44,11 @@ const Palette = {
   // not offer to close a sitting that is already closed.
   build() {
     const go = (path) => () => { history.pushState(null, '', path); App.router(); };
-    const pages = [...document.querySelectorAll('.nav-link')].map(a => ({
-      label: a.textContent.trim(),
+    // Every page, from the one list the sidebar's links became when it retired (2026-10-07).
+    const pages = App.PAGES.map(p => ({
+      label: p.label,
       note: 'page',
-      run: go(a.getAttribute('href')),
+      run: go(p.href),
     }));
     const engine = [];
     if (Run.engineOpen) {
@@ -140,7 +141,7 @@ const Palette = {
     if (!list) return;
     if (!this.items.length) {
       list.innerHTML = '<div class="pal-none">Nothing here matches that. '
-        + 'The box on the Dashboard takes anything else.</div>';
+        + 'The terminal on the front page takes anything else.</div>';
       return;
     }
     list.innerHTML = this.items.map((i, n) => `
