@@ -1467,7 +1467,11 @@ const Agent = {
           App.paintProof('ag-proof-estate', 'estate', this._proofs);
         }
       }
-      else if (id === 'guards') put(await this.guardsHtml());
+      else if (id === 'guards') {
+        put(await this.guardsHtml());
+        // The laws are drawn by the Laws page's own object, under the hold queue, in the panel's own shape.
+        if (this._pane === stamp && this.tab === id && $ag('ag-laws')) await Laws.render($ag('ag-laws'), true);
+      }
       else if (id === 'docs') put(await this.docsHtml());
       else if (id === 'settings') put(await this.settingsHtml());
       else if (id === 'rack') put(await this.rackHtml());
@@ -1692,6 +1696,9 @@ const Agent = {
           <button type="button" class="ag-btn no" data-act="hold" data-decision="deny" data-id="${escHtml(h.id)}">Deny</button></div></div>`).join('') +
         '<div id="ag-holdout"></div>', 'hold_list'));
     }
+    // THE LAWS, UNDER THE HOLDS (2026-10-06, his word: "go, next: guardrails"; the design pass put Laws here). Drawn by the
+    // Laws page's own object once this is on the page (paintPane), so there is one Laws and not two.
+    parts.push('<div class="ag-laws" id="ag-laws"></div>');
     return parts.join('');
   },
 

@@ -372,6 +372,29 @@ body.is-agent .crumb { display: none; }
 .ag-seats .seat-model { font-size: 10px; color: var(--ag-cyan); }
 .ag-seats .seat-prompt { margin-top: 8px; }
 
+/* THE LAWS, IN THE GUARDRAILS TAB (2026-10-06). The tab draws the Laws page's own object (laws.js) under the hold queue,
+   so its furniture is app.css's and the page's own -- .card, .badge, .btn, .input, .textarea and the .laws-* rules it
+   lays down -- with the tokens pointed at this page's palette, as .ag-wf does; the buttons alone need rules, since
+   `.ag button` strips every button bare. */
+.ag-laws {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --accent-2: #f5f5f5;
+  --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 12px;
+}
+.ag-laws:empty { display: none; }
+.ag-laws .card { margin: 0 0 16px; padding: 14px; border-radius: 8px; }
+.ag-laws .mt-16 { margin-top: 0; }
+.ag-laws .card-header { margin-bottom: 8px; padding-bottom: 8px; }
+.ag-laws .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; }
+.ag-laws .btn { padding: 3px 10px; background: var(--ag-n900); border: 1px solid var(--ag-n700); border-radius: 4px; color: var(--ag-n200); font-size: 11px; }
+.ag-laws .btn:hover { background: var(--ag-n800); }
+.ag-laws .btn-primary { border-color: rgba(52,211,153,.5); color: var(--ag-green); }
+.ag-laws .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
+.ag-laws .btn:disabled { opacity: .4; cursor: default; }
+
 /* the six stages of a turn, read off the events the engine sent */
 .ag-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ag-st { border: 1px solid var(--ag-n800); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; color: var(--ag-n500); }

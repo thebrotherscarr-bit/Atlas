@@ -430,6 +430,34 @@ func TestSettingsIsADoorOfItsOwn(t *testing.T) {
 	}
 }
 
+// GUARDRAILS CARRIES THE LAWS (his word, 2026-10-06: "go, next: guardrails"; the
+// design pass put Laws here). Under the hold queue the tab draws the Laws page's
+// own object, told it stands in the panel -- one Laws, so the two cannot drift --
+// and its Read it again, Set and Seal draw it again where it stands, never sending
+// him to the page; the page under Pages still draws it whole.
+func TestGuardrailsCarriesTheLaws(t *testing.T) {
+	src := page(t, "js/agent.js")
+	laws := page(t, "js/laws.js")
+	app := page(t, "js/app.js")
+	css := page(t, "css/agent.css")
+	if !strings.Contains(funcOf(src, "  async guardsHtml("), `id="ag-laws"`) ||
+		!strings.Contains(funcOf(src, "  async paintPane("), "await Laws.render($ag('ag-laws'), true)") {
+		t.Fatal("the Guardrails tab does not draw the Laws page's own object")
+	}
+	if !strings.Contains(funcOf(laws, "  async render("), "this.inPanel = !!inPanel") || !strings.Contains(funcOf(laws, "  paint("), "this.inPanel ?") {
+		t.Fatal("the laws draw the page's title into the panel")
+	}
+	if strings.Count(laws, "this.render(el, this.inPanel)") != 3 || strings.Contains(laws, "this.render(el);") {
+		t.Fatal("Read it again, Set or Seal draws the laws somewhere other than where they stand")
+	}
+	if !strings.Contains(app, "case 'laws': await Laws.render(el); break;") {
+		t.Fatal("the page under Pages no longer draws the laws whole")
+	}
+	if !regexp.MustCompile(`\.ag-laws \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-laws .btn {") {
+		t.Fatal("the laws in the panel do not take the page's look")
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his

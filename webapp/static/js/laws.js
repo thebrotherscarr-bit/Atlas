@@ -17,7 +17,11 @@ const Laws = {
   RULES: 'CLAUDE.md',
   LEDGER: 'law/LAW_LEDGER.md',
 
-  async render(el) {
+  // THE SAME LAWS IN TWO PLACES (2026-10-06, his word: "go, next: guardrails"). The front page's Guardrails tab draws THIS
+  // object under its hold queue -- `inPanel`, without the page's title -- and the page under Pages draws it whole; Read it
+  // again, Set and Seal draw it again where it stands.
+  async render(el, inPanel) {
+    this.inPanel = !!inPanel;
     this.style();
     el.innerHTML = '<div class="loading">Reading the laws...</div>';
     let st;
@@ -148,17 +152,21 @@ const Laws = {
         f.by ? ' · laid by ' + escHtml(f.by) : ''}${f.links && f.links.length ? ' · link' + (f.links.length > 1 ? 's' : '') + ' ' + f.links.join(', ') : ''}</div>
        <div class="laws-text" data-file="${escHtml(f.name)}"><span class="stat-note">Open to read it.</span></div>`, `data-lazy="${escHtml(f.name)}"`)).join('');
 
+    const counts = `${ruleList.length} standing rules, ${entries.length} ledger entries, ${sealedFiles} of ${files.length} laws sealed`;
     el.innerHTML = `<div id="laws-page">
-      <div class="page-header">
+      ${this.inPanel ? `<div class="laws-head">
+        <div class="stat-note">What every hand and every agent reads first: ${counts}.</div>
+        <div class="laws-actions"><input class="input" id="laws-find" placeholder="Find in the laws..."><button class="btn" id="laws-again">Read it again</button></div>
+      </div>` : `<div class="page-header">
         <div>
           <div class="page-title">Laws</div>
-          <div class="page-subtitle">What every hand and every agent reads first: ${ruleList.length} standing rules, ${entries.length} ledger entries, ${sealedFiles} of ${files.length} laws sealed.</div>
+          <div class="page-subtitle">What every hand and every agent reads first: ${counts}.</div>
         </div>
         <div class="flex">
           <div class="search-bar"><input class="input" id="laws-find" placeholder="Find in the laws..."></div>
           <button class="btn" id="laws-again">Read it again</button>
         </div>
-      </div>
+      </div>`}
       ${chain}${wait}${draft}
       <div class="card mt-16" data-sec>
         <div class="card-header"><span class="card-title">Set a law</span></div>
@@ -197,7 +205,7 @@ const Laws = {
 
   bind(el, st) {
     const $ = (id) => document.getElementById(id);
-    $('laws-again').onclick = () => this.render(el);
+    $('laws-again').onclick = () => this.render(el, this.inPanel);
     $('laws-find').oninput = (e) => this.find(e.target.value);
     el.querySelectorAll('details[data-lazy]').forEach(d => {
       d.addEventListener('toggle', async () => {
@@ -225,7 +233,7 @@ const Laws = {
         const r = JSON.parse(await App.tool('law_add', { title, text, from }));
         if (r.state !== 'added') { say('laws-msg', 'Not set: ' + (r.why || 'refused'), true); $('laws-add').disabled = false; return; }
         toast('Law set as entry ' + r.entry + ' -- a draft until it is sealed');
-        this.render(el);
+        this.render(el, this.inPanel);
       } catch (e) {
         say('laws-msg', 'Not set: ' + (e.message || 'refused'), true);
         $('laws-add').disabled = false;
@@ -242,7 +250,7 @@ const Laws = {
           const r = JSON.parse(await App.tool('law_seal', {}));
           if (r.state !== 'sealed') { say('laws-seal-msg', 'Not sealed: ' + (r.why || 'refused'), true); $('laws-seal-go').disabled = false; return; }
           toast('The ledger is sealed to byte ' + r.sealed_to);
-          this.render(el);
+          this.render(el, this.inPanel);
         } catch (e) {
           say('laws-seal-msg', 'Not sealed: ' + (e.message || 'refused'), true);
           $('laws-seal-go').disabled = false;
@@ -277,7 +285,10 @@ const Laws = {
       .laws-form { display: grid; gap: 8px; margin-top: 10px; }
       .laws-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
       .laws-msg { color: var(--text-2); font-size: var(--t-sm); }
-      .laws-msg.laws-bad, .laws-text .eng-bad { color: var(--red); }`;
+      .laws-msg.laws-bad, .laws-text .eng-bad { color: var(--red); }
+      .laws-head { margin-bottom: 12px; }
+      .laws-head .laws-actions { flex-wrap: nowrap; margin-top: 6px; }
+      .laws-head .input { flex: 1; width: auto; min-width: 0; }`;
     document.head.appendChild(s);
   },
 };
