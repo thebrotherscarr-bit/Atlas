@@ -4,7 +4,7 @@
 // uber-complicated dashboard thing that I need a degree to figure out", and,
 // shown a page out of his own AI Studio project, "that's what I am looking
 // for". This is that page in this console's own plain JavaScript: a top bar
-// with five doors, ONE terminal, and an Inspector that opens beside it when a
+// with six doors, ONE terminal, and an Inspector that opens beside it when a
 // door is pressed. Nothing else is on the page. The old Dashboard is still
 // here, at /dashboard.
 //
@@ -87,21 +87,24 @@ const Agent = {
     pwsh: 'PowerShell 7, run as you. Every line asks first, and may run up to 300 s...',
     aider: 'Say what Aider should change. Name its files first: /add path/to/file.py (/help lists the rest). It writes only on a line of work...'
   },
-  // The five doors in the bar, each of which opens the Inspector on its tab.
+  // The six doors in the bar, each of which opens the Inspector on its tab. Settings joined them on 2026-10-06, beside
+  // Guardrails, at his word: "Add another page along the top next to guardrails that is for settings."
   DOORS: [
     { id: 'aider',  label: 'Aider Pair' },
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
     { id: 'docs',   label: 'Registry & Docs' },
-    { id: 'guards', label: 'Guardrails' }
+    { id: 'guards', label: 'Guardrails' },
+    { id: 'settings', label: 'Settings' }
   ],
-  // The Inspector's tabs: the five doors, and the two the bar does not carry.
+  // The Inspector's tabs: the six doors, and the two the bar does not carry.
   TABS: [
     { id: 'run',    label: 'Run' },
     { id: 'aider',  label: 'Aider Pair' },
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
     { id: 'guards', label: 'Guardrails' },
+    { id: 'settings', label: 'Settings' },
     { id: 'docs',   label: 'Registry & Docs' },
     { id: 'rack',   label: 'Rack' }
   ],
@@ -289,7 +292,10 @@ const Agent = {
       else if (b.dataset.act === 'reset') this.shellReset();
     });
     $ag('ag-pane').addEventListener('click', (e) => this.paneClick(e));
-    $ag('ag-pane').addEventListener('input', (e) => { if (e.target.id === 'ag-tools-q') this.filterTools(e.target.value); });
+    $ag('ag-pane').addEventListener('input', (e) => {
+      if (e.target.id === 'ag-tools-q') this.filterTools(e.target.value);
+      else if (e.target.id === 'ag-seats-q') App.filterAgents(e.target.value);
+    });
     if (!this._esc) {
       this._esc = true;
       document.addEventListener('keydown', (e) => {
@@ -1463,6 +1469,7 @@ const Agent = {
       }
       else if (id === 'guards') put(await this.guardsHtml());
       else if (id === 'docs') put(await this.docsHtml());
+      else if (id === 'settings') put(await this.settingsHtml());
       else if (id === 'rack') put(await this.rackHtml());
     } catch (e) {
       put(`<div class="ag-card"><h4>Could not be read</h4><p>${escHtml(e.message || 'refused')}</p></div>`);
@@ -1690,20 +1697,32 @@ const Agent = {
 
   // ---- Registry & Docs ----------------------------------------------------------------
 
+  // TOOLS, AGENTS AND RECORDS' DOCUMENTS, IN THE TAB (his word, 2026-10-06: "go, next: registry & docs"; on the card, the
+  // seats as "The Agents page's own cards" and the documents with what Records shows). A tool is called by the Tools page's
+  // own Call (App.invokeTool, its form in the modal); the seats are drawn by the Agents page's own card (App.seatCard),
+  // told it stands in the panel so its name does not leave the front page; the documents carry Records' changed date and
+  // sealed badge. The settings went to a tab of their own, beside Guardrails.
   async docsHtml() {
     let tools = [];
     let said = '';
     try { tools = (await API.tools()).tools || []; } catch (e) { said = e.message || 'unreadable'; }
     this._tools = tools;
+    let seats = [], seatsSaid = '', seatsErr = '';
+    try { const d = JSON.parse(await App.tool('seats', {})); seats = d.seats || []; seatsErr = d.seats_error || ''; } catch (e) { seatsSaid = e.message || 'unreadable'; }
     return this.card('The tool surface', said ? `<p>${escHtml(said)}</p>` :
         `<input type="text" id="ag-tools-q" placeholder="Filter ${tools.length} tools..." autocomplete="off" /><div id="ag-tools">${this.toolRows(tools.slice(0, 80), tools.length)}</div>`,
-        'tools/list - the door\'s own registry, read just now') +
+        'tools/list - the door\'s own registry, read just now; Call is the Tools page\'s own') +
+      this.card('Seats', seatsSaid ? `<p>The seats could not be read: ${escHtml(seatsSaid)}</p>` :
+        (seatsErr ? `<p>agents/ could not be read: ${escHtml(seatsErr)}</p>` : '') +
+        `<input type="text" id="ag-seats-q" placeholder="Filter ${seats.length} seats..." autocomplete="off" />` +
+        `<div id="agent-grid" class="ag-seats">${seats.map((s, i) => App.seatCard(s, i, true)).join('')}</div>`,
+        'seats - agents/ and pipelines.md, each drawn by the Agents page\'s own card') +
       this.card('Documents', '<div id="ag-docs"><p>The estate\'s own documents, sorted by what they are, each served whole with a sha256 receipt.</p></div>' +
         '<div class="ag-btns"><button type="button" class="ag-btn" data-act="kinds">List the kinds</button></div>', 'records');
   },
 
   toolRows(list, total) {
-    const rows = list.map(t => `<div class="ag-row"><span class="k">${escHtml(t.name)}</span><span class="v" title="${escHtml(t.description || '')}">${escHtml(Object.keys((t.inputSchema && t.inputSchema.properties) || {}).join(', ') || 'no arguments')}</span></div>`).join('');
+    const rows = list.map(t => `<div class="ag-row"><span class="k">${escHtml(t.name)}</span><span class="v" title="${escHtml(t.description || '')}">${escHtml(Object.keys((t.inputSchema && t.inputSchema.properties) || {}).join(', ') || 'no arguments')} <button type="button" class="ag-link" data-act="tool-call" data-tool="${escHtml(t.name)}">Call</button></span></div>`).join('');
     return (rows || '<div class="ag-empty">Nothing matches.</div>') + (list.length < total ? `<div class="ag-src">showing ${list.length} of ${total}; type to narrow</div>` : '');
   },
 
@@ -1713,6 +1732,42 @@ const Agent = {
     const hit = s ? all.filter(t => (t.name + ' ' + (t.description || '')).toLowerCase().includes(s)) : all;
     const box = $ag('ag-tools');
     if (box) box.innerHTML = this.toolRows(hit.slice(0, 80), hit.length);
+  },
+
+  // ---- Settings -------------------------------------------------------------------------------
+  //
+  // THE SETTINGS, IN A TAB OF THEIR OWN (his word, 2026-10-06: "Add another page along the top next to guardrails that is
+  // for settings. that'll include all the settings for messaging integration."). The Settings page's parts, read where it
+  // reads them: the door's address and the evals pass mark from the glass's own store, each shown as what is stored and
+  // what is used, and saved only by the button beside it; and the messaging bridge as the door reports it, with how it is
+  // connected -- the webhook secrets themselves never come onto a page (RULE 7). The Settings page's three Provenance
+  // badges are not carried: that page wrote them in, and nothing reads them.
+  async settingsHtml() {
+    const read = async (k) => { try { return String(((await API.getSetting(k)) || {}).value || ''); } catch { return null; } };
+    const door = await read('mcp_url');
+    const pass = await read('eval_threshold');
+    let bridge = '', bridgeSaid = '';
+    try { bridge = (await API.teamStatus()).status || ''; } catch (e) { bridgeSaid = e.message || 'unreadable'; }
+    const row = (k, v) => `<div class="ag-row"><span class="k">${escHtml(k)}</span><span class="v">${escHtml(v)}</span></div>`;
+    const box = (id, v, hint) => `<input type="text" id="${id}" value="${escHtml(v || '')}" placeholder="${escHtml(hint)}" autocomplete="off" />`;
+    const save = (key, id) => `<div class="ag-btns"><button type="button" class="ag-btn" data-act="set" data-key="${key}" data-input="${id}">Save</button></div>`;
+    const unread = '<p>The glass\'s own settings could not be read.</p>';
+    return this.card('The door\'s address',
+        (door === null ? unread : row('stored', door || 'nothing') + row('used', door || 'http://127.0.0.1:8090')) +
+        box('ag-set-door', door, 'http://127.0.0.1:8090') +
+        '<p>Every tool and every turn reaches the door at this address. A wrong one cuts the glass off it until it is put back, and this tab can still put it back: these settings are the glass\'s own. Empty means the default.</p>' +
+        save('mcp_url', 'ag-set-door'),
+        'mcp_url, in the glass\'s own settings') +
+      this.card('The evals pass mark',
+        (pass === null ? unread : row('stored', pass || 'nothing') + row('used', pass || '0.5')) +
+        box('ag-set-pass', pass, '0.5') +
+        '<p>A score at or over it passes. Only the hand scoring of a trace reads it. Empty means 0.5.</p>' +
+        save('eval_threshold', 'ag-set-pass'),
+        'eval_threshold, in the glass\'s own settings') +
+      this.card('Messaging',
+        (bridgeSaid ? `<p>The bridge could not be read: ${escHtml(bridgeSaid)}</p>` : `<pre>${escHtml(bridge.trim() || 'the bridge said nothing')}</pre>`) +
+        '<p>Discord, Slack and WhatsApp are connected by placing each webhook URL and the hook secret, by hand, in the world\'s chat secrets file under state/ (kept 0600). They are secrets: no page shows or takes them, and the bridge reports only whether each is there and when it last sent. A message comes in at the door\'s POST /hooks/:platform, signed with X-Atlas-Signature.</p>',
+        'team_status - presence and last sends, never secrets');
   },
 
   // ---- Rack ----------------------------------------------------------------------------
@@ -1731,10 +1786,46 @@ const Agent = {
   // ---- the Inspector's buttons ------------------------------------------------------------
 
   async paneClick(e) {
+    // A seat card's prompt opens and closes in place: the Agents page's own toggle, on the button App.seatCard draws.
+    const pb = e.target.closest('[data-prompt]');
+    if (pb) {
+      const pre = $ag('prompt-' + pb.dataset.prompt);
+      if (pre) { pre.hidden = !pre.hidden; pb.textContent = pre.hidden ? 'prompt' : 'hide prompt'; }
+      return;
+    }
     const b = e.target.closest('[data-act]');
     if (!b) return;
     const act = b.dataset.act;
     if (act === 'goto') { history.pushState(null, '', b.dataset.path); App.router(); return; }
+    // A tool is called by the Tools page's own Call: its form in the modal, with the tool's arguments listed over the box.
+    // The form reads its list off App._tools, so it is handed the one this tab read.
+    if (act === 'tool-call') { App._tools = this._tools || []; App.invokeTool(b.dataset.tool); return; }
+    // A seat's declaration as it is on disk, with its receipt, under its card: what the Agents page's seat page showed.
+    if (act === 'seat-file') {
+      const box = $ag('seat-file-' + b.dataset.i);
+      if (!box) return;
+      if (box.innerHTML) { box.innerHTML = ''; return; }
+      box.innerHTML = '<p>Reading...</p>';
+      try {
+        const d = JSON.parse(await App.tool('records', { name: b.dataset.file }));
+        box.innerHTML = `<div class="ag-src">${escHtml(d.name)} &middot; ${d.bytes} bytes &middot; sha256 ${escHtml(String(d.sha256 || '').slice(0, 16))}</div><pre>${escHtml(d.text || '')}</pre>`;
+      } catch (er) { box.innerHTML = `<p>${escHtml(er.message || 'refused')}</p>`; }
+      return;
+    }
+    // A SETTING IS SAVED BY THE BUTTON BESIDE IT AND NOTHING ELSE, and only in a shape it can hold: the door's address as an
+    // http(s) address, the pass mark as a number from 0 to 1, or empty for the default. The tab reads it back after.
+    if (act === 'set') {
+      const input = $ag(b.dataset.input);
+      const v = input ? input.value.trim() : '';
+      const ok = !v || (b.dataset.key === 'mcp_url' ? /^https?:\/\/[^\s/]+(\/\S*)?$/.test(v)
+        : b.dataset.key === 'eval_threshold' ? (isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1) : false);
+      if (!ok) { toast('Not saved: ' + (b.dataset.key === 'mcp_url' ? 'the address must start http:// or https://' : 'the pass mark is a number from 0 to 1'), 'error'); return; }
+      b.disabled = true;
+      try { await API.setSetting(b.dataset.key, v); toast('Saved'); }
+      catch (er) { toast('Not saved: ' + (er.message || 'refused'), 'error'); }
+      this.paintPane();
+      return;
+    }
     if (act === 'aider-undo') { this.aiderUndo(b.dataset.run, '/undo ' + b.dataset.run); return; }
     if (act === 'aider-drop') { this.aiderDrop(b.dataset.file, '/drop ' + b.dataset.file); return; }
     if (act === 'status') {
@@ -1790,8 +1881,11 @@ const Agent = {
       const k = ((this._recs && this._recs.kinds) || []).find(x => x.kind === b.dataset.kind);
       const box = $ag('ag-doc');
       if (!k || !box) return;
-      box.innerHTML = `<table><thead><tr><th>${escHtml(k.kind)}</th><th>size</th></tr></thead><tbody>${k.documents.slice(0, 60).map(x =>
-        `<tr class="click" data-act="doc" data-name="${escHtml(x.name)}"><td>${escHtml(x.name)}</td><td>${(x.bytes / 1024).toFixed(1)} KB</td></tr>`).join('')}</tbody></table><div id="ag-doc2"></div>`;
+      // RECORDS' COLUMNS (2026-10-06): when each document changed, a sealed badge where one is sealed, and every document
+      // of the kind, as Records lists them; logs come back from the tool newest first and capped, and say so.
+      box.innerHTML = (k.kind === 'logs' ? '<p>The newest 60 transcripts, most recent first. The rest are on disk in logs/.</p>' : '') +
+        `<table><thead><tr><th>${escHtml(k.kind)}</th><th>size</th><th>changed</th></tr></thead><tbody>${k.documents.map(x =>
+        `<tr class="click" data-act="doc" data-name="${escHtml(x.name)}"><td>${escHtml(x.name)}${x.sealed ? ' <span class="ag-chip">sealed</span>' : ''}</td><td>${(x.bytes / 1024).toFixed(1)} KB</td><td>${escHtml(when(Date.parse(x.modified) || 0))}</td></tr>`).join('')}</tbody></table><div id="ag-doc2"></div>`;
       return;
     }
     if (act === 'doc') {

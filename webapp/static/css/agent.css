@@ -349,6 +349,29 @@ body.is-agent .crumb { display: none; }
 /* a tile in the panel is too narrow for its source line to float beside the note, so the line sits under it */
 .ag-proof .stat .brief-src { float: none; display: block; margin-top: 4px; overflow-wrap: anywhere; }
 
+/* THE SEATS, IN THE REGISTRY & DOCS TAB (2026-10-06). The Agents page's own cards (App.seatCard) in the panel: their
+   furniture is app.css's -- .card, .card-header, .badge, .btn, .seat-prompt -- with the tokens pointed at this page's
+   palette, as .ag-wf and .ag-proof do, and a field's name and value on one line. */
+.ag-seats {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --accent-2: #f5f5f5;
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 11px;
+  display: flex; flex-direction: column; gap: 10px; margin-top: 8px;
+}
+.ag-seats .card { margin: 0; padding: 12px; border-radius: 8px; }
+.ag-seats .card-header { margin-bottom: 8px; padding-bottom: 8px; }
+.ag-seats .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; }
+.ag-seats .btn { padding: 2px 8px; background: var(--ag-n900); border: 1px solid var(--ag-n700); border-radius: 4px; color: var(--ag-n200); font-size: 11px; }
+.ag-seats .btn:hover { background: var(--ag-n800); }
+.ag-seats .seat-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 11px; border-bottom: 1px solid rgba(38,38,38,.6); }
+.ag-seats .seat-k { color: var(--ag-n300); flex: none; }
+.ag-seats .seat-v { color: var(--ag-n400); text-align: right; overflow-wrap: anywhere; }
+.ag-seats .seat-stands { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ag-seats .seat-model { font-size: 10px; color: var(--ag-cyan); }
+.ag-seats .seat-prompt { margin-top: 8px; }
+
 /* the six stages of a turn, read off the events the engine sent */
 .ag-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ag-st { border: 1px solid var(--ag-n800); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; color: var(--ag-n500); }
@@ -377,7 +400,7 @@ body.is-agent .crumb { display: none; }
 .ag-foot-in { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
 
 /* THE BAR SHEDS ITS LEAST IMPORTANT PARTS FIRST, so it never makes the page
-   scroll sideways: the version, then the rack word, then the five doors (all
+   scroll sideways: the version, then the rack word, then the six doors (all
    of them are tabs in the Inspector too), then the status line. */
 @media (max-width: 1179px) {
   .ag-nav { gap: 16px; }

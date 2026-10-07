@@ -361,6 +361,75 @@ func TestTheAuditLedgerCarriesTheProofAndTheLiveCheck(t *testing.T) {
 	}
 }
 
+// REGISTRY & DOCS CARRIES TOOLS WITH CALL, THE SEATS AND RECORDS' DOCUMENTS (his
+// word, 2026-10-06: "go, next: registry & docs"; on the card, the seats as "The
+// Agents page's own cards" and the documents with what Records shows). A tool is
+// called through the Tools page's own form and from nowhere else in the tab; the
+// seats are the Agents page's cards, told they stand in the panel so a name cannot
+// leave the front page, with the Agents page's own filter; and a document row says
+// when it changed and whether it is sealed, every document of the kind listed.
+func TestRegistryAndDocsCarriesTheToolsTheSeatsAndTheDocuments(t *testing.T) {
+	src := page(t, "js/agent.js")
+	app := page(t, "js/app.js")
+	docs := funcOf(src, "  async docsHtml(")
+	if !strings.Contains(docs, "App.seatCard(s, i, true)") || !strings.Contains(docs, `id="agent-grid"`) {
+		t.Fatal("the tab does not draw the seats with the Agents page's own card")
+	}
+	card := funcOf(app, "  seatCard(")
+	if !regexp.MustCompile(`(?s)const title = inPanel\s+\? `+"`"+`<span class="card-title">`).MatchString(card) || !strings.Contains(card, `data-act="seat-file"`) {
+		t.Fatal("a seat card in the panel still links away from the front page, or has no way to its file")
+	}
+	click := funcOf(src, "  async paneClick(")
+	if !strings.Contains(funcOf(src, "  toolRows("), `data-act="tool-call"`) ||
+		!strings.Contains(click, "App.invokeTool(b.dataset.tool)") || strings.Count(src, "App.invokeTool(") != 1 {
+		t.Fatal("a tool is called from the tab by some way other than the Tools page's own Call")
+	}
+	if !strings.Contains(src, "else if (e.target.id === 'ag-seats-q') App.filterAgents(e.target.value)") {
+		t.Fatal("the seats' filter is not the Agents page's own")
+	}
+	i := strings.Index(click, "act === 'kind'")
+	if i < 0 {
+		t.Fatal("the documents' kind list is gone; this stroke is reading the wrong thing")
+	}
+	kind := click[i:]
+	if !strings.Contains(kind, "x.sealed") || !strings.Contains(kind, "when(Date.parse(x.modified)") || strings.Contains(kind, "documents.slice(") {
+		t.Fatal("a document row lacks Records' changed date or sealed badge, or the kind is cut short")
+	}
+}
+
+// SETTINGS IS A DOOR OF ITS OWN (his word, 2026-10-06: "Add another page along the
+// top next to guardrails that is for settings. that'll include all the settings
+// for messaging integration."): beside Guardrails in the bar and among the
+// Inspector's tabs; the door's address and the pass mark read from the glass's own
+// store and saved only by the button beside each, in a shape it can hold; the
+// messaging bridge as the door reports it; and none of the old page's written-in
+// badges.
+func TestSettingsIsADoorOfItsOwn(t *testing.T) {
+	src := page(t, "js/agent.js")
+	if !regexp.MustCompile(`(?s)DOORS: \[.*?\{ id: 'guards', label: 'Guardrails' \},\s+\{ id: 'settings', label: 'Settings' \}\s+\],`).MatchString(src) ||
+		!regexp.MustCompile(`(?s)TABS: \[.*?\{ id: 'settings', label: 'Settings' \}`).MatchString(src) {
+		t.Fatal("Settings is not a door beside Guardrails, or not one of the Inspector's tabs")
+	}
+	if !strings.Contains(funcOf(src, "  async paintPane("), "else if (id === 'settings') put(await this.settingsHtml())") {
+		t.Fatal("the Settings tab draws nothing")
+	}
+	set := funcOf(src, "  async settingsHtml(")
+	for _, want := range []string{"read('mcp_url')", "read('eval_threshold')", "API.teamStatus()", `data-act="set"`} {
+		if !strings.Contains(set, want) {
+			t.Fatalf("the Settings tab lost %s", want)
+		}
+	}
+	for _, bad := range []string{"can_approve", "Append-Only", "SHA-256"} {
+		if strings.Contains(set, bad) {
+			t.Fatalf("the Settings tab carries the old page's written-in badge %q", bad)
+		}
+	}
+	click := funcOf(src, "  async paneClick(")
+	if !strings.Contains(click, "API.setSetting(b.dataset.key, v)") || !strings.Contains(click, "if (!ok)") {
+		t.Fatal("a setting is saved without its shape being checked first")
+	}
+}
+
 // THE FRONT PAGE (2026-10-02). The operator, shown a page out of his own AI
 // Studio project: "that's what I am looking for", then, asked where it should
 // go, "replace the Dashboard now". The strokes below hold what makes it his

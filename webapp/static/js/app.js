@@ -463,7 +463,7 @@ const App = {
     });
   },
 
-  seatCard(s, i) {
+  seatCard(s, i, inPanel) {
     if (s.error) {
       return `<div class="card seat-card"><div class="eng-row eng-bad">
         <b>${escHtml(s.file)}</b> could not be read: ${escHtml(s.error)}</div></div>`;
@@ -483,14 +483,20 @@ const App = {
     // reading a table nobody writes: a route nobody can reach is a route
     // nobody notices is broken.
     const stem = String(s.file || '').replace(/\.md$/i, '');
+    // IN THE FRONT PAGE'S PANEL (2026-10-06) the name does not leave the page: the card is the same, and its file, with its
+    // receipt, opens under it from a button of its own (agent.js, `seat-file`).
+    const title = inPanel
+      ? `<span class="card-title">${escHtml(s.name)}</span>`
+      : `<a class="card-title seat-open" href="/agents/${escHtml(stem)}"
+           title="The declaration whole, with the file and its receipt"
+           onclick="event.preventDefault();history.pushState(null,'','/agents/${escHtml(stem)}');App.router();">${escHtml(s.name)}</a>`;
     return `<div class="card seat-card" data-seat="${escHtml((s.name || '').toLowerCase())}">
       <div class="card-header">
-        <a class="card-title seat-open" href="/agents/${escHtml(stem)}"
-           title="The declaration whole, with the file and its receipt"
-           onclick="event.preventDefault();history.pushState(null,'','/agents/${escHtml(stem)}');App.router();">${escHtml(s.name)}</a>
+        ${title}
         <span class="flex">
           ${f['Model Target'] ? `<code class="seat-model">${escHtml(f['Model Target'])}</code>` : ''}
           ${s.prompt ? `<button class="btn btn-sm" data-prompt="${i}">prompt</button>` : ''}
+          ${inPanel ? `<button class="btn btn-sm" data-act="seat-file" data-i="${i}" data-file="agents/${escHtml(s.file)}">file</button>` : ''}
         </span>
       </div>
       <div class="seat-rows">
@@ -506,6 +512,7 @@ const App = {
         <span class="brief-src">${escHtml(s.file)}</span>
       </div>
       ${s.prompt ? `<pre class="seat-prompt" id="prompt-${i}" hidden>${escHtml(s.prompt)}</pre>` : ''}
+      ${inPanel ? `<div id="seat-file-${i}"></div>` : ''}
     </div>`;
   },
 
