@@ -1234,6 +1234,35 @@ const Agent = {
     this.go(words);
   },
 
+  // A LINE FROM A SCRIPT, AS IF TYPED (2026-10-07; his word: "write those helpers in so you don't need to rewrite them every
+  // time"). The hand drives this terminal from the page's own script (a read in the Bash tab, a card it waits on, a turn),
+  // and the few lines it did that with were lost with every reload. drive() keeps them: it turns to the tab as the tab's own
+  // button does, hands the line to go() exactly as if it had been typed there, so every gate, card, refusal and record is
+  // the typed line's own, and resolves with what the line made once it stops running (a shell's held, ran or refused; a
+  // turn once it ends), or null when nothing appears in time. It decides nothing, answers no card, and reaches the door by
+  // no road of its own.
+  async drive(tab, line, waitMs = 30000) {
+    const m = this.MODES.find(x => x.id === tab);
+    if (!m || !m.wired) return null;
+    if (this.mode !== tab) { this.mode = tab; this.paintMode(); this.paintTitle(); this.paintOut(); }
+    const before = this._seq;
+    this.go(line);
+    const busy = (e) => e.kind === 'turn' ? !!(e.cn && e.cn.live) : e.kind === 'local' ? e.status === 'RUNNING' : e.state === 'running';
+    const t0 = Date.now();
+    let en = null;
+    while (Date.now() - t0 < waitMs) {
+      await new Promise(r => setTimeout(r, 300));
+      en = this.entries.find(e => e.id === before + 1);
+      if (en && !busy(en)) break;
+    }
+    if (!en) return null;
+    const a = en.ans || {};
+    return {
+      id: en.id, kind: en.kind, state: en.state || (en.kind === 'local' ? en.status : busy(en) ? 'running' : 'ended'),
+      exit: a.exit, hold: a.hold, class: a.class, why: a.why, truncated: a.truncated, out: this.textOf(en) || String(en.err || '')
+    };
+  },
+
   send(raw) {
     const him = { who: 'him', text: raw };
     const cn = { who: 'council', text: '', live: true };

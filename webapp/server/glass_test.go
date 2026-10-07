@@ -824,6 +824,27 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 	}
 }
 
+// A LINE FROM A SCRIPT IS A TYPED LINE (2026-10-07; his word: "write those helpers in so you don't need to rewrite them
+// every time"). The hand drives the terminal from the page's own script, and the lines it did that with were lost with every
+// reload; Agent.drive keeps them. It turns to the tab as the tab's own button does, hands the line to go() as if typed, and
+// waits on the entry that line made, so every gate, card, refusal and record is the typed line's own; it reaches the door by
+// no road of its own and answers no card.
+func TestALineFromAScriptIsATypedLine(t *testing.T) {
+	src := page(t, "js/agent.js")
+	drive := funcOf(src, "  async drive(")
+	if drive == "" {
+		t.Fatal("the page has no drive(); a script would have to carry its own way into the terminal again")
+	}
+	if !strings.Contains(drive, "this.go(line)") || !strings.Contains(drive, "m.wired") {
+		t.Fatal("drive() does not hand the line to go() as typed, or turns to a tab that is not wired")
+	}
+	for _, bad := range []string{"App.tool(", "API.", "fetch(", "hold_answer", "this.decide(", "this.send(", "this.shellRun(", "this.aiderRun(", "Run.start("} {
+		if strings.Contains(drive, bad) {
+			t.Fatalf("drive() reaches past the typed line's own road (%s)", bad)
+		}
+	}
+}
+
 // THE AIDER TAB (WHAT'S LEFT H12 and B20, 2026-10-04). The page decides nothing about an edit: the door's aider_run copies the
 // files, runs Aider behind its wall, judges the edit, and writes it back or does not; the page draws the one document the
 // door answers in. These hold the page's half of that wire against the door's own text, so renaming a key at the door,
@@ -1121,17 +1142,39 @@ func TestNoMethodOfTheFrontPageIsDefinedTwice(t *testing.T) {
 	}
 }
 
-// THE FRONT PAGE'S WINDOW STAYS THE SIZE IT STARTS AT, ON A NARROW SCREEN TOO. His word, 2026-10-03, watching the app's browser
-// pane at 888 px: "the window should be locked to that scale it starts at and just scroll the terminal instead of the whole
-// page." Below 1024 px the stylesheet makes the main area a COLUMN, and in a column the window's `flex: 1` sizes its HEIGHT by
-// its content, overriding the `height: calc(100vh - 125px)` it is given: the page grew with every line (3696 px, then 4042) and
-// the output box, which scrolls, was never short enough to. This holds the two halves of the cure -- the window keeps a given
-// height, and the narrow block tells it not to flex -- and the page itself was measured in the browser at the same 888 px before
-// and after (the CHANGELOG has the numbers), because a rule read as text can be in the file and still lose.
-func TestTheWindowIsNotSizedByItsContentOnANarrowScreen(t *testing.T) {
+// THE FRONT PAGE IS THE WINDOW. His word, 2026-10-03, watching the app's browser pane at 888 px: "the window should be locked to
+// that scale it starts at and just scroll the terminal instead of the whole page"; and 2026-10-07, having sized his pane to the
+// layout he wanted: "it should fit the browser window it sits in naturally", with "Fill, no scaling" on his card. The page takes
+// exactly the window's height and never scrolls, either way; the terminal and the Inspector share what the bar and the footer
+// leave, with no floor that could push past the window's edge, and scroll inside themselves; and below 1024 px the Inspector
+// lies over the terminal's side instead of stacking under it, which made the page two windows tall. The page itself was measured
+// in the browser at his size and two smaller ones (the CHANGELOG has the numbers), because a rule read as text can be in the
+// file and still lose.
+func TestTheFrontPageIsTheWindow(t *testing.T) {
 	css := page(t, "css/agent.css")
-	if !regexp.MustCompile(`(?s)\.ag-win, \.ag-panel \{[^}]*height: calc\(100vh - 125px\);`).MatchString(css) {
-		t.Fatal("the window and the panel no longer carry their given height; this stroke is reading the wrong thing")
+	rule := func(sel string) string {
+		m := regexp.MustCompile(`(?s)\n` + regexp.QuoteMeta(sel) + ` \{([^}]*)\}`).FindStringSubmatch(css)
+		if m == nil {
+			t.Fatalf("the stylesheet has no %s rule; this stroke is reading the wrong thing", sel)
+		}
+		return m[1]
+	}
+	for _, c := range []struct{ sel, want, why string }{
+		{"body.is-agent .main", "height: 100vh", "the front page is not the window's height"},
+		{"body.is-agent .main", "overflow: hidden", "the front page can scroll"},
+		{".ag", "height: 100vh", "the page's frame is not the window's height"},
+		{".ag", "overflow: hidden", "the page's frame can grow past the window"},
+		{".ag-main", "min-height: 0", "the terminal's row has a floor and can push the footer past the window"},
+		{".ag-main", "align-items: stretch", "the terminal and the Inspector do not fill the row"},
+		{".ag-main", "position: relative", "the Inspector has no frame to lie over the terminal in"},
+		{".ag-win, .ag-panel", "min-height: 0", "the terminal or the Inspector has a floor"},
+	} {
+		if !strings.Contains(rule(c.sel), c.want) {
+			t.Errorf("%s (%s wants %s)", c.why, c.sel, c.want)
+		}
+	}
+	if b := rule(".ag-win, .ag-panel"); strings.Contains(b, "100vh") || strings.Contains(b, "560px") {
+		t.Error("the terminal and the Inspector are given a height of their own again, which a short window cannot hold")
 	}
 	i := strings.Index(css, "@media (max-width: 1023px) {")
 	if i < 0 {
@@ -1141,11 +1184,8 @@ func TestTheWindowIsNotSizedByItsContentOnANarrowScreen(t *testing.T) {
 	if j := strings.Index(block, "\n}\n"); j >= 0 {
 		block = block[:j]
 	}
-	if !strings.Contains(block, ".ag-main { flex-direction: column;") {
-		t.Fatal("the narrow-screen block no longer makes the main area a column; this stroke is reading the wrong thing")
-	}
-	if !regexp.MustCompile(`\.ag-win \{ flex: none; \}`).MatchString(block) {
-		t.Error("below 1024 px the window is a child of a column, and without `.ag-win { flex: none; }` its flex: 1 sizes its height by its content again")
+	if strings.Contains(block, "flex-direction: column") || !strings.Contains(block, ".ag-panel { position: absolute;") {
+		t.Error("below 1024 px the Inspector stacks under the terminal again instead of lying over its side")
 	}
 	if !regexp.MustCompile(`(?s)\.ag-out \{[^}]*overflow-y: auto;`).MatchString(css) {
 		t.Error("the output box no longer scrolls (overflow-y: auto); the window would clip the terminal instead of scrolling it")

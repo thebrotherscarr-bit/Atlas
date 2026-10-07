@@ -20,7 +20,11 @@ body.is-agent {
   background: #0a0a0a;
   background-attachment: scroll;
 }
-body.is-agent .main { padding: 0; min-height: 100vh; overflow: visible; }
+/* THE FRONT PAGE IS THE WINDOW (2026-10-07; his word, "it should fit the browser window it sits in naturally", and on his
+   card "Fill, no scaling"). The page takes exactly the window's height and never scrolls, either way: the bar and the
+   footer keep their size, the terminal and the Inspector share what is left and each scrolls inside itself, and the text
+   stays the size it is. Nothing has a floor that could push past the window's edge. */
+body.is-agent .main { padding: 0; height: 100vh; min-height: 0; overflow: hidden; }
 body.is-agent .crumb { display: none; }
 
 .ag {
@@ -41,7 +45,8 @@ body.is-agent .crumb { display: none; }
   --ag-amber: #fbbf24;
   --ag-cyan: #22d3ee;
   --ag-rose: #fda4af;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--ag-bg);
@@ -117,13 +122,12 @@ body.is-agent .crumb { display: none; }
 
 /* ---- the body ----------------------------------------------------------- */
 .ag-main {
-  flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 16px 24px;
-  display: flex; gap: 16px; align-items: flex-start;
+  flex: 1; min-height: 0; position: relative; width: 100%; max-width: 1280px; margin: 0 auto; padding: 16px 24px;
+  display: flex; gap: 16px; align-items: stretch;
 }
 .ag-win, .ag-panel {
   background: var(--ag-bg); border: 1px solid var(--ag-line); border-radius: 8px;
-  display: flex; flex-direction: column; overflow: hidden;
-  height: calc(100vh - 125px); min-height: 560px;
+  display: flex; flex-direction: column; overflow: hidden; min-height: 0;
   box-shadow: 0 20px 25px -5px rgba(0,0,0,.4), 0 8px 10px -6px rgba(0,0,0,.4);
 }
 .ag-win { flex: 1; min-width: 0; }
@@ -482,18 +486,17 @@ body.is-agent .crumb { display: none; }
   .ag-rack { display: none; }
 }
 @media (max-width: 1023px) {
-  .ag-main { flex-direction: column; align-items: stretch; }
-  /* THE WINDOW KEEPS THE SIZE IT STARTS AT (his word, 2026-10-03, watching the app's browser pane: "the window should be
-     locked to that scale it starts at and just scroll the terminal instead of the whole page"). In a column, the window's
-     `flex: 1` sizes its HEIGHT, by its content, and overrides the fixed height it is given above -- so every line the
-     terminal printed made the whole page taller (3696 px at the pane's 888, 4042 by the end of a session) while the output
-     box, which has overflow-y: auto, was never short enough to scroll. `flex: none` hands the height back. */
-  .ag-win { flex: none; }
-  .ag-panel { width: 100%; }
+  /* THE INSPECTOR SLIDES IN FROM THE SIDE, OVER THE TERMINAL (2026-10-07, on his card: "Fill, no scaling"). There is no
+     room for both side by side here, and stacking them, as this block did until then, made the page two windows tall,
+     held down only by the rule of 2026-10-03 (his word, watching the app's browser pane: "the window should be locked to
+     that scale it starts at and just scroll the terminal instead of the whole page"). The panel lies over the terminal's
+     right side instead, inside the window, and closes as it always has. */
+  .ag-panel { position: absolute; top: 16px; right: 24px; bottom: 16px; width: min(480px, calc(100% - 48px)); z-index: 30; }
   .ag-nav { display: none; }
 }
 @media (max-width: 767px) {
   .ag-top-in { padding: 0 12px; }
   .ag-main { padding: 12px; }
+  .ag-panel { top: 12px; right: 12px; bottom: 12px; width: calc(100% - 24px); }
   .ag-stat { display: none; }
 }
