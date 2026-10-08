@@ -6,6 +6,8 @@ package tools
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -228,4 +230,73 @@ func TestAHoldIsAnsweredApproveOrDenyAndNothingElse(t *testing.T) {
 	out = call(t, toolHoldAnswer, tenant.Tenant{}, map[string]any{
 		CallerKey: glass, registryKey: r, "decision": "approve"})
 	mustContain(t, out, "name the hold", "an unnamed hold must be refused")
+}
+
+// THE WORLD IT WAS HELD FOR (2026-10-08). The glass answers every hold as its
+// own world, and the approved call used to run THERE: a council's git_branch
+// held for atlas, approved from the glass, opened its line in the core. A held
+// call runs in the world it was judged in, its answer is written beside the
+// line that held it in that world's own log, and a hold that carries no world
+// is refused by name, never run wherever the answer came from.
+func TestAHeldCallRunsInTheWorldItWasHeldFor(t *testing.T) {
+	r, tr, _ := holdGround(t, true)
+	far := t.TempDir()
+	if err := tr.Add("atlas", far); err != nil {
+		t.Fatal(err)
+	}
+	var where []string
+	r.add(Tool{Name: "probe_where", Writes: true,
+		Fn: func(tn tenant.Tenant, a map[string]any) (string, error) {
+			where = append(where, tn.Name)
+			return "RAN IN " + tn.Name, nil
+		}})
+	out, err := r.Call(tr, "probe_where", map[string]any{"project": "atlas"}, agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustContain(t, out, "HELD", "a writing call from a seat waits for his hand")
+
+	// The glass answers as ITS world, the default -- here "t" -- as it does live.
+	answering, err := tr.Resolve("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var q struct {
+		Held []struct {
+			ID string `json:"id"`
+		} `json:"held"`
+	}
+	listed := call(t, toolHoldList, answering, map[string]any{CallerKey: glass, registryKey: r})
+	if err := json.Unmarshal([]byte(listed), &q); err != nil || len(q.Held) != 1 {
+		t.Fatalf("one hold should be listed: %v\n%s", err, listed)
+	}
+	id := q.Held[0].ID
+	okOut := call(t, toolHoldAnswer, answering, map[string]any{
+		CallerKey: glass, registryKey: r, "id": id, "decision": "approve"})
+	mustContain(t, okOut, "RAN IN atlas", "the approved call must run in the world it was held for")
+	if len(where) != 1 || where[0] != "atlas" {
+		t.Fatalf("the held call ran in %v, not in atlas", where)
+	}
+
+	// ONE HOLD, ONE LOG: its answer is written beside the line that held it.
+	held, err := os.ReadFile(filepath.Join(far, "state", "holds.jsonl"))
+	if err != nil {
+		t.Fatalf("the held world's own log: %v", err)
+	}
+	mustContain(t, string(held), `"what":"held"`, "the hold is written in the world it was held for")
+	mustContain(t, string(held), `"what":"approved_ran"`, "and its answer beside it")
+	if near, err := os.ReadFile(filepath.Join(answering.Home, "state", "holds.jsonl")); err == nil {
+		mustNotContain(t, string(near), id, "the answering world's log must not carry another world's hold")
+	}
+
+	// A hold that carries no world is refused, and nothing runs.
+	r.mu.Lock()
+	r.held["hold_no_world"] = Hold{ID: "hold_no_world", Tool: "probe_where"}
+	r.mu.Unlock()
+	no := call(t, toolHoldAnswer, answering, map[string]any{
+		CallerKey: glass, registryKey: r, "id": "hold_no_world", "decision": "approve"})
+	mustContain(t, no, "carries no world", "a hold with no world must be refused by name")
+	if len(where) != 1 {
+		t.Fatalf("a hold with no world ran: %v", where)
+	}
 }

@@ -85,6 +85,10 @@ type Hold struct {
 	// (P0-13, 2026-09-25): a hold the operator reads should tell him whether
 	// a gate stood in front of it or only this queue.
 	RBAC string `json:"rbac"`
+	// tn is the world the call was judged in and parked for, kept whole so
+	// approving runs it THERE and nowhere else (2026-10-08). The queue shows
+	// its name (Project); the tenant itself is never handed out.
+	tn tenant.Tenant
 }
 
 // rbacState is the one line a hold record says about RBAC.
@@ -175,6 +179,7 @@ func (r *Registry) park(tn tenant.Tenant, t Tool, args map[string]any, caller Ca
 		Project: tn.Name,
 		When:    time.Now().UTC(),
 		RBAC:    rbacState(tn, caller),
+		tn:      tn,
 	}
 	r.held[h.ID] = h
 	r.record(tn.Home, "held", h, "")
@@ -376,14 +381,28 @@ func toolHoldAnswer(t tenant.Tenant, args map[string]any) (string, error) {
 			"queue, and a dropped hold means the call never ran.", id), nil
 	}
 
+	// IN THE WORLD IT WAS HELD FOR, NOT THE ONE ANSWERING (2026-10-08). The
+	// glass answers every hold as its own world, and the approved call used to
+	// run there: a council's git_branch held for atlas, approved from the glass,
+	// opened its line in the core. The hold keeps the tenant it was judged in;
+	// the call runs there, and its answer is written beside its `held` line in
+	// that world's own log. A hold that carries no world is refused, never run
+	// in whatever world the answer came from.
+	pt := h.tn
+	if pt.Home == "" {
+		reg.record(t.Home, "refused", h, "the hold carries no world to run in")
+		return fmt.Sprintf("Refused: %s carries no world to run in, so %q was not run "+
+			"and nothing was written.", h.ID, h.Tool), nil
+	}
+
 	if decision == "deny" {
-		reg.record(t.Home, "denied", h, "")
+		reg.record(pt.Home, "denied", h, "")
 		return fmt.Sprintf("Denied %s. %q was not run and nothing was written.", h.ID, h.Tool), nil
 	}
 
 	tool, exists := reg.Get(h.Tool)
 	if !exists {
-		reg.record(t.Home, "vanished", h, "the tool no longer exists")
+		reg.record(pt.Home, "vanished", h, "the tool no longer exists")
 		return fmt.Sprintf("Refused: %q no longer exists at this door, so the "+
 			"held call cannot be run.", h.Tool), nil
 	}
@@ -394,12 +413,12 @@ func toolHoldAnswer(t tenant.Tenant, args map[string]any) (string, error) {
 	// A replay is wired as a live call is (Call sets both): a tool that reads
 	// the registry -- shell_run records what it ran in the hold log -- finds it.
 	run[registryKey] = reg
-	out, err := tool.Fn(t, run)
+	out, err := tool.Fn(pt, run)
 	if err != nil {
-		reg.record(t.Home, "approved_errored", h, err.Error())
+		reg.record(pt.Home, "approved_errored", h, err.Error())
 		return fmt.Sprintf("Approved %s and %q errored: %v\n\n%s", h.ID, h.Tool, err, out), nil
 	}
-	reg.record(t.Home, "approved_ran", h, "")
+	reg.record(pt.Home, "approved_ran", h, "")
 	return fmt.Sprintf("Approved %s. %q ran:\n\n%s", h.ID, h.Tool, out), nil
 }
 
