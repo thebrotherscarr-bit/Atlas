@@ -4,7 +4,7 @@
 // uber-complicated dashboard thing that I need a degree to figure out", and,
 // shown a page out of his own AI Studio project, "that's what I am looking
 // for". This is that page in this console's own plain JavaScript: a top bar
-// with six doors, ONE terminal, and an Inspector that opens beside it when a
+// with seven doors, ONE terminal, and an Inspector that opens beside it when a
 // door is pressed. Nothing else is on the page. The old Dashboard and the
 // sidebar retired on 2026-10-07; every other page is under Pages.
 //
@@ -87,20 +87,23 @@ const Agent = {
     pwsh: 'PowerShell 7, run as you. Every line asks first, and may run up to 300 s...',
     aider: 'Say what Aider should change. Name its files first: /add path/to/file.py (/help lists the rest). It writes only on a line of work...'
   },
-  // The six doors in the bar, each of which opens the Inspector on its tab. Settings joined them on 2026-10-06, beside
-  // Guardrails, at his word: "Add another page along the top next to guardrails that is for settings."
+  // The seven doors in the bar, each of which opens the Inspector on its tab. Settings joined them on 2026-10-06, beside
+  // Guardrails, at his word: "Add another page along the top next to guardrails that is for settings."; GitHub on
+  // 2026-10-08, beside Aider Pair, at his word: "it should be in its own github tab on the inspector so its less confusing".
   DOORS: [
     { id: 'aider',  label: 'Aider Pair' },
+    { id: 'github', label: 'GitHub' },
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
     { id: 'docs',   label: 'Registry & Docs' },
     { id: 'guards', label: 'Guardrails' },
     { id: 'settings', label: 'Settings' }
   ],
-  // The Inspector's tabs: the six doors, and the two the bar does not carry.
+  // The Inspector's tabs: the seven doors, and the two the bar does not carry.
   TABS: [
     { id: 'run',    label: 'Run' },
     { id: 'aider',  label: 'Aider Pair' },
+    { id: 'github', label: 'GitHub' },
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
     { id: 'guards', label: 'Guardrails' },
@@ -154,14 +157,15 @@ const Agent = {
     this.paintOut();
     this.paintPanel();
     const input = $ag('ag-input');
-    // An objective staged from Version control's Recent lands in the line,
+    // An objective staged from the GitHub page's Recent lands in the line,
     // unrun, for him to read and press.
     if (Chat.pending) { input.value = Chat.pending; Chat.pending = ''; }
     input.focus();
     this.who();
     this.version();
     // What the retired sidebar carried, where the front page shows it (2026-10-07, on his cards): the covenant in the
-    // footer, and unsent work as a number on the Aider Pair door, both painted from what the glass already read.
+    // footer, and unsent work as a number on the GitHub door (the Aider Pair door's until 2026-10-08), both painted from
+    // what the glass already read.
     App.paintCovenant();
     App.showOwed();
     // STATE FIRST, then what needs it: the kept conversation is restored only
@@ -179,7 +183,7 @@ const Agent = {
 
   shell() {
     const doors = this.DOORS.map(d =>
-      `<button type="button" data-door="${d.id}">${escHtml(d.label)}${d.id === 'aider' ? '<span class="ag-owed" id="ag-owed" hidden></span>' : ''}</button>`).join('');
+      `<button type="button" data-door="${d.id}">${escHtml(d.label)}${d.id === 'github' ? '<span class="ag-owed" id="ag-owed" hidden></span>' : ''}</button>`).join('');
     const tabs = this.TABS.map(t =>
       `<button type="button" data-tab="${t.id}">${escHtml(t.label)}</button>`).join('');
     return `<div class="ag" id="ag">
@@ -974,7 +978,7 @@ const Agent = {
     const parts = ['<span title="Aider ' + escHtml(s.version || '') + ', headless, behind a wall; the model is the coding seat\'s, on this machine">' + escHtml(s.model || 'no model') + '</span>'];
     parts.push(s.on_line
       ? '<span title="Aider writes only on a line of work">line <b>' + escHtml(s.line) + '</b></span>'
-      : '<span class="ag-warn" title="The main line is yours: open a line of work (Version control) and Aider can write on it">' + (s.line ? 'on ' + escHtml(s.line) : 'no line of work') + '</span>');
+      : '<span class="ag-warn" title="The main line is yours: open a line of work (the GitHub tab) and Aider can write on it">' + (s.line ? 'on ' + escHtml(s.line) : 'no line of work') + '</span>');
     if (s.rack !== 'up' || !s.on_rack) parts.push('<span class="ag-bad" title="' + escHtml((s.why || []).join('; ')) + '">model not reachable</span>');
     const n = this.aiderFiles.length;
     const all = this.aiderFiles.concat(this.aiderRead.map(f => f + ' (read-only)'));
@@ -989,7 +993,7 @@ const Agent = {
     const lines = [
       'Aider, run on the files you name in ' + world + ', with the coding seat\'s model on this machine. /add path names a file Aider may change, /read path one it may only read, /drop path takes one out, /files lists them, /undo takes the last run back, /help says all of it. Then say what to change.',
       'It works on a copy, behind a wall: it writes only to its own scratch folder, reaches nothing but this machine, and starts no other process. The changes come back only while ' + world + ' stands on a line of work (never the main line), only if every Python file still parses, and each file keeps its own line endings.',
-      'Nothing is saved, run or sent from here. The edit is unsaved work on the line: run the suites, save it in Version control, and the Land click is yours.'
+      'Nothing is saved, run or sent from here. The edit is unsaved work on the line: run the suites, save it in the GitHub tab, and the Land click is yours.'
     ];
     let state = '';
     if (Run.unreachable) state = 'The door did not answer, so Aider cannot run.';
@@ -1210,7 +1214,7 @@ const Agent = {
     if (a && (a.changed || []).length) lines.push('<div class="ag-src">' + (a.withheld ? 'the edit that was NOT written: ' : '') + a.changed.map(f => escHtml((f.new ? 'new ' : '') + f.file + (f.added || f.removed ? ' +' + f.added + ' -' + f.removed : ''))).join(' &middot; ') + '</div>');
     if (a && a.diff) lines.push('<pre class="ag-pre diff' + (a.withheld ? ' bad' : '') + '">' + this.diffHtml(a.diff) + '</pre>');
     if (en.state === 'ran' && a && a.run && (a.changed || []).length && !a.withheld && !en.undone) {
-      lines.push(`<div class="ag-btns"><button type="button" class="ag-btn no" data-act="aider-undo" data-run="${escHtml(a.run)}">Undo this run</button><span class="ag-src">run ${escHtml(a.run)}; unsaved on ${escHtml(a.line || 'the line')} until Version control saves it</span></div>`);
+      lines.push(`<div class="ag-btns"><button type="button" class="ag-btn no" data-act="aider-undo" data-run="${escHtml(a.run)}">Undo this run</button><span class="ag-src">run ${escHtml(a.run)}; unsaved on ${escHtml(a.line || 'the line')} until it is saved in the GitHub tab</span></div>`);
     }
     if (en.undone) lines.push('<div class="ag-src">taken back</div>');
     if (a && a.said) lines.push(`<div><button type="button" class="ag-link" data-act="aider-said" data-id="${id}">${en.showSaid ? 'hide' : 'show'} what Aider said</button></div>` + (en.showSaid ? `<pre class="ag-pre dim">${escHtml(a.said)}</pre>` : ''));
@@ -1537,9 +1541,10 @@ const Agent = {
     if (id === 'flows') { put('<div class="ag-wf" id="ag-wf"></div>'); await this.flowsPane(stamp); return; }
     put('<div class="ag-empty">Reading...</div>');
     try {
-      if (id === 'aider') {
-        put(await this.aiderHtml());
-        // Version control is drawn by its own object, under Aider, in the panel's own shape.
+      if (id === 'aider') put(await this.aiderHtml());
+      else if (id === 'github') {
+        put(await this.githubHtml());
+        // GitHub is drawn by the GitHub page's own object (Flows), in the panel's own shape.
         if (this._pane === stamp && this.tab === id && $ag('ag-vc')) await Flows.render($ag('ag-vc'), true);
       }
       else if (id === 'ledger') {
@@ -1672,8 +1677,8 @@ const Agent = {
   // ---- Aider Pair ---------------------------------------------------------------
 
   // The Inspector's side of the tab: what the door says of Aider now, the files in the chat (each can be dropped), the
-  // runs this world kept (each can be taken back), and Version control's own panel under them, because an edit is unsaved
-  // work on a line and that is where it is saved.
+  // runs this world kept (each can be taken back), and under them the way to the GitHub tab, where an edit, unsaved work
+  // on a line, is saved.
   async aiderHtml() {
     await this.readAider();
     const s = this.aiderSt || {};
@@ -1703,23 +1708,33 @@ const Agent = {
     const runs = (s.runs || []).map(r => `<div class="ag-row"><span class="k">${escHtml(r.run)}<br><span class="ag-src">${escHtml((r.files || []).join(', '))}${r.line ? ' &middot; ' + escHtml(r.line) : ''}</span></span>
       <span class="v">${r.undone ? 'taken back' : `<button type="button" class="ag-btn no" data-act="aider-undo" data-run="${escHtml(r.run)}">Undo</button>`}</span></div>`).join('');
     parts.push(this.card('Recent runs', runs || '<p>No run yet.</p>', 'the last runs this world kept; an older one is git\'s to take back'));
-    // VERSION CONTROL, IN THE TAB (2026-10-06, his word: "go, next: aider pair"; the design pass put Version control's
-    // buttons here). Drawn by its own object (Flows) once this is on the page (paintPane): each world in plain words, with
-    // Save, Send, Take, its lines of work, its marks and its changed files, in place of the small world cards this tab drew
-    // itself. Under it, every change in a world at once -- the cards' Show the diff, kept on his card.
+    // GITHUB HAS A TAB OF ITS OWN (2026-10-08, his word: "it should be in its own github tab on the inspector so its less
+    // confusing"). From 2026-10-06 the GitHub page's own object stood here, under Aider (his word then: "go, next: aider
+    // pair"); an edit is still unsaved work on a line, so the tab says where it is saved, the way there one click away.
+    parts.push(`<div class="ag-src">Aider's edits are unsaved work on your line: save and send them in the <button type="button" class="ag-link" data-act="door" data-door="github">GitHub</button> tab.</div>`);
+    return parts.join('');
+  },
+
+  // ---- GitHub ---------------------------------------------------------------------
+
+  // THE GITHUB TAB (2026-10-08; his word: "it should be in its own github tab on the inspector so its less confusing", and
+  // "let's make sure we are using the existing infrastructure to underpin the new tab"). The GitHub page's own object
+  // (Flows) draws the repositories here once this is on the page (paintPane): each world in plain words, with Save, Send,
+  // Take, its lines of work, its marks, its pull requests and its changed files. Under it, every change in a world at once
+  // -- the cards' Show the diff, kept on his card. It stood under Aider Pair from 2026-10-06 until it had a tab of its own.
+  async githubHtml() {
     let worlds = [];
     let said = '';
     try {
       const m = await App.tool('muster', {}, true);
       worlds = String(m).split('\n').map(x => x.trim()).filter(x => x && !x.endsWith(':'));
     } catch (e) { said = e.message || 'unreadable'; }
-    parts.push('<div class="ag-vc" id="ag-vc"></div>');
-    parts.push(this.card('Every change in a world',
-      said ? `<p>The worlds could not be read: ${escHtml(said)}</p>`
-        : `<div class="ag-btns">${worlds.map(wd => `<button type="button" class="ag-btn" data-act="diff" data-world="${escHtml(wd)}">${escHtml(wd)}</button>`).join('')}</div>`,
-      'git_diff - all of a world\'s changes at once; the panel above opens one file at a time'));
-    parts.push('<div id="ag-diff"></div>');
-    return parts.join('');
+    return '<div class="ag-vc" id="ag-vc"></div>' +
+      this.card('Every change in a world',
+        said ? `<p>The worlds could not be read: ${escHtml(said)}</p>`
+          : `<div class="ag-btns">${worlds.map(wd => `<button type="button" class="ag-btn" data-act="diff" data-world="${escHtml(wd)}">${escHtml(wd)}</button>`).join('')}</div>`,
+        'git_diff - all of a world\'s changes at once; the panel above opens one file at a time') +
+      '<div id="ag-diff"></div>';
   },
 
   // ---- Workflows ------------------------------------------------------------------
@@ -1736,7 +1751,7 @@ const Agent = {
     try { await Workflows.render(box, true); }
     catch (e) { box.innerHTML = this.card('Could not be read', `<p>${escHtml(e.message || 'refused')}</p>`); return; }
     if (this._pane === stamp && $ag('ag-wf') === box) {
-      box.insertAdjacentHTML('beforeend', '<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">Version control</button></div>');
+      box.insertAdjacentHTML('beforeend', '<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">GitHub</button></div>');
     }
   },
 
@@ -1874,6 +1889,8 @@ const Agent = {
     if (!b) return;
     const act = b.dataset.act;
     if (act === 'goto') { history.pushState(null, '', b.dataset.path); App.router(); return; }
+    // The one line in Aider Pair opens the GitHub tab, as the bar's door does.
+    if (act === 'door') { this.door(b.dataset.door); return; }
     // The wire's raw switch is the Watchboard's own: one switch, drawn in both places.
     if (act === 'wire-raw') { Chat.raw = !Chat.raw; this.paintRun(); return; }
     // A tool is called by the Tools page's own Call: its form in the modal, with the tool's arguments listed over the box.

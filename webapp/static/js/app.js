@@ -15,7 +15,7 @@ const App = {
     { page: 'laws', href: '/laws', label: 'Laws' },
     { page: 'evals', href: '/evals', label: 'Evals' },
     { page: 'records', href: '/records', label: 'Records' },
-    { page: 'flows', href: '/flows', label: 'Version control' },
+    { page: 'flows', href: '/flows', label: 'GitHub' },
     { page: 'tools', href: '/tools', label: 'Tools' },
     { page: 'settings', href: '/settings', label: 'Settings' }
   ],
@@ -25,7 +25,7 @@ const App = {
     window.addEventListener('popstate', () => this.router());
     // Ctrl+K / Cmd+K, anywhere. The one global key this console binds.
     Palette.bind();
-    // Unsent work, read once as the glass loads (it was the sidebar's badge); the front page's Aider Pair door shows it.
+    // Unsent work, read once as the glass loads (it was the sidebar's badge); the front page's GitHub door shows it.
     this.paintOwed();
     API.sse((e) => this.onEvent(e));
     // Every page follows a turn started in another browser, not just the
@@ -79,13 +79,14 @@ const App = {
     el.hidden = home;
   },
 
-  // UNSENT WORK, ON THE AIDER PAIR DOOR (2026-10-07, on his card: "On the Aider Pair door"). The sidebar's badge on
-  // Version control moved with Version control: a number on the front page's Aider Pair door, shown only while some
-  // world holds work GitHub does not have -- a WARNING rather than a tally, so the sidebar's three plain counts did
-  // not come with it. A NUMBER THE RECORD CAN PROVE: read off the tools that own it, across every carried world, and
-  // hidden when the read fails rather than guessed. Read when the glass loads and after every act on Version control
-  // (flows.js), the one place the number moves -- the same reads the sidebar made -- and kept, so the front page,
-  // drawn again on every visit, shows it without asking again (showOwed).
+  // UNSENT WORK, ON THE GITHUB DOOR (2026-10-08, on his card: "A GitHub door in the top bar"; it was on the Aider Pair
+  // door from 2026-10-07, on his card: "On the Aider Pair door"). The sidebar's badge on Version control moved with the
+  // page, now GitHub: a number on the front page's GitHub door, shown only while some world holds work GitHub does not
+  // have -- a WARNING rather than a tally, so the sidebar's three plain counts did not come with it. A NUMBER THE RECORD
+  // CAN PROVE: read off the tools that own it, across every carried world, and hidden when the read fails rather than
+  // guessed. Read when the glass loads and after every act on the GitHub page (flows.js), the one place the number
+  // moves -- the same reads the sidebar made -- and kept, so the front page, drawn again on every visit, shows it
+  // without asking again (showOwed).
   async paintOwed() {
     let owed = null;
     try {
@@ -110,7 +111,7 @@ const App = {
     if (!el) return;
     if (!this._owed) { el.hidden = true; return; }
     el.textContent = String(this._owed);
-    el.title = this._owed + ' unsaved or unsent across the worlds: Version control is under this door';
+    el.title = this._owed + ' unsaved or unsent across the worlds: the GitHub tab is under this door';
     el.hidden = false;
   },
 

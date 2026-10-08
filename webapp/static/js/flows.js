@@ -21,8 +21,9 @@ const Flows = {
   // a loaded button somewhere off screen.
   arming: null,
 
-  // THE SAME VERSION CONTROL IN TWO PLACES (2026-10-06, his word: "go, next: aider pair"). The front page's Aider Pair tab
-  // draws THIS object under Aider -- `inPanel`, the repositories alone -- and the page under Pages draws it whole. In the
+  // THE SAME GITHUB IN TWO PLACES (2026-10-06, his word: "go, next: aider pair"; a tab and a name of its own on 2026-10-08,
+  // his word: "it should be in its own github tab on the inspector so its less confusing"). The front page's GitHub tab
+  // draws THIS object -- `inPanel`, the repositories alone -- and the page under Pages draws it whole. In the
   // panel the page's other parts are left to the front page's own: the hold queue is Guardrails', the way through the
   // council is the terminal itself, and Recent is the terminal's own history.
   async render(el, inPanel) {
@@ -35,7 +36,7 @@ const Flows = {
       </div>`;
     if (inPanel) { el.innerHTML = repos; await this.repos(); return; }
     el.innerHTML = `
-      <div class="page-header"><div><div class="page-title">Version control</div>
+      <div class="page-header"><div><div class="page-title">GitHub</div>
       <div class="page-subtitle">What is saved, what is not, and every way to move it</div></div></div>
 
       <!-- WAITING FOR HIS HAND. A writing call from something that is not his

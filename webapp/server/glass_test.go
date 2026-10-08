@@ -106,16 +106,27 @@ func TestTheFooterReadsTheCovenantOffTheRecord(t *testing.T) {
 	}
 }
 
-// UNSENT WORK IS A NUMBER ON THE AIDER PAIR DOOR (2026-10-07, on his card: "On
-// the Aider Pair door"). The sidebar's warning badge on Version control moved
-// with Version control when the sidebar retired: the glass reads the number as
-// it loads and after every act on Version control, and the front page draws it
-// on the door Version control stands under, hidden while nothing is owed.
-func TestUnsentWorkIsANumberOnTheAiderPairDoor(t *testing.T) {
+// UNSENT WORK IS A NUMBER ON THE GITHUB DOOR (2026-10-08, on his card: "A GitHub door in the top bar"; on the Aider
+// Pair door from 2026-10-07, on his card: "On the Aider Pair door"). The sidebar's warning badge on Version control
+// moved with the page when the sidebar retired, and again when the page became GitHub with a door of its own: the
+// glass reads the number as it loads and after every act on the GitHub page, and the front page draws it on the
+// GitHub door, beside Aider Pair, hidden while nothing is owed, and on no other door.
+func TestUnsentWorkIsANumberOnTheGitHubDoor(t *testing.T) {
 	src := page(t, "js/agent.js")
 	app := page(t, "js/app.js")
-	if !strings.Contains(funcOf(src, "  shell("), `d.id === 'aider' ? '<span class="ag-owed" id="ag-owed" hidden></span>'`) {
-		t.Fatal("the Aider Pair door has no place for the count of unsent work")
+	if !strings.Contains(funcOf(src, "  shell("), `d.id === 'github' ? '<span class="ag-owed" id="ag-owed" hidden></span>'`) || strings.Count(src, `id="ag-owed"`) != 1 {
+		t.Fatal("the GitHub door has no place for the count of unsent work, or another door has one too")
+	}
+	i := strings.Index(src, "  DOORS: [")
+	if i < 0 {
+		t.Fatal("the bar's doors are gone; this stroke is reading the wrong thing")
+	}
+	doors := src[i:]
+	if j := strings.Index(doors, "  ],"); j >= 0 {
+		doors = doors[:j]
+	}
+	if a, g := strings.Index(doors, "{ id: 'aider',  label: 'Aider Pair' },"), strings.Index(doors, "{ id: 'github', label: 'GitHub' },"); a < 0 || g < a {
+		t.Fatal("the GitHub door is not in the bar, beside Aider Pair")
 	}
 	show := funcOf(app, "  showOwed(")
 	if !strings.Contains(show, "getElementById('ag-owed')") || !strings.Contains(show, "el.hidden = true") {
@@ -125,7 +136,7 @@ func TestUnsentWorkIsANumberOnTheAiderPairDoor(t *testing.T) {
 		!strings.Contains(funcOf(app, "  init("), "this.paintOwed()") ||
 		!strings.Contains(page(t, "js/flows.js"), "App.paintOwed()") ||
 		!strings.Contains(funcOf(src, "  async render("), "App.showOwed()") {
-		t.Fatal("the count is not read as the glass loads and after an act on Version control, or not drawn when the front page is")
+		t.Fatal("the count is not read as the glass loads and after an act on the GitHub page, or not drawn when the front page is")
 	}
 }
 
@@ -519,37 +530,69 @@ func TestGuardrailsCarriesTheLaws(t *testing.T) {
 	}
 }
 
-// AIDER PAIR CARRIES VERSION CONTROL (his word, 2026-10-06: "go, next: aider pair";
-// the design pass put Version control's buttons here). Under Aider the tab draws
-// Version control's own object, told it stands in the panel -- the repositories
-// alone, one object so the two cannot drift -- in place of the small world cards it
-// drew itself; the whole-world diff stays, on his card; and the page under Pages
-// still draws it whole.
-func TestAiderPairCarriesVersionControl(t *testing.T) {
+// GITHUB IS A TAB OF ITS OWN, DRAWN BY THE PAGE'S OWN OBJECT (his word, 2026-10-08: "it should be in its own github tab
+// on the inspector so its less confusing", "let's make sure we are using the existing infrastructure to underpin the new
+// tab", and "let's rename it to Github"). Version control stood under Aider Pair from 2026-10-06 ("go, next: aider
+// pair"); now the page is GitHub, under Pages and in the Inspector's own tab beside Aider Pair, and the tab draws the
+// page's own object, told it stands in the panel -- the repositories alone, one object so the two cannot drift -- with
+// the whole-world diff under it. Aider Pair draws Aider alone and points the way in one line, nothing on the front page
+// sends him to Version control by its old name, and the page under Pages still draws it whole.
+func TestGitHubIsATabOfItsOwn(t *testing.T) {
 	src := page(t, "js/agent.js")
 	fl := page(t, "js/flows.js")
 	app := page(t, "js/app.js")
 	css := page(t, "css/agent.css")
-	aider := funcOf(src, "  async aiderHtml(")
-	if !strings.Contains(aider, `id="ag-vc"`) || !strings.Contains(funcOf(src, "  async paintPane("), "await Flows.render($ag('ag-vc'), true)") {
-		t.Fatal("the Aider Pair tab does not draw Version control's own object")
+	i := strings.Index(src, "  TABS: [")
+	if i < 0 {
+		t.Fatal("the Inspector's tabs are gone; this stroke is reading the wrong thing")
 	}
-	if strings.Contains(aider, "App.tool('git'") || strings.Contains(aider, `data-path="/flows"`) {
-		t.Fatal("the tab still draws its own world cards, or sends him to the page for what it draws")
+	tabs := src[i:]
+	if j := strings.Index(tabs, "  ],"); j >= 0 {
+		tabs = tabs[:j]
 	}
-	if !strings.Contains(aider, `data-act="diff"`) || !strings.Contains(funcOf(src, "  async paneClick("), "App.tool('git_diff', { project: b.dataset.world })") {
+	if a, g := strings.Index(tabs, "{ id: 'aider',  label: 'Aider Pair' },"), strings.Index(tabs, "{ id: 'github', label: 'GitHub' },"); a < 0 || g < a {
+		t.Fatal("GitHub is not one of the Inspector's tabs, beside Aider Pair")
+	}
+	pane := funcOf(src, "  async paintPane(")
+	at := strings.Index(pane, "else if (id === 'github') {")
+	if at < 0 {
+		t.Fatal("the GitHub tab draws nothing")
+	}
+	branch := pane[at:]
+	if k := strings.Index(branch, "else if (id === 'ledger')"); k >= 0 {
+		branch = branch[:k]
+	}
+	gh := funcOf(src, "  async githubHtml(")
+	if !strings.Contains(branch, "put(await this.githubHtml())") || !strings.Contains(branch, "await Flows.render($ag('ag-vc'), true)") ||
+		!strings.Contains(gh, `id="ag-vc"`) || strings.Count(src, "Flows.render(") != 1 {
+		t.Fatal("the GitHub tab does not draw the GitHub page's own object, or something else on the front page draws it too")
+	}
+	if !strings.Contains(gh, `data-act="diff"`) || !strings.Contains(funcOf(src, "  async paneClick("), "App.tool('git_diff', { project: b.dataset.world })") {
 		t.Fatal("the whole-world diff he kept is gone")
 	}
+	aider := funcOf(src, "  async aiderHtml(")
+	if strings.Contains(aider, `id="ag-vc"`) || strings.Contains(aider, `data-act="diff"`) || !strings.Contains(aider, `data-act="door" data-door="github"`) ||
+		!strings.Contains(funcOf(src, "  async paneClick("), "if (act === 'door') { this.door(b.dataset.door); return; }") {
+		t.Fatal("Aider Pair still draws GitHub, or its one line no longer opens the GitHub tab")
+	}
+	for _, old := range []string{"open a line of work (Version control)", "save it in Version control", "until Version control saves it", ">Version control</button>"} {
+		if strings.Contains(src, old) {
+			t.Fatalf("the front page still sends him to Version control by its old name (%s)", old)
+		}
+	}
 	render := funcOf(fl, "  async render(")
-	i, j := strings.Index(render, "if (inPanel) { el.innerHTML = repos; await this.repos(); return; }"), strings.Index(render, "await this.holds()")
-	if !strings.Contains(render, "this.inPanel = !!inPanel") || i < 0 || j < 0 || i > j {
-		t.Fatal("in the panel Version control draws more than its repositories, or draws the page whole")
+	p, q := strings.Index(render, "if (inPanel) { el.innerHTML = repos; await this.repos(); return; }"), strings.Index(render, "await this.holds()")
+	if !strings.Contains(render, "this.inPanel = !!inPanel") || p < 0 || q < 0 || p > q {
+		t.Fatal("in the panel GitHub draws more than its repositories, or draws the page whole")
+	}
+	if !strings.Contains(render, `<div class="page-title">GitHub</div>`) || !strings.Contains(app, "{ page: 'flows', href: '/flows', label: 'GitHub' },") {
+		t.Fatal("the page is not called GitHub under Pages, or does not say so at its head")
 	}
 	if !strings.Contains(app, "case 'flows': await Flows.render(el); break;") {
-		t.Fatal("the page under Pages no longer draws Version control whole")
+		t.Fatal("the page under Pages no longer draws GitHub whole")
 	}
 	if !regexp.MustCompile(`\.ag-vc \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-vc .btn {") {
-		t.Fatal("Version control in the panel does not take the page's look")
+		t.Fatal("GitHub in the panel does not take the page's look")
 	}
 }
 
