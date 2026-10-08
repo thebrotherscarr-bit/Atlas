@@ -471,16 +471,16 @@ func TestRegistryAndDocsCarriesTheToolsTheSeatsAndTheDocuments(t *testing.T) {
 
 // SETTINGS IS A DOOR OF ITS OWN (his word, 2026-10-06: "Add another page along the
 // top next to guardrails that is for settings. that'll include all the settings
-// for messaging integration."): beside Guardrails in the bar and among the
-// Inspector's tabs; the door's address and the pass mark read from the glass's own
+// for messaging integration."): beside Laws (Guardrails until 2026-10-08) in the
+// bar and among the Inspector's tabs; the door's address and the pass mark read from the glass's own
 // store and saved only by the button beside each, in a shape it can hold; the
 // messaging bridge as the door reports it; and none of the old page's written-in
 // badges.
 func TestSettingsIsADoorOfItsOwn(t *testing.T) {
 	src := page(t, "js/agent.js")
-	if !regexp.MustCompile(`(?s)DOORS: \[.*?\{ id: 'guards', label: 'Guardrails' \},\s+\{ id: 'settings', label: 'Settings' \}\s+\],`).MatchString(src) ||
+	if !regexp.MustCompile(`(?s)DOORS: \[.*?\{ id: 'laws',   label: 'Laws' \},\s+\{ id: 'settings', label: 'Settings' \}\s+\],`).MatchString(src) ||
 		!regexp.MustCompile(`(?s)TABS: \[.*?\{ id: 'settings', label: 'Settings' \}`).MatchString(src) {
-		t.Fatal("Settings is not a door beside Guardrails, or not one of the Inspector's tabs")
+		t.Fatal("Settings is not a door beside Laws, or not one of the Inspector's tabs")
 	}
 	if !strings.Contains(funcOf(src, "  async paintPane("), "else if (id === 'settings') put(await this.settingsHtml())") {
 		t.Fatal("the Settings tab draws nothing")
@@ -502,19 +502,28 @@ func TestSettingsIsADoorOfItsOwn(t *testing.T) {
 	}
 }
 
-// GUARDRAILS CARRIES THE LAWS (his word, 2026-10-06: "go, next: guardrails"; the
-// design pass put Laws here). Under the hold queue the tab draws the Laws page's
-// own object, told it stands in the panel -- one Laws, so the two cannot drift --
-// and its Read it again, Set and Seal draw it again where it stands, never sending
-// him to the page; the page under Pages still draws it whole.
-func TestGuardrailsCarriesTheLaws(t *testing.T) {
+// THE LAWS ARE A TAB OF THEIR OWN (his card, 2026-10-08: "It becomes Laws"; from 2026-10-06, his word "go, next:
+// guardrails", they stood under the Guardrails tab's hold queue, which is the dock at the foot of the terminal now).
+// The tab draws the Laws page's own object, told it stands in the panel -- one Laws, so the two cannot drift -- and
+// its Read it again, Set and Seal draw it again where it stands, never sending him to the page; the page under Pages
+// still draws it whole.
+func TestTheLawsTabCarriesTheLaws(t *testing.T) {
 	src := page(t, "js/agent.js")
 	laws := page(t, "js/laws.js")
 	app := page(t, "js/app.js")
 	css := page(t, "css/agent.css")
-	if !strings.Contains(funcOf(src, "  async guardsHtml("), `id="ag-laws"`) ||
-		!strings.Contains(funcOf(src, "  async paintPane("), "await Laws.render($ag('ag-laws'), true)") {
-		t.Fatal("the Guardrails tab does not draw the Laws page's own object")
+	pane := funcOf(src, "  async paintPane(")
+	at := strings.Index(pane, "else if (id === 'laws') {")
+	if at < 0 {
+		t.Fatal("the Laws tab draws nothing")
+	}
+	branch := pane[at:]
+	if k := strings.Index(branch, "else if (id === 'docs')"); k >= 0 {
+		branch = branch[:k]
+	}
+	if !strings.Contains(branch, `put('<div class="ag-laws" id="ag-laws"></div>')`) ||
+		!strings.Contains(branch, "await Laws.render($ag('ag-laws'), true)") || strings.Count(src, "Laws.render(") != 1 {
+		t.Fatal("the Laws tab does not draw the Laws page's own object, or something else on the front page draws it too")
 	}
 	if !strings.Contains(funcOf(laws, "  async render("), "this.inPanel = !!inPanel") || !strings.Contains(funcOf(laws, "  paint("), "this.inPanel ?") {
 		t.Fatal("the laws draw the page's title into the panel")
@@ -792,16 +801,17 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 	if !strings.Contains(funcOf(src, "  async go("), "this.asking()") {
 		t.Fatal("the prompt line takes an objective while the council is waiting on an answer")
 	}
-	// Two places answer a hold, and each is a button he presses: the Guardrails tab (paneClick) and a
-	// shell card in the thread (decide, called from the terminal's click handler for the card's two
-	// buttons and from nowhere else).
+	// Two calls answer a hold, and each is a button he presses on a card pinned at the foot of the terminal: a shell
+	// card of this thread (decide, which lands the run in its entry) and any other call the door parked (holdAnswer),
+	// each called once, from the dock's handler for its card's two buttons (which button reaches which is held by
+	// TestWhatWaitsForHisHandIsPinnedAtTheFootOfTheTerminal).
 	if strings.Count(src, "App.tool('hold_answer'") != 2 ||
-		!strings.Contains(funcOf(src, "  async paneClick("), "App.tool('hold_answer'") ||
+		!strings.Contains(funcOf(src, "  async holdAnswer("), "App.tool('hold_answer'") ||
 		!strings.Contains(funcOf(src, "  async decide("), "App.tool('hold_answer'") {
 		t.Fatal("a held call can be answered from somewhere other than a button he presses")
 	}
-	if strings.Count(src, "this.decide(") != 1 || !regexp.MustCompile(`(?s)act === 'shell-yes' \|\| act === 'shell-no'.{0,400}this\.decide\(`).MatchString(src) {
-		t.Fatal("a shell card can be answered from somewhere other than the click handler of its two buttons")
+	if strings.Count(src, "this.decide(") != 1 || strings.Count(src, "this.holdAnswer(") != 1 {
+		t.Fatal("a card can be answered from somewhere other than the click handler of its two buttons")
 	}
 }
 
@@ -829,7 +839,7 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 		t.Fatalf("read %d keys off the door's answer; this stroke is reading the wrong thing", len(keys))
 	}
 	read := map[string]bool{}
-	for _, fn := range []string{"  shellEntryHtml(", "  shellTake(", "  async decide("} {
+	for _, fn := range []string{"  shellEntryHtml(", "  shellCardHtml(", "  shellTake(", "  async decide("} {
 		for _, m := range regexp.MustCompile(`\b(?:a|ran)\.([a-z_]+)\b`).FindAllStringSubmatch(funcOf(src, fn), -1) {
 			read[m[1]] = true
 			if !keys[m[1]] {
@@ -848,15 +858,16 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 		}
 	}
 
-	// A card is drawn for a held answer and for nothing else; a refusal draws no button; a failure is
-	// on the face (a non-zero exit is a bad chip and a bad box).
+	// A card is drawn for a held answer and for nothing else, pinned in the dock and not in the entry, which says where
+	// it is; a refusal draws no button; a failure is on the face (a non-zero exit is a bad chip and a bad box).
 	face := funcOf(src, "  shellEntryHtml(")
-	card := regexp.MustCompile(`(?s)if \(en\.state === 'held'\) \{(.*?)\n    \}`).FindStringSubmatch(face)
-	if card == nil || !strings.Contains(card[1], "shell-yes") || !strings.Contains(card[1], "shell-no") {
-		t.Fatal("the card is not drawn for a held answer, or does not carry its two buttons")
+	card := funcOf(src, "  shellCardHtml(")
+	if strings.Contains(face, "shell-yes") || strings.Contains(face, "shell-no") || !strings.Contains(face, "its card is pinned at the foot of the window") {
+		t.Fatal("the entry draws a card's buttons itself, or does not say where its card is")
 	}
-	if strings.Count(face, "shell-yes") != 1 {
-		t.Fatal("a shell button is drawn somewhere other than the card")
+	if strings.Count(card, "shell-yes") != 1 || strings.Count(card, "shell-no") != 1 || strings.Count(src, `data-act="shell-yes"`) != 1 ||
+		!strings.Contains(funcOf(src, "  paintDock("), "en.state === 'held'") {
+		t.Fatal("the card does not carry its two buttons, is drawn for something other than a held answer, or a shell button is drawn outside it")
 	}
 	for _, want := range []string{"REFUSED BY NAME", "no click lifts a refusal", "a.exit !== 0", "ag-chip bad", "ag-pre${bad ? ' bad' : ''}"} {
 		if !strings.Contains(face, want) {
@@ -881,7 +892,7 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 			t.Fatalf("the page carries its own opinion of what a command does (%s); the door judges, the page draws", bad)
 		}
 	}
-	// A card answered somewhere else (the Guardrails tab) stops offering buttons that could only be refused.
+	// A card answered somewhere else (another window, or the GitHub page under Pages) stops offering buttons that could only be refused.
 	if !strings.Contains(funcOf(src, "  async readHolds("), "this.settleCards(") || !strings.Contains(funcOf(src, "  settleCards("), "en.state = 'gone'") {
 		t.Fatal("a shell card answered elsewhere keeps its buttons")
 	}
@@ -1266,5 +1277,158 @@ func TestTheFrontPageIsTheWindow(t *testing.T) {
 	}
 	if !regexp.MustCompile(`(?s)\.ag-out \{[^}]*overflow-y: auto;`).MatchString(css) {
 		t.Error("the output box no longer scrolls (overflow-y: auto); the window would clip the terminal instead of scrolling it")
+	}
+}
+
+// WHAT WAITS FOR HIS HAND IS PINNED AT THE FOOT OF THE TERMINAL (his word, 2026-10-08: "Same as the cards in the chat,
+// they are perfect, just pin them to the window so they actually stay at the botton if there is an approve card. should
+// work on all tabs, agent, bash, python, powershell, aider. Basically replacing the Guardrails tab"; on his card, "It
+// becomes Laws"). Read fast, the output scrolled the cards out of his view. The council's question, every shell line
+// that asks first and every other call the door has parked are drawn in one dock: a sibling of the output, between it
+// and the line he types in, outside what the terminal rewrites and outside any one tab; nothing draws a card in the
+// thread any more. The dock draws what was read and asks the door for nothing itself; the queue is read quietly every
+// HOLD_POLL_MS while the page is in view, so a call parked by anything but this page reaches it while he looks; its
+// buttons and the question's field are answered from the dock's own handler, on his click; the keys it reads off the
+// queue are the keys hold_list writes; a refusal or a call that errored is said as a failure; and Guardrails is gone.
+func TestWhatWaitsForHisHandIsPinnedAtTheFootOfTheTerminal(t *testing.T) {
+	src := page(t, "js/agent.js")
+	css := page(t, "css/agent.css")
+	fn := func(sig string) string {
+		body := funcOf(src, sig)
+		if body == "" {
+			t.Fatalf("the page has no %s", strings.TrimSpace(sig))
+		}
+		return body
+	}
+	shell, dock, wire, answer := fn("  shell("), fn("  paintDock("), fn("  wire("), fn("  async holdAnswer(")
+
+	// A sibling of the output, under it and the play frame and over the line he types in.
+	out, play, at, hints, in := strings.Index(shell, `id="ag-out"`), strings.Index(shell, `id="ag-play"`), strings.Index(shell, `id="ag-dock"`),
+		strings.Index(shell, `id="ag-hints"`), strings.Index(shell, `<div class="ag-in">`)
+	if out < 0 || play < out || at < play || hints < at || in < hints {
+		t.Fatal("the dock is not between the terminal's output and the line he types in")
+	}
+	// Nothing draws a card in what scrolls.
+	for _, sig := range []string{"  paintOut(", "  entryHtml(", "  shellEntryHtml(", "  aiderEntryHtml(", "  bannerHtml("} {
+		for _, bad := range []string{"this.gateHtml()", "ag-gate", "shell-yes", "hold-yes"} {
+			if strings.Contains(fn(sig), bad) {
+				t.Fatalf("%s draws a card in the output, which reading fast scrolls out of view (%s)", strings.TrimSpace(sig), bad)
+			}
+		}
+	}
+	// The dock draws the question, the thread's held lines and the door's queue, and says when the door holds nothing or
+	// its queue could not be read; it asks the door for nothing itself, and is drawn again whenever the thread is and
+	// whenever the queue is read.
+	for _, want := range []string{"this.gateHtml()", "en.state === 'held'", "this.shellCardHtml(", "this.holds.filter(", "this.holdCardHtml(", "this.holdNoteHtml()", "box.hidden = !html"} {
+		if !strings.Contains(dock, want) {
+			t.Fatalf("the dock does not draw what waits for his hand (wanted %s)", want)
+		}
+	}
+	for _, bad := range []string{"App.tool(", "API.", "fetch("} {
+		if strings.Contains(dock, bad) {
+			t.Fatalf("the dock asks for something itself (%s); it draws what was read", bad)
+		}
+	}
+	if !strings.Contains(fn("  paintOut("), "this.paintDock()") || !strings.Contains(fn("  async readHolds("), "this.paintDock()") {
+		t.Fatal("the dock is not drawn again when the thread is, or when the queue is read")
+	}
+	// The queue is read quietly, every HOLD_POLL_MS while the page is in view and again when he comes back to it, and no
+	// more once the page has gone.
+	if !strings.Contains(src, "HOLD_POLL_MS: 3000,") || !strings.Contains(fn("  async readHolds("), "App.tool('hold_list', {}, true)") {
+		t.Fatal("the queue is not read quietly, or how often it is read is not named")
+	}
+	watch := fn("  watch(")
+	for _, want := range []string{"setInterval(holds, this.HOLD_POLL_MS)", "if (!document.hidden) this.readHolds()", "holds(); }", "clearInterval(this._hw)"} {
+		if !strings.Contains(watch, want) {
+			t.Fatalf("the queue is not read while he looks, or goes on being read after the page has gone (wanted %s)", want)
+		}
+	}
+	// His click, and one handler: a shell card's two buttons go to decide, any other card's to holdAnswer, and the
+	// question's field to answer; the output's own handler answers none of them.
+	i := strings.Index(wire, "dock.addEventListener('click'")
+	if i < 0 {
+		t.Fatal("the dock's buttons are not listened for")
+	}
+	for _, bad := range []string{"shell-yes", "hold-yes", "ag-gate-form"} {
+		if strings.Contains(wire[:i], bad) {
+			t.Fatalf("the output's own handler still answers a card (%s)", bad)
+		}
+	}
+	for _, c := range []struct{ act, call, not string }{
+		{"act === 'shell-yes' || act === 'shell-no'", "this.decide(", "this.holdAnswer("},
+		{"act === 'hold-yes' || act === 'hold-no'", "this.holdAnswer(", "this.decide("},
+		{"dock.addEventListener('submit'", "this.answer(", "this.decide("},
+	} {
+		seg := ""
+		if j := strings.Index(wire[i:], c.act); j >= 0 {
+			seg = wire[i+j:]
+			if len(seg) > 240 {
+				seg = seg[:240]
+			}
+		}
+		if !strings.Contains(seg, c.call) || strings.Contains(seg, c.not) {
+			t.Fatalf("the dock's handler does not send %s to %s and nothing else", c.act, c.call)
+		}
+	}
+	// What the dock reads off the queue are keys hold_list writes, so renaming one at the door goes red here.
+	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "holds.go"))
+	if err != nil {
+		t.Fatalf("the door's hold queue is not beside the glass: %v", err)
+	}
+	holds := string(door)
+	a, b := strings.Index(holds, "func toolHoldList("), strings.Index(holds, "func toolHoldAnswer(")
+	if a < 0 || b < a {
+		t.Fatal("hold_list is not where this stroke reads it")
+	}
+	keys := map[string]bool{}
+	for _, m := range regexp.MustCompile(`"([a-z_]+)"[:\]]`).FindAllStringSubmatch(holds[a:b], -1) {
+		keys[m[1]] = true
+	}
+	read := map[string]bool{}
+	for _, sig := range []string{"  async readHolds(", "  holdCardHtml(", "  async holdAnswer("} {
+		for _, m := range regexp.MustCompile(`\b(?:d|h)\.([a-z_]+)\b`).FindAllStringSubmatch(fn(sig), -1) {
+			read[m[1]] = true
+			if !keys[m[1]] {
+				t.Fatalf("the dock reads .%s off the hold queue and hold_list writes no such key", m[1])
+			}
+		}
+	}
+	for _, must := range []string{"armed", "held", "why_not", "id", "tool", "caller", "project", "when", "args"} {
+		if !read[must] {
+			t.Fatalf("the dock no longer reads .%s, so what the queue says in it never reaches him", must)
+		}
+	}
+	// A refusal and a call that errored are said as failures, in the words hold_answer begins them with; and a file's
+	// change is shown as file_edit sets it out for his card.
+	if !strings.Contains(holds, `"Approved %s and %q errored: %v`) || !strings.Contains(holds, `return fmt.Sprintf("Refused: `) ||
+		!strings.Contains(answer, `Refused|Approved [^ ]+ and "[^"]*" errored`) || !strings.Contains(answer, "status: bad ? 'ERROR'") {
+		t.Fatal("a refusal or a call that errored is not said as a failure, or hold_answer no longer begins them with the words the page reads")
+	}
+	edit, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "edit.go"))
+	if err != nil || !strings.Contains(string(edit), `keep["change"] = change`) || !strings.Contains(fn("  holdCardHtml("), "Array.isArray(a.change)") {
+		t.Fatalf("a file's change is not shown as file_edit sets it out for his card (%v)", err)
+	}
+	// Guardrails is gone: no tab, no door, no list of its own, and no dot on the Inspector's button pointing there.
+	for _, bad := range []string{"'guards'", "guardsHtml", "ag-holdout", "ag-adot", "label: 'Guardrails'"} {
+		if strings.Contains(src, bad) || strings.Contains(css, bad) {
+			t.Fatalf("the front page still carries Guardrails (%s)", bad)
+		}
+	}
+	// The dock is capped, scrolls inside itself, gives way before the line he types in does, and is hidden while
+	// nothing waits.
+	rule := ""
+	if k := strings.Index(css, ".ag-dock {"); k >= 0 {
+		rule = css[k:]
+		if e := strings.Index(rule, "}"); e >= 0 {
+			rule = rule[:e]
+		}
+	}
+	for _, want := range []string{"flex: 0 1 auto", "min-height: 0", "max-height: 45%", "overflow-y: auto"} {
+		if !strings.Contains(rule, want) {
+			t.Fatalf("the dock is not capped, does not scroll inside itself, or could push the line he types in out of the window (wanted %s)", want)
+		}
+	}
+	if !strings.Contains(css, ".ag-dock[hidden] { display: none; }") {
+		t.Fatal("the dock is not hidden while nothing waits")
 	}
 }

@@ -45,10 +45,12 @@
 // Watchboard and the old Dashboard read, and it writes its turns into
 // Chat.thread, so the three can never tell different stories.
 //
-// THE GATE IS HIS (RULE 6). A question from the council is answered in a field
-// in the thread, never a pop-up, never a default. The Guardrails tab lists the
-// writing calls parked at the door and approves or denies one only on his
-// click; the page never answers for him.
+// THE GATE IS HIS (RULE 6). Whatever waits for his hand -- a question from the
+// council, a shell line that asks first, any other writing call parked at the
+// door -- is a card pinned at the foot of the terminal, over the line he types
+// in, in every tab (paintDock; it replaced the Guardrails tab on 2026-10-08).
+// It is answered only by his click or in the field it carries, never by a
+// pop-up or a default; the page never answers for him.
 
 const AG_ICON = {
   panel: '<svg class="ag-i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>',
@@ -90,13 +92,15 @@ const Agent = {
   // The seven doors in the bar, each of which opens the Inspector on its tab. Settings joined them on 2026-10-06, beside
   // Guardrails, at his word: "Add another page along the top next to guardrails that is for settings."; GitHub on
   // 2026-10-08, beside Aider Pair, at his word: "it should be in its own github tab on the inspector so its less confusing".
+  // Guardrails became Laws the same day, on his card ("It becomes Laws"): the calls it listed for his hand are cards
+  // pinned at the foot of the terminal (paintDock), and the laws drawn under them are the tab.
   DOORS: [
     { id: 'aider',  label: 'Aider Pair' },
     { id: 'github', label: 'GitHub' },
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
     { id: 'docs',   label: 'Registry & Docs' },
-    { id: 'guards', label: 'Guardrails' },
+    { id: 'laws',   label: 'Laws' },
     { id: 'settings', label: 'Settings' }
   ],
   // The Inspector's tabs: the seven doors, and the two the bar does not carry.
@@ -106,7 +110,7 @@ const Agent = {
     { id: 'github', label: 'GitHub' },
     { id: 'ledger', label: 'Audit Ledger' },
     { id: 'flows',  label: 'Workflows' },
-    { id: 'guards', label: 'Guardrails' },
+    { id: 'laws',   label: 'Laws' },
     { id: 'settings', label: 'Settings' },
     { id: 'docs',   label: 'Registry & Docs' },
     { id: 'rack',   label: 'Rack' }
@@ -119,6 +123,9 @@ const Agent = {
     // `wired: false` in MODES and says so here, in words, under its own id.
   },
   HIST_KEY: 'atlas.agent.hist',
+  // How often the door's hold queue is read while the page is in view (watch), so a call parked by anything but this
+  // page -- the council, a script, another window -- reaches the dock while he is looking.
+  HOLD_POLL_MS: 3000,
   // The window a game is drawn for. A game is made for a window of its own size (an 800 by 600 canvas is common), and the page it is served as cannot be
   // scrolled to, so the play frame is given this much and shrunk to fit the room the stage has (fitPlay).
   PLAY_W: 1000,
@@ -132,7 +139,10 @@ const Agent = {
   open: false,            // the Inspector
   tab: 'run',
   rack: null,             // read off rack_list, never remembered
-  holdState: null,        // read off hold_list
+  holdState: null,        // read off hold_list: whether the door holds at all, or why its queue could not be read
+  holds: [],              // read off hold_list: every call the door has parked for his hand, each a card in the dock
+  _hseq: 0,               // the newest read of the queue; an older one that lands after it is not drawn
+  _answering: new Map(),  // the parked calls he has answered whose answer has not come back yet, by id
   bound: false,
   booting: false,
   aiderFiles: [],         // the names of the files Aider may change; the door judges them when a run is asked
@@ -196,7 +206,7 @@ const Agent = {
             <button type="button" class="ag-chipbtn" id="ag-pages" title="Every other page">Pages</button>
             <div class="ag-menu" id="ag-menu" hidden></div>
           </div>
-          <button type="button" class="ag-chipbtn" id="ag-insp" title="Toggle the inspector">${AG_ICON.panel}<span>Inspector</span><span class="ag-adot" id="ag-adot" hidden></span></button>
+          <button type="button" class="ag-chipbtn" id="ag-insp" title="Toggle the inspector">${AG_ICON.panel}<span>Inspector</span></button>
           <div class="ag-user"><span id="ag-who"></span><button type="button" class="ag-icon-btn" id="ag-lock" title="Lock the console" aria-label="Lock the console">${AG_ICON.out}</button></div>
         </div>
       </div></header>
@@ -209,6 +219,7 @@ const Agent = {
           </div>
           <div class="ag-out" id="ag-out" aria-live="polite"></div>
           <div class="ag-play" id="ag-play" hidden></div>
+          <div class="ag-dock" id="ag-dock" role="region" aria-label="Waiting for your hand" hidden></div>
           <div class="ag-hints" id="ag-hints" hidden></div>
           <div class="ag-in">
             <span class="ag-p agent" id="ag-prompt"></span>
@@ -282,13 +293,25 @@ const Agent = {
         const en = this.entries.find(x => String(x.id) === b.dataset.id);
         if (en) { en.showSaid = !en.showSaid; this.paintOut(false); }
       }
-      else if (act === 'shell-yes' || act === 'shell-no') {
-        // THE ONLY PLACE A SHELL CARD IS ANSWERED FROM: a button he presses (RULE 6).
+    });
+    // WHAT WAITS FOR HIS HAND IS ANSWERED HERE AND NOWHERE ELSE (RULE 6): in the dock pinned at the foot of the terminal
+    // (paintDock), by a button he presses on a card or in the field the council's question carries. A shell card is its
+    // entry's (decide, which lands the run in the entry); any other call the door parked is answered as itself
+    // (holdAnswer). The dock is drawn again on most events too, so it is listened for here, once.
+    const dock = $ag('ag-dock');
+    dock.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      const act = b.dataset.act;
+      if (act === 'shell-yes' || act === 'shell-no') {
         const en = this.entries.find(x => String(x.id) === b.dataset.id);
         if (en) this.decide(en, act === 'shell-yes' ? 'approve' : 'deny');
+      } else if (act === 'hold-yes' || act === 'hold-no') {
+        const h = this.holds.find(x => x.id === b.dataset.id);
+        if (h) this.holdAnswer(h, act === 'hold-yes' ? 'approve' : 'deny');
       }
     });
-    out.addEventListener('submit', (e) => {
+    dock.addEventListener('submit', (e) => {
       if (e.target.id !== 'ag-gate-form') return;
       e.preventDefault();
       this.answer(e.target.querySelector('input').value);
@@ -357,12 +380,6 @@ const Agent = {
     if (!this.rack) b.textContent = 'rack: reading';
     else b.textContent = this.rack.ok ? 'rack ' + this.rack.n + ' voice' + (this.rack.n === 1 ? '' : 's') : 'rack silent';
     $ag('ag-stat').title = this.rack && !this.rack.ok ? this.rack.says : 'rack_list, read just now';
-    const waiting = !!this.asking();
-    const held = this.holdState ? this.holdState.n : 0;
-    $ag('ag-adot').hidden = !(waiting || held > 0);
-    $ag('ag-insp').title = waiting ? 'The council is asking you something'
-      : held ? held + ' writing call' + (held === 1 ? '' : 's') + ' waiting for your hand'
-      : 'Toggle the inspector';
   },
 
   menu() {
@@ -542,7 +559,7 @@ const Agent = {
     if (en.kind === 'local') {
       const bad = en.status === 'ERROR';
       return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText('agent')}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
-        <div class="ag-meta"><span class="ag-chip${bad ? ' bad' : ''}">${en.status === 'RUNNING' ? 'running' : 'page'}</span>${en.ms != null ? '<span>' + en.ms + 'ms</span>' : ''}</div></div>
+        <div class="ag-meta"><span class="ag-chip${bad ? ' bad' : ''}">${en.status === 'RUNNING' ? 'running' : escHtml(en.chip || 'page')}</span>${en.ms != null ? '<span>' + en.ms + 'ms</span>' : ''}</div></div>
         <pre class="ag-pre${bad ? ' bad' : ''}" id="ag-o-${id}">${escHtml(en.text || '')}</pre></div>`;
     }
     const t = en.cn && en.cn.turn;
@@ -615,16 +632,10 @@ const Agent = {
     }
     const out = this.textOf(en);
     const lines = [];
-    if (en.state === 'held') {
-      lines.push(`<div class="ag-gate"><b>This asks first</b>
-        <div class="ag-gate-q">${escHtml(why.map(w => '- ' + w).join('\n'))}</div>
-        <div class="ag-btns"><button type="button" class="ag-btn go" data-act="shell-yes" data-id="${id}"${en.deciding ? ' disabled' : ''}>${en.deciding ? 'Running...' : 'Approve - run it'}</button>
-          <button type="button" class="ag-btn no" data-act="shell-no" data-id="${id}"${en.deciding ? ' disabled' : ''}>Deny</button></div>
-        <span class="ag-src">parked at the door as ${escHtml((a && a.hold) || '')}; approving runs exactly this entry and nothing else</span></div>`);
-    }
+    if (en.state === 'held') lines.push('<div class="ag-src">This asks first: its card is pinned at the foot of the window, over the line you type in, until you answer it.</div>');
     if (en.state === 'refused') lines.push(`<div class="ag-notrun"><b>REFUSED BY NAME</b><br>${why.map(escHtml).join('<br>')}<br><span class="ag-src">no click lifts a refusal; nothing ran</span></div>`);
     if (en.state === 'denied') lines.push('<div class="ag-notrun"><b>DENIED</b> by you. Nothing ran.</div>');
-    if (en.state === 'gone') lines.push('<div class="ag-src">This was answered somewhere else (the Guardrails tab shows what it said), or the door restarted and dropped it. Nothing more happens from here.</div>');
+    if (en.state === 'gone') lines.push('<div class="ag-src">This was answered somewhere else (another window, or the GitHub page under Pages), or the door restarted and dropped it. Nothing more happens from here.</div>');
     if (en.state === 'error') lines.push(`<div class="ag-notrun"><b>COULD NOT RUN</b><br>${escHtml(en.err || '')}</div>`);
     if (a && a.timed_out) lines.push(`<div class="ag-notrun"><b>ENDED</b> ${escHtml(a.note || 'it ran past its limit')}</div>`);
     else if (a && a.note) lines.push(`<div class="ag-src">${escHtml(a.note)}</div>`);
@@ -634,8 +645,9 @@ const Agent = {
       ${out ? `<pre class="ag-pre${bad ? ' bad' : ''}" id="ag-o-${id}">${escHtml(out)}</pre>` : ''}${lines.join('')}</div>`;
   },
 
-  // THE GATE, IN THE THREAD. The council stopped to ask, so the question is
-  // here with a field under it. Nothing is assumed on his behalf (RULE 6).
+  // THE GATE, IN THE DOCK. The council stopped to ask, so the question is
+  // pinned at the foot of the terminal with a field under it (paintDock).
+  // Nothing is assumed on his behalf (RULE 6).
   gateHtml() {
     const asking = this.asking();
     if (!asking || Run.running) return '';
@@ -648,24 +660,91 @@ const Agent = {
     return `<div class="ag-live"><span class="pulse">&#9679;</span><span>${escHtml(Run.nowLine())} &middot; ${escHtml(Run.elapsed())}</span><button type="button" data-act="cancel">cancel</button></div>`;
   },
 
-  // WHAT HE IS TYPING INTO THE GATE SURVIVES A REDRAW. The screen is redrawn
-  // on every state check, and an answer half written when one landed would
-  // otherwise vanish; the field takes focus once, when the question first
-  // appears, and is left alone after that.
+  // The terminal is drawn whole on most events, and what waits for his hand is drawn with it, in the dock under it.
   paintOut(stick = true) {
     const box = $ag('ag-out');
     if (!box) return;
     const near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+    box.innerHTML = this.bannerHtml() + this.entries.map(e => this.entryHtml(e)).join('') +
+      '<div id="ag-live">' + this.liveHtml() + '</div>';
+    this.paintDock();
+    if (stick || near) this.stick();
+  },
+
+  // WHAT WAITS FOR HIS HAND, PINNED AT THE FOOT OF THE TERMINAL (2026-10-08; his word: "Same as the cards in the chat,
+  // they are perfect, just pin them to the window so they actually stay at the botton if there is an approve card. should
+  // work on all tabs", replacing the Guardrails tab). Read fast, the output scrolled the cards out of his view. The
+  // council's question, every shell line of this thread that asks first and every other call the door has parked are
+  // drawn here, under the output and over the line he types in, whichever tab is open, and each leaves when it is
+  // answered. The page answers nothing here: the buttons are listened for once, in wire(). The dock is drawn again only
+  // when what it shows has changed, so a button is never swapped under his pointer, and what he is typing into the
+  // council's question survives a redraw: the field takes focus once, when the question first appears.
+  paintDock() {
+    const box = $ag('ag-dock');
+    if (!box) return;
+    const shells = this.entries.filter(en => en.kind === 'shell' && en.state === 'held');
+    const mine = new Set(shells.map(en => en.ans && en.ans.hold));
+    const held = this.holds.filter(h => !mine.has(h.id) && !this._answering.has(h.id));
+    const html = this.gateHtml() + shells.map(en => this.shellCardHtml(en)).join('') +
+      [...this._answering.values()].concat(held).map(h => this.holdCardHtml(h)).join('') + this.holdNoteHtml();
+    if (box._html === html) return;
+    box._html = html;
+    const out = $ag('ag-out');
+    const near = !!out && out.scrollHeight - out.scrollTop - out.clientHeight < 90;
     const old = box.querySelector('#ag-gate-form input');
     const typed = old ? old.value : '';
     const hadFocus = !!old && document.activeElement === old;
-    box.innerHTML = this.bannerHtml() + this.entries.map(e => this.entryHtml(e)).join('') +
-      this.gateHtml() + '<div id="ag-live">' + this.liveHtml() + '</div>';
-    if (stick || near) this.stick();
+    box.innerHTML = html;
+    box.hidden = !html;
+    if (near) this.stick();
     const gi = box.querySelector('#ag-gate-form input');
     if (!gi) { this._gateSeen = false; return; }
     if (typed) gi.value = typed;
     if (!this._gateSeen || hadFocus) { gi.focus(); this._gateSeen = true; }
+  },
+
+  // A SHELL LINE THAT ASKS FIRST, AS ITS CARD IN THE DOCK: the card the thread used to carry, with the line it asks about
+  // over it, since the entry may have scrolled out of view. Approving runs, at the door, exactly that entry and nothing
+  // else, and its output lands in the entry.
+  shellCardHtml(en) {
+    const a = en.ans || {};
+    const kind = en.shell === 'python' ? 'python' : en.shell === 'pwsh' ? 'pwsh' : 'bash';
+    const off = en.deciding ? ' disabled' : '';
+    return '<div class="ag-gate"><b>This asks first</b>' +
+      '<div class="ag-line-l"><span class="ag-p ' + kind + '">' + (en.prompt || this.promptText(kind)) + '</span><span class="ag-cmd">' + escHtml(en.command) + '</span></div>' +
+      '<div class="ag-gate-q">' + escHtml((a.why || []).map(w => '- ' + w).join('\n')) + '</div>' +
+      '<div class="ag-btns"><button type="button" class="ag-btn go" data-act="shell-yes" data-id="' + en.id + '"' + off + '>' + (en.deciding ? 'Running...' : 'Approve - run it') + '</button>' +
+      '<button type="button" class="ag-btn no" data-act="shell-no" data-id="' + en.id + '"' + off + '>Deny</button></div>' +
+      '<span class="ag-src">parked at the door as ' + escHtml(a.hold || '') + '; approving runs exactly this entry and nothing else</span></div>';
+  },
+
+  // ANY OTHER CALL THE DOOR PARKED, AS ITS CARD IN THE DOCK: what the Guardrails tab listed -- the tool, who asked, in
+  // which world and when, and the call exactly as it was parked -- in the shell card's shape. A call that carries its
+  // change line by line (file_edit sets it out so for his card) shows the file and those lines; any other shows its
+  // arguments whole. Approving runs exactly that call, with the arguments it was parked with.
+  holdCardHtml(h) {
+    const a = h.args || {};
+    const call = Array.isArray(a.change) ? escHtml(String(a.filepath || '')) + '\n' + this.diffHtml(a.change.join('\n'))
+      : escHtml(JSON.stringify(a, null, 1));
+    const busy = this._answering.has(h.id);
+    const off = busy ? ' disabled' : '';
+    return '<div class="ag-gate"><b>' + escHtml(h.tool) + ' asks first</b>' +
+      '<span class="ag-src">asked by ' + escHtml(h.caller || '') + ' &middot; ' + escHtml(h.project || '') + ' &middot; ' + escHtml(h.when || '') + '</span>' +
+      '<pre class="ag-gate-call">' + call + '</pre>' +
+      '<div class="ag-btns"><button type="button" class="ag-btn go" data-act="hold-yes" data-id="' + escHtml(h.id) + '"' + off + '>' + (busy ? 'Running...' : 'Approve - run it') + '</button>' +
+      '<button type="button" class="ag-btn no" data-act="hold-no" data-id="' + escHtml(h.id) + '"' + off + '>Deny</button></div>' +
+      '<span class="ag-src">parked at the door as ' + escHtml(h.id) + '; approving runs exactly this call, with the arguments it was parked with</span></div>';
+  },
+
+  // A DOOR THAT HOLDS NOTHING SAYS SO, WITH THE CARDS. Started without --auth it cannot tell a seat from this page, so
+  // nothing is held and RULE 6 is a convention again; and a queue that could not be read shows no card it cannot vouch
+  // for. Either way an empty dock would look exactly like a guarded one, so it says which.
+  holdNoteHtml() {
+    const s = this.holdState;
+    if (!s) return '';
+    if (s.err) return '<div class="ag-notrun"><b>THE HOLD QUEUE COULD NOT BE READ</b><br>' + escHtml(s.err) + '<br><span class="ag-src">a call parked at the door shows here once it can be read</span></div>';
+    if (!s.armed) return '<div class="ag-notrun"><b>NOTHING IS HELD, AND NOTHING CAN BE</b><br>' + escHtml(s.why || 'The door was started without --auth.') + '<br><span class="ag-src">RULE 6 is a convention again until the door is restarted with --auth and a service wire</span></div>';
+    return '';
   },
 
   // The council has stopped to ask. Until he answers, the engine takes nothing
@@ -876,7 +955,7 @@ const Agent = {
     }
     if (Run.running) { toast('A turn is already running', 'error'); return; }
     if (this.asking()) {
-      return this.say(raw, 'The council is waiting on your answer above, and it takes nothing else until you give it. Answer it first. Nothing was sent.', 'ERROR');
+      return this.say(raw, 'The council is waiting on your answer in the card pinned at the foot of the window, and it takes nothing else until you give it. Answer it first. Nothing was sent.', 'ERROR');
     }
     if (!Run.engineOpen) {
       return this.say(raw, Run.unreachable
@@ -947,6 +1026,28 @@ const Agent = {
     }
     this.readHolds();
     this.paintOut();
+  },
+
+  // A CALL THE DOOR PARKED IS ANSWERED BY A BUTTON HE PRESSES ON ITS CARD AND NOWHERE ELSE (RULE 6). The card says it is
+  // running until the door answers; the answer is said in the thread in the door's own words, and a refusal, a call that
+  // errored or a replay that refused (file_edit, when the file moved since the card was shown) is said as a failure. The
+  // queue is read again after.
+  async holdAnswer(h, decision) {
+    if (this._answering.has(h.id)) return;
+    this._answering.set(h.id, h);
+    const t0 = Date.now();
+    this.paintDock();
+    let said;
+    try { said = await App.tool('hold_answer', { id: h.id, decision }); }
+    catch (e) { said = 'Refused: ' + (e.message || 'refused'); }
+    this._answering.delete(h.id);
+    this.holds = this.holds.filter(x => x.id !== h.id);
+    said = String(said);
+    const bad = /^(Refused|Approved [^ ]+ and "[^"]*" errored)/.test(said) || /"state": "refused"/.test(said);
+    this.entries.push({ id: ++this._seq, kind: 'local', chip: 'door', command: (decision === 'approve' ? 'Approve ' : 'Deny ') + h.tool + ' (' + h.id + ')',
+      text: said, status: bad ? 'ERROR' : 'SUCCESS', ms: Date.now() - t0 });
+    this.paintOut();
+    await this.readHolds();
   },
 
   // ---- the Aider tab ----------------------------------------------------------------
@@ -1446,17 +1547,25 @@ const Agent = {
     await this.readHolds();
   },
 
+  // WHAT THE DOOR HOLDS FOR HIS HAND, read quietly: every parked call is a card in the dock (paintDock), and a shell card
+  // whose hold has left the queue is settled. A read that fails says so in the dock and shows no card it cannot vouch
+  // for; a read overtaken by a newer one is not drawn.
   async readHolds() {
+    const seq = ++this._hseq;
+    let d = null, err = '';
     try {
-      const d = JSON.parse(await App.tool('hold_list', {}, true));
-      this.holdState = { armed: !!d.armed, n: (d.held || []).length, why: d.why_not || '' };
-      if (d.armed) this.settleCards(new Set((d.held || []).map(h => h.id)));
-    } catch { this.holdState = null; }
-    this.paintTop();
+      const said = await App.tool('hold_list', {}, true);
+      try { d = JSON.parse(said); } catch { err = String(said).split('\n')[0]; }
+    } catch (e) { err = e.message || 'unreadable'; }
+    if (seq !== this._hseq) return;
+    this.holds = d && d.armed ? (d.held || []) : [];
+    this.holdState = d ? { armed: !!d.armed, why: d.why_not || '' } : { err };
+    if (d && d.armed) this.settleCards(new Set(this.holds.map(h => h.id)));
+    this.paintDock();
   },
 
-  // A shell card whose hold has left the door's queue was answered somewhere else (the Guardrails
-  // tab) or dropped when the door restarted. It stops offering buttons that can only be refused.
+  // A shell card whose hold has left the door's queue was answered somewhere else (another window, or the GitHub page
+  // under Pages) or dropped when the door restarted. It stops offering buttons that can only be refused.
   settleCards(waiting) {
     let moved = false;
     for (const en of this.entries) {
@@ -1484,10 +1593,14 @@ const Agent = {
 
   // The check is repeated while the tab is on screen and not busy, and again
   // the moment he returns to it: an engine closes itself after thirty idle
-  // minutes and the title must not go on saying it is open.
+  // minutes and the title must not go on saying it is open. The hold queue is
+  // read far more often (HOLD_POLL_MS), turn or no turn: a call parked by
+  // anything but this page must reach the dock while he is looking.
   watch(on) {
     clearInterval(this._w);
     this._w = null;
+    clearInterval(this._hw);
+    this._hw = null;
     if (this._wv) { document.removeEventListener('visibilitychange', this._wv); this._wv = null; }
     if (!on) return;
     const again = () => {
@@ -1496,9 +1609,14 @@ const Agent = {
       Run.check().then(() => { this.paintTitle(); this.paintTop(); });
       if (this.isAider()) this.readAider();
     };
-    this._wv = () => { if (!document.hidden) again(); };
+    const holds = () => {
+      if (!$ag('ag-out')) { this.watch(false); return; }
+      if (!document.hidden) this.readHolds();
+    };
+    this._wv = () => { if (!document.hidden) { again(); holds(); } };
     document.addEventListener('visibilitychange', this._wv);
     this._w = setInterval(again, 30000);
+    this._hw = setInterval(holds, this.HOLD_POLL_MS);
   },
 
   // ---- the Inspector --------------------------------------------------------
@@ -1555,9 +1673,11 @@ const Agent = {
           App.paintProof('ag-proof-estate', 'estate', this._proofs);
         }
       }
-      else if (id === 'guards') {
-        put(await this.guardsHtml());
-        // The laws are drawn by the Laws page's own object, under the hold queue, in the panel's own shape.
+      else if (id === 'laws') {
+        // THE LAWS ARE THE TAB (2026-10-08, his card: "It becomes Laws"). Guardrails drew them under its hold queue from
+        // 2026-10-06; the queue is the dock at the foot of the terminal now. Drawn by the Laws page's own object, in the
+        // panel's own shape, so there is one Laws and not two.
+        put('<div class="ag-laws" id="ag-laws"></div>');
         if (this._pane === stamp && this.tab === id && $ag('ag-laws')) await Laws.render($ag('ag-laws'), true);
       }
       else if (id === 'docs') put(await this.docsHtml());
@@ -1755,45 +1875,13 @@ const Agent = {
     }
   },
 
-  // ---- Guardrails -------------------------------------------------------------------
-
-  async guardsHtml() {
-    let d = null, err = '';
-    try { d = JSON.parse(await App.tool('hold_list', {}, true)); } catch (e) { err = e.message || 'unreadable'; }
-    const parts = [];
-    const asking = this.asking();
-    if (asking) parts.push(this.card('The council is asking',
-      `<p>${escHtml(asking)}</p><p>Answer it in the terminal; the question is waiting there.</p>`, 'the last run'));
-    if (err) {
-      parts.push(this.card('Waiting for your hand', `<p>The hold queue could not be read: ${escHtml(err)}</p>`, 'hold_list'));
-    } else if (!d.armed) {
-      parts.push(this.card('Waiting for your hand',
-        `<p>Nothing is being held, and nothing can be. ${escHtml(d.why_not || 'The door was started without --auth, so it cannot tell a seat from this page.')} RULE 6 is a convention again until the door is restarted with --auth and a service wire.</p>`, 'hold_list'));
-    } else if (!(d.held || []).length) {
-      parts.push(this.card('Waiting for your hand', '<p>Nothing is waiting. A writing call from anything but this page parks here for your decision.</p>', 'hold_list'));
-    } else {
-      parts.push(this.card('Waiting for your hand',
-        `<p>${d.held.length} writing call${d.held.length === 1 ? '' : 's'} parked at the door. Approving runs exactly the call shown, with the arguments it was parked with.</p>` +
-        d.held.map(h => `<div class="ag-card"><h4>${escHtml(h.tool)}</h4>
-          <p>asked by ${escHtml(h.caller)} &middot; ${escHtml(h.project || '')} &middot; ${escHtml(h.when || '')}</p>
-          <pre>${escHtml(JSON.stringify(h.args || {}, null, 1))}</pre>
-          <div class="ag-btns"><button type="button" class="ag-btn go" data-act="hold" data-decision="approve" data-id="${escHtml(h.id)}">Approve - run it</button>
-          <button type="button" class="ag-btn no" data-act="hold" data-decision="deny" data-id="${escHtml(h.id)}">Deny</button></div></div>`).join('') +
-        '<div id="ag-holdout"></div>', 'hold_list'));
-    }
-    // THE LAWS, UNDER THE HOLDS (2026-10-06, his word: "go, next: guardrails"; the design pass put Laws here). Drawn by the
-    // Laws page's own object once this is on the page (paintPane), so there is one Laws and not two.
-    parts.push('<div class="ag-laws" id="ag-laws"></div>');
-    return parts.join('');
-  },
-
   // ---- Registry & Docs ----------------------------------------------------------------
 
   // TOOLS, AGENTS AND RECORDS' DOCUMENTS, IN THE TAB (his word, 2026-10-06: "go, next: registry & docs"; on the card, the
   // seats as "The Agents page's own cards" and the documents with what Records shows). A tool is called by the Tools page's
   // own Call (App.invokeTool, its form in the modal); the seats are drawn by the Agents page's own card (App.seatCard),
   // told it stands in the panel so its name does not leave the front page; the documents carry Records' changed date and
-  // sealed badge. The settings went to a tab of their own, beside Guardrails.
+  // sealed badge. The settings went to a tab of their own, beside Guardrails (Laws since 2026-10-08).
   async docsHtml() {
     let tools = [];
     let said = '';
@@ -2002,19 +2090,6 @@ const Agent = {
         box.innerHTML = this.card('Diff - ' + escHtml(b.dataset.world), `<pre>${escHtml(String(out).slice(0, 12000) || 'No uncommitted changes.')}</pre>`, 'git_diff');
       } catch (er) { box.innerHTML = this.card('Diff - ' + escHtml(b.dataset.world), `<p>${escHtml(er.message || 'refused')}</p>`, 'git_diff'); }
       return;
-    }
-    if (act === 'hold') {
-      const out = $ag('ag-holdout');
-      b.disabled = true;
-      if (out) out.innerHTML = `<pre>${b.dataset.decision === 'approve' ? 'Running it...' : 'Denying...'}</pre>`;
-      let said;
-      try { said = await App.tool('hold_answer', { id: b.dataset.id, decision: b.dataset.decision }); }
-      catch (er) { said = 'Refused: ' + (er.message || 'refused'); }
-      await this.readHolds();
-      await this.paintPane();
-      const o2 = $ag('ag-holdout');
-      if (o2) o2.innerHTML = `<pre>${escHtml(said)}</pre>`;
-      else if (this.tab === 'guards') { const pane = $ag('ag-pane'); if (pane) pane.insertAdjacentHTML('beforeend', `<pre>${escHtml(said)}</pre>`); }
     }
   }
 };

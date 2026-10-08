@@ -17,9 +17,9 @@ const Laws = {
   RULES: 'CLAUDE.md',
   LEDGER: 'law/LAW_LEDGER.md',
 
-  // THE SAME LAWS IN TWO PLACES (2026-10-06, his word: "go, next: guardrails"). The front page's Guardrails tab draws THIS
-  // object under its hold queue -- `inPanel`, without the page's title -- and the page under Pages draws it whole; Read it
-  // again, Set and Seal draw it again where it stands.
+  // THE SAME LAWS IN TWO PLACES (2026-10-06, his word: "go, next: guardrails"; the tab is Laws since 2026-10-08, his card:
+  // "It becomes Laws"). The front page's Laws tab draws THIS object -- `inPanel`, without the page's title -- and the page
+  // under Pages draws it whole; Read it again, Set and Seal draw it again where it stands.
   async render(el, inPanel) {
     this.inPanel = !!inPanel;
     this.style();

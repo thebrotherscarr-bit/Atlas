@@ -102,7 +102,6 @@ body.is-agent .crumb { display: none; }
 }
 .ag-chipbtn:hover { color: var(--ag-n200); background: rgba(23,23,23,.6); }
 .ag-chipbtn.on { background: var(--ag-n900); color: #f5f5f5; border-color: var(--ag-n700); }
-.ag-adot { width: 6px; height: 6px; border-radius: 50%; background: var(--ag-amber); }
 .ag-user { display: flex; align-items: center; gap: 8px; color: var(--ag-n300); }
 .ag-icon-btn { padding: 4px; color: var(--ag-n500); display: flex; transition: color .15s; }
 .ag-icon-btn:hover { color: var(--ag-n300); }
@@ -221,7 +220,18 @@ body.is-agent .crumb { display: none; }
 .ag-live button { color: var(--ag-n500) !important; text-decoration: underline; text-underline-offset: 3px; padding: 0 !important; }
 @keyframes ag-pulse { 50% { opacity: .35; } }
 
-/* a question from the council, answered in the thread: the gate is his */
+/* WHAT WAITS FOR HIS HAND, PINNED AT THE FOOT OF THE TERMINAL (2026-10-08; his word: "just pin them to the window so they
+   actually stay at the botton if there is an approve card"). The dock sits under the output and over the line he types
+   in, in every tab, so a card stays in view however fast the output scrolls. It is capped and scrolls inside itself, and
+   it gives way before the line he types in does: with a game playing too, it takes the room that is left. */
+.ag-dock {
+  flex: 0 1 auto; min-height: 0; max-height: 45%; overflow-y: auto; padding: 10px 16px;
+  border-top: 1px solid var(--ag-line); background: var(--ag-bg);
+  display: flex; flex-direction: column; gap: 8px;
+  scrollbar-width: thin; scrollbar-color: var(--ag-n800) transparent;
+}
+.ag-dock[hidden] { display: none; }
+/* a card in the dock -- the council's question, a line that asks first, a call the door parked: the gate is his */
 .ag-gate {
   border: 1px solid rgba(251,191,36,.55); border-radius: 6px; padding: 10px 12px;
   background: rgba(251,191,36,.06); display: flex; flex-direction: column; gap: 8px;
@@ -232,6 +242,12 @@ body.is-agent .crumb { display: none; }
 .ag-gate input {
   flex: 1; min-width: 0; background: var(--ag-bg); border: 1px solid var(--ag-n700); border-radius: 4px;
   color: #f5f5f5; padding: 5px 8px; font: inherit;
+}
+/* the call a card shows, exactly as it was parked: a file's change line by line, or the arguments whole */
+.ag-gate-call {
+  margin: 0; padding: 8px; max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  background: var(--ag-n900); border: 1px solid var(--ag-n800); border-radius: 4px;
+  font-family: inherit; font-size: 11px; line-height: 1.5; color: var(--ag-n300);
 }
 
 .ag-hints {
@@ -382,7 +398,7 @@ body.is-agent .crumb { display: none; }
 .ag-seats .seat-model { font-size: 10px; color: var(--ag-cyan); }
 .ag-seats .seat-prompt { margin-top: 8px; }
 
-/* THE LAWS, IN THE GUARDRAILS TAB (2026-10-06). The tab draws the Laws page's own object (laws.js) under the hold queue,
+/* THE LAWS, IN THEIR OWN TAB (Guardrails' from 2026-10-06, whose hold queue is the dock since 2026-10-08). The tab draws the Laws page's own object (laws.js),
    so its furniture is app.css's and the page's own -- .card, .badge, .btn, .input, .textarea and the .laws-* rules it
    lays down -- with the tokens pointed at this page's palette, as .ag-wf does; the buttons alone need rules, since
    `.ag button` strips every button bare. */

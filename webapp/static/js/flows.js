@@ -24,8 +24,8 @@ const Flows = {
   // THE SAME GITHUB IN TWO PLACES (2026-10-06, his word: "go, next: aider pair"; a tab and a name of its own on 2026-10-08,
   // his word: "it should be in its own github tab on the inspector so its less confusing"). The front page's GitHub tab
   // draws THIS object -- `inPanel`, the repositories alone -- and the page under Pages draws it whole. In the
-  // panel the page's other parts are left to the front page's own: the hold queue is Guardrails', the way through the
-  // council is the terminal itself, and Recent is the terminal's own history.
+  // panel the page's other parts are left to the front page's own: the hold queue is the cards pinned at the foot of the
+  // terminal, the way through the council is the terminal itself, and Recent is the terminal's own history.
   async render(el, inPanel) {
     this.inPanel = !!inPanel;
     const repos = `<div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
