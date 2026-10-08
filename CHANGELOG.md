@@ -12,7 +12,7 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-## [v0.2.4] — 2026-10-08 10:51
+## [v0.2.4] — 2026-10-08 10:51 (tag on af92401)
 
 ### GitHub is a tab of its own: Version control is renamed GitHub, with a door and an Inspector tab beside Aider Pair, drawn by the page's own object (2026-10-08; his word: "it should be in its own github tab on the inspector so its less confusing", "let's make sure we are using the existing infrastructure to underpin the new tab", and "let's rename it to Github. and then place in the new strokes")
 
