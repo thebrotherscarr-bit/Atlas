@@ -22,6 +22,12 @@ package tools
 // are a separate wall to open deliberately, not a dependency to acquire by
 // accident.
 //
+// THE WALL OPENED FOR PULL REQUESTS, AND FOR NOTHING ELSE (2026-10-07, his ruling on a card: "Open the
+// wall for PRs"). gitpr.go carries git_pr: it lists a world's open pull requests with their checks and
+// opens one from the line of work he stands on, through gh, on his click and behind the same dial as every
+// send. It never merges -- a line lands here as it always has, fast-forward, and GitHub marks the pull
+// request merged once the main line holds its saves. Issues, releases and the rest stay on the far side.
+//
 // THREE RULES EVERY VERB HERE KEEPS:
 //   1. stdin closed, every call. A child that inherits a headless door's
 //      stdin deadlocks on a pipe another thread is already reading. That cost

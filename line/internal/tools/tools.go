@@ -639,6 +639,8 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolGitBranch,
 	})
 
+	r.add(gitPRTool())
+
 	r.add(Tool{
 		Name: "hold_list", Writes: false,
 		Description: "the writing calls parked waiting for the operator's hand, and whether holding is armed at all",
@@ -691,6 +693,8 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Args:        []string{"project?"},
 		Fn:          toolAiderStatus,
 	})
+
+	r.add(fileEditTool())
 
 	// THE LAWS, THROUGH THE GLASS (2026-10-05, his word: "set it as a law all the agents read ... THROUGH THE SYSTEM", then "a LAWS page ... Add it."). A
 	// reader for how far each law is sealed and what the chain says of itself, and two writers that are his hand and nobody's else: set a law (an entry
