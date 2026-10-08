@@ -210,6 +210,40 @@ func TestVersionControlOffersLandingALineOntoMain(t *testing.T) {
 	}
 }
 
+// PULL REQUESTS ON VERSION CONTROL (2026-10-07, his ruling on a card: "Open the wall for PRs"). Each world's
+// buttons carry Pull requests beside the marks; the panel lists through the door's git_pr and opens one from its
+// own button and nowhere else; nothing asks for a merge -- a line still lands with Land and Send; and the door
+// carries the tool the glass asks for, with list as its reading action and open as its one writing one.
+func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
+	fl := page(t, "js/flows.js")
+	if !strings.Contains(funcOf(fl, "  controls("), `data-act="pulls"`) || !strings.Contains(funcOf(fl, "  async act("), "await this.pulls(w)") {
+		t.Fatal("the world's buttons offer no Pull requests, or the button does not open its panel")
+	}
+	pulls := funcOf(fl, "  async pulls(")
+	if !strings.Contains(pulls, "App.tool('git_pr', { project: w, action: 'list' })") || !strings.Contains(pulls, `data-pull="open"`) {
+		t.Fatal("the Pull requests panel does not read the door's list, or offers no way to open one")
+	}
+	if strings.Count(fl, "action: 'open' })") != 1 || !strings.Contains(funcOf(fl, "  async pull("), "App.tool('git_pr', { project: w, action: 'open' })") {
+		t.Fatal("a pull request can be opened from somewhere other than the panel's own button")
+	}
+	if strings.Contains(fl, "action: 'merge'") || strings.Contains(fl, `data-pull="merge"`) {
+		t.Fatal("the glass asks git_pr to merge; a line lands with Land and Send")
+	}
+	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "gitpr.go"))
+	if err != nil {
+		t.Fatalf("the door's pull requests are not beside the glass: %v", err)
+	}
+	for _, want := range []*regexp.Regexp{
+		regexp.MustCompile(`Name:\s+"git_pr"`),
+		regexp.MustCompile(`Reads:\s+\[\]string\{"list"\}`),
+		regexp.MustCompile(`case "open":`),
+	} {
+		if !want.Match(door) {
+			t.Fatalf("the door's git_pr no longer carries %s, which the glass is built on", want)
+		}
+	}
+}
+
 func TestTheBuilderOffersLoopsAndFindsAPausedRunAfterAReload(t *testing.T) {
 	wf := page(t, "js/workflows.js")
 	for _, kind := range []string{"ask:", "run:", "seat:", "prompt:", "memory:"} {

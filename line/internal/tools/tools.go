@@ -639,6 +639,8 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolGitBranch,
 	})
 
+	r.add(gitPRTool())
+
 	r.add(Tool{
 		Name: "hold_list", Writes: false,
 		Description: "the writing calls parked waiting for the operator's hand, and whether holding is armed at all",

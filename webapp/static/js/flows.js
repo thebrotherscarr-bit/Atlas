@@ -12,6 +12,10 @@ const Flows = {
   // The same, for the version-marks panel. A second flag rather than a shared
   // one: opening the lines of work is not a request to see the marks.
   marked: {},
+  // And the pull-requests panel (2026-10-07), a third flag for the same reason, with the door's last answer to an
+  // open kept beside it: every refresh rebuilds the panel, and an answer written into it would go with it.
+  pulled: {},
+  pullSaid: {},
   // The one mark, if any, whose Send is ARMED -- "<world>:<name>". One at a
   // time by construction: arming a second disarms the first, so there is never
   // a loaded button somewhere off screen.
@@ -255,6 +259,7 @@ const Flows = {
         + (files ? `<div class="mt-16">${files}</div>` : '')
         + `<div id="lines-${escHtml(w)}"></div>`
         + `<div id="marks-${escHtml(w)}"></div>`
+        + `<div id="pulls-${escHtml(w)}"></div>`
         + `</div>`);
     }
     box.innerHTML = cards.join('') + '<div id="repo-diff"></div>';
@@ -264,7 +269,7 @@ const Flows = {
     box.querySelectorAll('[data-act]').forEach(b => {
       b.onclick = () => this.act(b.dataset.act, b.dataset.w);
     });
-    for (const w of worlds) { this.lines(w); this.marks(w); }
+    for (const w of worlds) { this.lines(w); this.marks(w); this.pulls(w); }
   },
 
   // THE BUTTONS. Each one is a door tool, and each tool refuses in words the
@@ -300,6 +305,8 @@ const Flows = {
           title="The lines of work in this world">Lines of work</button>
         <button class="btn btn-sm" data-act="marks" data-w="${q}"
           title="The version marks cut on this world's history">Version marks</button>
+        <button class="btn btn-sm" data-act="pulls" data-w="${q}"
+          title="Pull requests from this world's lines of work into the main line, with their checks">Pull requests</button>
       </div>
       <div id="out-${q}" class="muted"></div>
     </div>`;
@@ -340,6 +347,10 @@ const Flows = {
       } else if (what === 'marks') {
         this.marked[w] = !this.marked[w];
         await this.marks(w);
+        return;
+      } else if (what === 'pulls') {
+        this.pulled[w] = !this.pulled[w];
+        await this.pulls(w);
         return;
       }
     } catch (e) { say('Refused: ' + e.message); return; }
@@ -677,6 +688,55 @@ const Flows = {
     } catch (e) { say('Refused: ' + e.message); return; }
     await this.repos();
     say(answer);
+  },
+
+  // THE PULL REQUESTS (2026-10-07, his ruling on a card: "Open the wall for PRs"). The door's git_pr lists this
+  // world's open pull requests with their checks as one word, and opens one from the line of work he stands on into
+  // the main line -- from the button below and nowhere else. NOTHING HERE MERGES: a line still lands with Land and
+  // Send, and GitHub marks the pull request merged once the main line holds its saves. Every refusal is the door's
+  // (the main line, unsaved work, a line GitHub does not have as it stands, the wall), shown in its own words.
+  async pulls(w) {
+    const box = document.getElementById('pulls-' + w);
+    if (!box) return;
+    if (!this.pulled[w]) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="loading">Asking GitHub...</div>';
+    let said;
+    try { said = await App.tool('git_pr', { project: w, action: 'list' }); }
+    catch (e) { box.innerHTML = `<div class="empty-text">Could not read them: ${escHtml(e.message)}</div>`; return; }
+    let d = null;
+    try { d = JSON.parse(said); } catch { d = null; }
+    const q = escHtml(w);
+    const word = { passed: 'checks passed', failed: 'checks FAILED', pending: 'checks still running', none: 'no checks yet' };
+    const rows = (d && d.pull_requests || []).map(p =>
+      `<tr><td style="padding-right:12px;white-space:nowrap"><b>#${escHtml(String(p.number))}</b></td>`
+      + `<td style="padding-right:12px">${escHtml(p.title || '')}</td>`
+      + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(p.line || '')} into ${escHtml(p.into || '')}</td>`
+      + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(word[p.checks] || p.checks || '')}</td>`
+      + `<td class="muted">${escHtml(p.url || '')}</td></tr>`).join('');
+    const kept = this.pullSaid[w] ? `<pre>${escHtml(this.pullSaid[w])}</pre>` : '';
+    box.innerHTML = `<div class="card-title mt-16">Pull requests</div>`
+      + (!d ? `<pre>${escHtml(said)}</pre>`
+        : rows ? `<table>${rows}</table>` : `<div class="empty-text">No pull request is open here.</div>`)
+      + `<div class="flex mt-16"><button class="btn btn-sm" data-pull="open" data-w="${q}"`
+      + ` title="Open a pull request from the line of work you are on into the main line">Open a pull request</button></div>`
+      + `<div class="muted">A pull request lands nothing by itself. When its checks pass, land the line as always: `
+      + `move to the main line, Land onto main, then Send to GitHub, and GitHub marks it merged.</div>`
+      + `<div id="pullout-${q}" class="muted">${kept}</div>`;
+    box.querySelectorAll('[data-pull]').forEach(b => {
+      b.onclick = () => this.pull(b.dataset.w);
+    });
+  },
+
+  // OPENING ONE, on his click. The door's own words, verbatim, KEPT ON THE OBJECT and drawn by pulls() after the
+  // refresh, so the answer outlives the rebuild the way act()'s does.
+  async pull(w) {
+    const out = document.getElementById('pullout-' + w);
+    if (out) out.innerHTML = '<pre>Opening...</pre>';
+    let answer;
+    try { answer = await App.tool('git_pr', { project: w, action: 'open' }); }
+    catch (e) { answer = 'Refused: ' + e.message; }
+    this.pullSaid[w] = answer;
+    await this.repos();
   },
 
   // ONE CHANGE, SERVED WHOLE. Read-only: git_diff is declared Writes:false at

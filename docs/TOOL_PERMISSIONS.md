@@ -29,7 +29,7 @@ declaration visible. It does not make a false one true.
 
 ## The record
 
-94 tools: 50 read, 44 write (2 of the writers have reading actions); 4 carry a secret argument; service-only: 6. Tiers: core 84, spine 1, engine 9.
+95 tools: 50 read, 45 write (3 of the writers have reading actions); 4 carry a secret argument; service-only: 7. Tiers: core 85, spine 1, engine 9.
 
 `yes` = may call it; `reads only` = refused the tool as a writer, may call its reading actions; `-` = refused. `held` = a call from anything but the glass waits for the operator when holds are armed; `service only` = refused to anything but the glass, and never parked.
 
@@ -69,6 +69,7 @@ declaration visible. It does not make a false one true.
 | `git_branch` | core | writes | list | - | held | yes | yes | reads only | - |
 | `git_commit` | core | writes | - | - | held | yes | yes | - | - |
 | `git_diff` | core | reads | - | - | - | yes | yes | yes | - |
+| `git_pr` | core | writes | list | - | service only | yes | yes | reads only | - |
 | `git_pull` | core | writes | - | - | held | yes | yes | - | - |
 | `git_push` | core | writes | - | - | held | yes | yes | - | - |
 | `git_remote` | core | reads | - | - | - | yes | yes | yes | - |
