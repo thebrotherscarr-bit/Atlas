@@ -4,8 +4,8 @@ package tools
 //
 // One exact edit of one existing text file. The path, the exact old text and the new text travel
 // as plain fields, never packed into a command. It never writes on the first call: it parks itself
-// as shell_run does, with the change set out line by line for his card (Inspector, Guardrails,
-// "Waiting for your hand"), and it writes only when hold_answer replays it on his Approve and the
+// as shell_run does, with the change set out line by line for his card (pinned at the foot of the
+// front page's terminal), and it writes only when hold_answer replays it on his Approve and the
 // file still gives exactly the change he was shown. It keeps what the seats and Aider keep
 // (aiderNeverWritten), refuses a secret, client material or a path outside the world (shellRefusals
 // and the door's jail), and edits nothing while a sitting is open (SITTING LAW 5).
@@ -161,7 +161,7 @@ func toolFileEdit(t tenant.Tenant, args map[string]any) (string, error) {
 		}
 		ans.State = "held"
 		ans.Hold = id
-		ans.Note = "Nothing has been written. It waits for his Approve on the card in Guardrails."
+		ans.Note = "Nothing has been written. It waits for his Approve on its card at the foot of the front page's terminal."
 		return ans.String(), nil
 	}
 

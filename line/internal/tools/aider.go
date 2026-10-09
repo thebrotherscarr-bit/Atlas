@@ -472,7 +472,7 @@ func aiderLineRefusal(home, abs string, branches map[string]string) (branch, why
 		}
 		name := filepath.Base(repo)
 		return "", fmt.Sprintf("the repository at `%s` %s, and the main line is the operator's (RULE 6): open a line of work first "+
-			"(`git_branch new <name>` through the door, or Lines of work on Version control) and write on it", name, where)
+			"(`git_branch new <name>` through the door, or Lines of work on the GitHub tab) and write on it", name, where)
 	}
 	return b, ""
 }

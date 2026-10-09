@@ -193,3 +193,57 @@ func TestAnEditWaitsForHisApprovalAndWritesExactlyWhatWasShown(t *testing.T) {
 		t.Fatalf("File content not updated after approval")
 	}
 }
+
+// THE DOOR CALLS THE PAGES WHAT THE GLASS CALLS THEM (2026-10-09, WHAT'S LEFT I1 step 2). On 2026-10-08 the glass's Version
+// control page became GitHub and its Guardrails tab became Laws, the calls it held for his hand now cards pinned at the foot of
+// the front page's terminal, and the door's own words went on sending him to both. No source of this package names either page
+// again. Each is read whole, every run of spaces made one and the glue between two literals or two comment lines taken out, so a
+// name split over a line's end is found too; the practice, version control in lowercase, is not the page.
+func TestTheDoorCallsThePagesWhatTheGlassCallsThem(t *testing.T) {
+	stale := func(src string) []string {
+		flat := strings.Join(strings.Fields(src), " ")
+		for _, glue := range []string{"\" + \"", "\"+ \"", "\" +\"", "\"+\""} {
+			flat = strings.ReplaceAll(flat, glue, "")
+		}
+		flat = strings.ReplaceAll(flat, " // ", " ")
+		var hits []string
+		for _, name := range []string{"Version control", "Guardrails"} {
+			if strings.Contains(flat, name) {
+				hits = append(hits, name)
+			}
+		}
+		return hits
+	}
+	if got := stale("return \"He answers it on the Version \" +\n\t\t\"control page.\""); len(got) != 1 {
+		t.Fatalf("a name split over two literals was not found: %v", got)
+	}
+	if got := stale("// for his card (Inspector,\n// Guardrails)"); len(got) != 1 {
+		t.Fatalf("a name in a comment was not found: %v", got)
+	}
+	if got := stale("// version control is the practice; Laws and GitHub are the pages"); len(got) != 0 {
+		t.Fatalf("the practice in lowercase was read as a page: %v", got)
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := map[string]bool{}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		read[f] = true
+		if hits := stale(string(b)); len(hits) != 0 {
+			t.Errorf("%s still names the old page: %s", f, strings.Join(hits, ", "))
+		}
+	}
+	for _, f := range []string{"aider.go", "edit.go", "holds.go"} {
+		if !read[f] {
+			t.Fatalf("%s was not read", f)
+		}
+	}
+}

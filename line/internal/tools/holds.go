@@ -243,7 +243,7 @@ func heldAnswer(h Hold) string {
 		"operator's own glass (%s). Nothing has been written.\n\n"+
 		"It is parked as %s and waits for his hand -- RULE 6: no agent commits, "+
 		"pushes, lands, approves, or authorises a spend. He answers it on the "+
-		"Version control page, or with hold_answer.\n\n"+
+		"card at the foot of the front page's terminal (or on the GitHub page), or with hold_answer.\n\n"+
 		"Do not retry this call and do not work around it. Say plainly that it "+
 		"is waiting.", h.Tool, h.Caller, h.ID)
 }
