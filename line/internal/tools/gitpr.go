@@ -144,7 +144,7 @@ func prOpen(t tenant.Tenant) (string, error) {
 	}
 	url := strings.TrimSpace(out)
 	url = strings.Split(url, "\n")[len(strings.Split(url, "\n"))-1]
-	return fmt.Sprintf("Opened a pull request for %q into %q: %s. CI runs on it; when its checks pass, land it as always (move to %q, Land onto main, Send) and GitHub marks it merged.", line, mainName, url, mainName), nil
+	return fmt.Sprintf("Opened a pull request for %q into %q: %s. CI runs on it; when every check on it has passed, Merge on GitHub (the GitHub tab, Pull requests) merges it there and brings %q down here.", line, mainName, url, mainName), nil
 }
 
 // prViewFields is what a merge reads of a pull request before it asks GitHub to merge it.
@@ -166,22 +166,83 @@ func prNumber(args map[string]any) int {
 	return 0
 }
 
+// A MERGE MAY WAIT FOR ITS CHECKS (2026-10-09, WHAT'S LEFT I1's fifth step): prMaxWait is the longest, in minutes --
+// GitHub's provers answer in minutes, and the release flow's own wait on GitHub (tests/cut.py, `ci`) allows twenty for
+// each commit -- prWaitPoll how often it asks again, and prSleep how it waits: variables, so no stroke waits.
+const prMaxWait = 30
+
+var (
+	prWaitPoll = 30 * time.Second
+	prSleep    = time.Sleep
+)
+
+// prWaitOf is the minutes a merge may wait for its checks, 0 when it names none; a wait that is not a whole number of
+// minutes from 0 to prMaxWait is refused by name.
+func prWaitOf(args map[string]any) (int, string) {
+	n := 0
+	switch v := args["wait"].(type) {
+	case nil:
+		return 0, ""
+	case float64:
+		if v != float64(int(v)) {
+			n = -1
+		} else {
+			n = int(v)
+		}
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return 0, ""
+		}
+		x, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			x = -1
+		}
+		n = x
+	default:
+		n = -1
+	}
+	if n < 0 || n > prMaxWait {
+		return 0, fmt.Sprintf("Refused: a merge waits from 0 to %d whole minutes for its checks, not %v.", prMaxWait, args["wait"])
+	}
+	return n, ""
+}
+
 // prMerge merges one pull request ON GITHUB, as a merge commit, and brings the new main line down to this machine
 // (2026-10-09, WHAT'S LEFT I1's fourth step; his card: "Merge on GitHub when green", and "Merge commit"). It reads the
 // pull request first and refuses one that is not open, does not go into the main line, has not passed every check or
 // does not merge cleanly; then it asks GitHub to merge exactly the head it read, so a save sent in between is never
 // merged unproved. Never --admin and never --auto, and the line is not deleted: closing it stays its own act.
+//
+// BY ITS NUMBER OR BY ITS LINE (2026-10-09, WHAT'S LEFT I1's fifth step). His glass's button names the number; the
+// release flow, which lands its saves through pull requests once main is protected (his card: "Everyone, me too"), has
+// the line it opened and no number to hand, so it names the line, and the number gh answers for that line is the one
+// merged. A line whose pull request GitHub has merged already is said so and main still comes down, so a release that
+// stopped between its merges can be fired again; a number already merged is still refused, as the button's press was.
 func prMerge(t tenant.Tenant, args map[string]any) (string, error) {
-	n := prNumber(args)
+	n, line := prNumber(args), ""
 	if n == 0 {
-		return "Refused: name the pull request to merge, by its number.", nil
+		line = strings.TrimSpace(str(args, "line"))
 	}
-	num := strconv.Itoa(n)
-	out, err := ghRun(t, 30*time.Second, "pr", "view", num, "--json", prViewFields)
+	if n == 0 && line == "" {
+		return "Refused: name the pull request to merge, by its number or by its line.", nil
+	}
+	wait, bad := prWaitOf(args)
+	if bad != "" {
+		return bad, nil
+	}
+	sel, what := strconv.Itoa(n), fmt.Sprintf("pull request #%d", n)
+	if line != "" {
+		if refusal := badBranchName(line); refusal != "" {
+			return refusal, nil
+		}
+		sel, what = line, fmt.Sprintf("a pull request from %q", line)
+	}
+	out, err := ghRun(t, 30*time.Second, "pr", "view", sel, "--json", prViewFields)
 	if err != nil {
-		return fmt.Sprintf("Refused: gh could not read pull request #%d -- %s", n, firstLine(out)), nil
+		return fmt.Sprintf("Refused: gh could not read %s -- %s", what, firstLine(out)), nil
 	}
 	var pr struct {
+		Number            int       `json:"number"`
 		Title             string    `json:"title"`
 		State             string    `json:"state"`
 		BaseRefName       string    `json:"baseRefName"`
@@ -193,15 +254,43 @@ func prMerge(t tenant.Tenant, args map[string]any) (string, error) {
 	if err := json.Unmarshal([]byte(out), &pr); err != nil || pr.State == "" {
 		return "Refused: gh answered in a shape this cannot read -- " + firstLine(out), nil
 	}
+	if line != "" {
+		if pr.Number < 1 || pr.HeadRefName != line {
+			return fmt.Sprintf("Refused: gh answered with pull request #%d from %q, not from %q, so nothing was merged.", pr.Number, pr.HeadRefName, line), nil
+		}
+		n = pr.Number
+	}
+	num := strconv.Itoa(n)
+	mainName := mainLine(t)
 	if state := strings.ToLower(pr.State); state != "open" {
+		if line != "" && state == "merged" && mainName != "" && pr.BaseRefName == mainName {
+			return fmt.Sprintf("Pull request #%d from %q is merged on GitHub already: %q, into %s.%s", n, line, pr.Title, mainName, mainDown(t, mainName)), nil
+		}
 		return fmt.Sprintf("Refused: pull request #%d is %s, not open: there is nothing to merge.", n, state), nil
 	}
-	mainName := mainLine(t)
 	if mainName == "" {
 		return "Refused: this world has no main line -- no `main` or `master` branch -- so there is nowhere here for the merge to come down to.", nil
 	}
 	if pr.BaseRefName != mainName {
 		return fmt.Sprintf("Refused: pull request #%d goes into %q, not the main line %q. Merge on GitHub takes a line of work into the main line and nothing else.", n, pr.BaseRefName, mainName), nil
+	}
+	// A MERGE THAT WAITS (2026-10-09, WHAT'S LEFT I1's fifth step): the release flow sends a line, opens its pull request
+	// and merges it in one pass, so a merge given minutes asks gh again every prWaitPoll while GitHub's provers have not
+	// answered, for as long as it was given; a failure is answered at once, and when the wait is spent the refusals below
+	// stand as they would have without it.
+	for i := 0; i < wait*int(time.Minute/prWaitPoll); i++ {
+		if c := prChecks(pr.StatusCheckRollup); c == "passed" || c == "failed" {
+			break
+		}
+		prSleep(prWaitPoll)
+		again, err := ghRun(t, 30*time.Second, "pr", "view", num, "--json", prViewFields)
+		if err != nil {
+			return fmt.Sprintf("Refused: gh could not read pull request #%d again while it waited -- %s", n, firstLine(again)), nil
+		}
+		pr.StatusCheckRollup = nil
+		if err := json.Unmarshal([]byte(again), &pr); err != nil || pr.State == "" {
+			return "Refused: gh answered in a shape this cannot read -- " + firstLine(again), nil
+		}
 	}
 	switch prChecks(pr.StatusCheckRollup) {
 	case "none":
@@ -267,7 +356,7 @@ func toolGitPR(t tenant.Tenant, args map[string]any) (string, error) {
 	case "merge":
 		return prMerge(t, args)
 	default:
-		return fmt.Sprintf("Refused: %q is not something this does. It lists the open pull requests (list), opens one from the line you stand on (open), or merges one on GitHub once every check on it has passed (merge, with its number).", action), nil
+		return fmt.Sprintf("Refused: %q is not something this does. It lists the open pull requests (list), opens one from the line you stand on (open), or merges one on GitHub once every check on it has passed (merge, with its number or its line).", action), nil
 	}
 }
 
@@ -275,11 +364,11 @@ func toolGitPR(t tenant.Tenant, args map[string]any) (string, error) {
 func gitPRTool() Tool {
 	return Tool{
 		Name:        "git_pr",
-		Description: "pull requests, the one GitHub-side object his ruling of 2026-10-07 let into the door: list a world's open pull requests with their checks as one word (none, pending, passed, failed); open one from the line of work he stands on into the main line, refused on the main line, over unsaved work, and for a line GitHub does not have exactly as it stands; or merge one on GitHub by its number, as a merge commit, refused unless it is open, goes into the main line, merges cleanly and every check on it has passed, and then bring the new main line down to this machine (since 2026-10-09). Behind the same wall as every send (GIT_REMOTE). His glass alone may call it",
+		Description: "pull requests, the one GitHub-side object his ruling of 2026-10-07 let into the door: list a world's open pull requests with their checks as one word (none, pending, passed, failed); open one from the line of work he stands on into the main line, refused on the main line, over unsaved work, and for a line GitHub does not have exactly as it stands; or merge one on GitHub by its number, or by its line as the release flow names it, as a merge commit, refused unless it is open, goes into the main line, merges cleanly and every check on it has passed, and then bring the new main line down to this machine (since 2026-10-09; a line whose pull request is merged already is said so, and main still comes down; given minutes to wait, up to 30, it waits that long for the checks to answer). Behind the same wall as every send (GIT_REMOTE). His glass alone may call it",
 		Writes:      true,
 		Reads:       []string{"list"},
 		ServiceOnly: true,
-		Args:        []string{"action?", "project?", "number?"},
+		Args:        []string{"action?", "project?", "number?", "line?", "wait?"},
 		Fn:          toolGitPR,
 	}
 }
