@@ -4,6 +4,15 @@
 // merge, commit, push, delete, reject, promote) are absent BY CONSTRUCTION:
 // they appear nowhere in this table.
 //
+// SUPERSEDED IN PART, AND SAID HERE WHERE IT WAS LAID DOWN. What holds of
+// it since 2026-09-25 is holds.go's: a forbidden verb is NEVER FREE -- every
+// tool carrying one writes, and is held for any caller but his glass
+// (git_commit and git_push carry two; P0-14). And on 2026-10-09 his word
+// superseded it for merge: "we have to be able to merge, thats before the
+// github functionality was complete ... supersede that one". git_pr's
+// `merge` asks GitHub to merge a pull request whose checks have all passed,
+// and it is his glass's alone (gitpr.go).
+//
 // 2026-08-27: the eight B1 read/ask/write tools are landed (manifest-
 // resolved); the rack trio (rack_list/rack_ask/rack_open) stays honestly
 // refusing until F1. ask_steward + remember serialize under one ask lock so
