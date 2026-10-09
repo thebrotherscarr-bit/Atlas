@@ -12,6 +12,12 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Three versions cut and never tagged are marked after the fact: v0.1.2, v0.1.3 and v0.1.4, each on the commit that cut its number (2026-10-09; his word: "post-script the versions that didnt get any tags or info ... tag them with what happened that day")
+
+His word, 2026-10-09, and his card the same morning, "Both": a mark for each version cut and never tagged, each on its own card, the sending of them a separate word of his. In this repository three: v0.1.2 on `0586228`, v0.1.3 on `7688c04` and v0.1.4 on `467e94c`, each the commit that moved every pin to its number (every VERSION file and Cargo.toml say it there), annotated, in his name, its message saying what the version carried. Each was checked first as `git_tag` judges a cut (a lawful name, every stamp agreeing at the commit, the commit on the main line, no mark of that name already) and cut in his Bash tab on his card. Left unmarked: 0.1.0+f1 and 0.1.1+f1, which no commit of this repository declares. `[0.1.2]`'s heading names its mark, with a post-script under it, and `[0.1.5]`'s note that 0.1.3 and 0.1.4 were built and never tagged carries a post-script naming theirs; the words under both stand as they were. Nothing was sent: the marks are on this machine until his word. No code moved, and nothing was built or placed. The core's half (its v0.1.6 and v0.1.10, and BUILDPATH's list of the marks) is in the core's CHANGELOG, "core: the versions cut and never tagged are marked after the fact".
+
+**What goes red if unplugged:** in the core, `test_the_plan_names_every_mark_where_it_sits`, which reads every mark this repository holds and wants each one named in the core's BUILDPATH by the commit it sits on, with every `## ` heading here that places a mark; the core's entry carries the suites' tally.
+
 ### The door calls the pages what the glass calls them: Aider's refusal and a parked call's answer name the GitHub tab, and `file_edit`'s held note the card at the foot of the terminal (2026-10-09; the core's WHAT'S LEFT I1, second step; his word: "alright, let's get to work.")
 
 On 2026-10-08 the glass's Version control page became GitHub, Guardrails became Laws, and every call parked for his hand became a card pinned in the dock at the foot of the front page's terminal (the entries below). The door's own words went on naming the old pages, and both entries named them and left them for a door rebuild: Aider's refusal on the main line (`aider.go`, "Lines of work on Version control"), `heldAnswer`'s reply to a parked call (`holds.go`, answered "on the Version control page"), and `file_edit`'s held note ("waits for his Approve on the card in Guardrails") with the comment at the head of `edit.go`.
@@ -3510,6 +3516,8 @@ and it is not waived for its author. The fix rides the next number.
 0.1.3 and 0.1.4 were built and never tagged, so both ship inside this tag; their
 headers below mark where each began.
 
+*Post-script, 2026-10-09: both have marks of their own since, cut after the fact on his word on the commits that cut their numbers, v0.1.3 on `7688c04` and v0.1.4 on `467e94c` (every VERSION file and Cargo.toml agree at each), each with its message. The headers below stand as they were.*
+
 ### 0.1.5 — THE FLOW CONFIRMATION
 
 His word, 2026-09-12: *"0.1.5 the flow confirmation."*
@@ -5015,7 +5023,9 @@ this console's own law and worth more than any chart.
   against it would have proven a repository no one was changing. Every path
   now derives from the script's own location.
 
-## [0.1.2] — 2026-09-10
+## [0.1.2] — 2026-09-10 (tag on 0586228)
+
+*Post-script, 2026-10-09: marked after the fact on his word, on `0586228`, the commit that cut 0.1.2 (every VERSION file and Cargo.toml say 0.1.2 there), its message what it carries.*
 
 ### Changed
 - **The stone moniker is struck from the version.** `0.1.1+f1` → `0.1.2`, in
