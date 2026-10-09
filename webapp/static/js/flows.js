@@ -148,8 +148,15 @@ const Flows = {
     }
 
     // AHEAD / BEHIND, which is the pair nobody can ever remember.
+    //
+    // NEVER SENT IS NOT UNLINKED (2026-10-09, WHAT'S LEFT I1's third step). The `git` tool names an upstream only for a
+    // line that has been sent, and it lists the world's remotes either way, so a line that has never been sent and a
+    // world with no remote are two facts, said as two: the first is one press of Send to GitHub from being linked.
+    const origin = (g.remotes || []).includes('origin');
     let gh;
-    if (!g.upstream) gh = 'this line of work is not linked to GitHub at all';
+    if (!g.upstream) gh = origin
+      ? 'this line of work has never been sent to GitHub — Send to GitHub sends it there and links it'
+      : 'not linked to GitHub at all — this world has no remote called origin, which is where Send to GitHub sends';
     else if (!g.ahead && !g.behind) gh = 'in step — GitHub has exactly what you have';
     else {
       const bits = [];
@@ -281,17 +288,26 @@ const Flows = {
   controls(w, g) {
     const q = escHtml(w);
     const walled = !g.remote_allowed;
-    const nothingToSend = !g.ahead;
+    // A LINE THAT HAS NEVER BEEN SENT HAS SOMETHING TO SEND: the line itself (2026-10-09, WHAT'S LEFT I1's third step:
+    // "Send to GitHub on a line of work that has never been sent"). Ahead and behind are counted against an upstream,
+    // and a never-sent line has none, so `!g.ahead` greyed Send on the one line that most needed it -- "Nothing to
+    // send" over saves GitHub had never seen. The door's git_push sends such a line to origin and links it there
+    // (gitctl.go, toolGitPush), so Send is offered whenever this world has an origin to send it to.
+    const origin = (g.remotes || []).includes('origin');
+    const nothingToSend = !g.upstream ? !origin : !g.ahead;
 
     const sendWhy = walled
       ? 'Sending is OFF — the estate wall (MANJUEL_GIT_REMOTE) is shut'
-      : nothingToSend ? 'Nothing to send — GitHub already has every save here'
-        : `Send ${g.ahead} save${g.ahead === 1 ? '' : 's'} to GitHub`;
+      : !g.upstream && !origin ? 'Nowhere to send — this world has no remote called origin'
+        : !g.upstream ? `Send ${g.branch || 'this line'} to GitHub for the first time, and link it there`
+          : nothingToSend ? 'Nothing to send — GitHub already has every save here'
+            : `Send ${g.ahead} save${g.ahead === 1 ? '' : 's'} to GitHub`;
     const fetchWhy = walled
       ? 'Fetching is OFF — the estate wall (MANJUEL_GIT_REMOTE) is shut'
       : g.dirty ? 'There is unsaved work here — save it first'
-        : !g.behind ? 'Nothing to fetch — you already have every save on GitHub'
-          : `Take the ${g.behind} save${g.behind === 1 ? '' : 's'} GitHub has`;
+        : !g.upstream ? 'Nothing to fetch — this line has never been sent, so GitHub holds nothing of it'
+          : !g.behind ? 'Nothing to fetch — you already have every save on GitHub'
+            : `Take the ${g.behind} save${g.behind === 1 ? '' : 's'} GitHub has`;
 
     return `<div class="mt-16">
       <input type="text" class="input mb-16" id="msg-${q}" placeholder="say what this save is, in your own words" />

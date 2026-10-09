@@ -255,6 +255,59 @@ func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
 	}
 }
 
+// A LINE OF WORK THAT HAS NEVER BEEN SENT CAN BE SENT, AND IS SAID TO BE NEVER SENT (2026-10-09, the core's WHAT'S
+// LEFT I1, third step: "Send to GitHub on a line of work that has never been sent, and the GitHub tab's words for it").
+// Ahead and behind are counted against an upstream, and a line that has never been sent has none: the page greyed its
+// Send as "Nothing to send" over saves GitHub had never seen, and called the line "not linked to GitHub at all" in a
+// world that was linked. The `git` tool lists the world's remotes either way, so the page asks whether there is an
+// origin before it judges a line with no upstream: with one, Send is offered "for the first time", because the door's
+// git_push sends such a line to origin and links it there, and says so; with none, the line is not linked at all.
+func TestALineThatHasNeverBeenSentCanBeSent(t *testing.T) {
+	fl := page(t, "js/flows.js")
+	controls, plain := funcOf(fl, "  controls("), funcOf(fl, "  plain(")
+	for _, f := range []string{controls, plain} {
+		if !strings.Contains(f, "const origin = (g.remotes || []).includes('origin');") {
+			t.Fatal("the GitHub page judges a line with no upstream without asking whether the world has an origin to send to")
+		}
+	}
+	if !strings.Contains(controls, "const nothingToSend = !g.upstream ? !origin : !g.ahead;") || !strings.Contains(controls, "for the first time") {
+		t.Fatal("Send is greyed on a line that has never been sent, as if GitHub already had its saves, or does not say it sends the line for the first time")
+	}
+	if !strings.Contains(controls, "this line has never been sent, so GitHub holds nothing of it") {
+		t.Fatal("Take from GitHub tells a never-sent line that it already has every save on GitHub")
+	}
+	if strings.Count(fl, "not linked to GitHub at all") != 1 ||
+		!regexp.MustCompile(`(?s)gh = origin\s+\? 'this line of work has never been sent to GitHub.*?: 'not linked to GitHub at all`).MatchString(plain) {
+		t.Fatal("a never-sent line in a world with an origin is called not linked to GitHub at all, or a world with no origin is not")
+	}
+	// The page judges by two keys the door's `git` writes, and offers a send the door's git_push makes.
+	state, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "gitstate.go"))
+	if err != nil {
+		t.Fatalf("the door's git state is not beside the glass: %v", err)
+	}
+	for _, key := range []string{`out["upstream"]`, `out["remotes"]`} {
+		if !strings.Contains(string(state), key) {
+			t.Fatalf("the door's git tool no longer writes %s, which the page judges a never-sent line by", key)
+		}
+	}
+	ctl, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "gitctl.go"))
+	if err != nil {
+		t.Fatalf("the door's git verbs are not beside the glass: %v", err)
+	}
+	push := string(ctl)
+	i := strings.Index(push, "func toolGitPush(")
+	if i < 0 {
+		t.Fatal("the door's git_push is not where this stroke reads it")
+	}
+	push = push[i:]
+	if j := strings.Index(push, "\nfunc "); j >= 0 {
+		push = push[:j]
+	}
+	if !strings.Contains(push, `"--set-upstream", "origin", branch`) || !strings.Contains(push, "had never been sent before") {
+		t.Fatal("the door's git_push no longer sends a never-sent line to origin and links it there, which the page offers")
+	}
+}
+
 func TestTheBuilderOffersLoopsAndFindsAPausedRunAfterAReload(t *testing.T) {
 	wf := page(t, "js/workflows.js")
 	for _, kind := range []string{"ask:", "run:", "seat:", "prompt:", "memory:"} {
