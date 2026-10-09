@@ -26,8 +26,17 @@
 
 name: prove
 
+# A LINE IS PROVED ONCE (2026-10-09, the core's WHAT'S LEFT I1, sixth step): by
+# its pull request, and main and the marks by their own push. A bare `push:` ran
+# the battery on every line AND on its pull request, the same commit twice. Main
+# takes a change only through a pull request whose battery is green, so that run
+# is the one that counts; `workflow_dispatch` still proves any line by hand. The
+# GITHUB leg of the battery (tests/prove.py) refuses a workflow that runs on pull
+# requests and on a push to every line.
 on:
   push:
+    branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -85,7 +94,7 @@ jobs:
         # bumped to 0.1.6 and every other stamp -- eight files, Cargo.toml,
         # the lock -- stayed at 0.1.5, and no push asked: this check ran only
         # in release.yml, which a tag reaches after it is cut, and refused it
-        # there. The same command on every push makes a drifted pin red
+        # there. The same command on every pull request makes a drifted pin red
         # before anybody cuts a mark. First, because it takes a second and
         # names every file that is out of step.
         shell: pwsh
@@ -137,7 +146,7 @@ jobs:
         # door's own shipped battery (atlas-mcp --prove) while the comment
         # above promised both. So the spine's version strokes went red at
         # 0c65afc and this gate stayed green over them for four days.
-        # release.yml always ran the whole ball; now every push does. Without
+        # release.yml always ran the whole ball; now every run here does. Without
         # the private oracle ground the spine reports ABSENT (its oracle
         # legs), after its version strokes have run -- ABSENT is not red.
         run: python tests/prove.py

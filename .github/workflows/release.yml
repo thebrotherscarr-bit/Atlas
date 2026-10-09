@@ -105,7 +105,7 @@ jobs:
         # literals. Cargo.lock's three crates joined on 2026-09-22, when
         # v0.1.6 was found tagged with the root VERSION alone bumped: this
         # step refuses that tree (measured on a scratch copy of it), and
-        # prove.yml now runs it on every push so a drift is red before any
+        # prove.yml now runs it on every pull request so a drift is red before any
         # tag is cut. Named without a count, because the count moved twice.
         shell: pwsh
         run: .\version.ps1 sync
@@ -205,8 +205,16 @@ jobs:
         # this line is proof; publishing is his click. `workflow_dispatch` runs
         # every proof and stops here, so this file can be exercised without
         # cutting anything.
+        #
+        # PINNED TO A COMMIT (2026-10-09, the core's WHAT'S LEFT I1, sixth
+        # step). The one action here from outside GitHub's own, on the one step
+        # that may write: `@v2` is a tag its owner moves, so a release ran
+        # whatever it pointed at that day. This is the commit v2 pointed at when
+        # it was pinned, v2.6.2, and it moves only by an edit here. The GITHUB
+        # leg of the battery (tests/prove.py) refuses an outside action named
+        # any other way.
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
           generate_release_notes: true
