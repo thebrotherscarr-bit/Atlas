@@ -495,6 +495,45 @@ func TestFireRefusesAnEmptyBoxAndASecondPress(t *testing.T) {
 	}
 }
 
+// A RETIRED FLOW IS SHOWN SO AND OFFERED NO FIRE (2026-10-10, the core's WHAT'S LEFT
+// I2; his card: "Retire both, versions kept"). The door names a retired flow on its
+// own flow_list line, with why, and refuses to fire it from any version; the list
+// marks the line retired, and the build says why and greys Fire it -- a move the
+// door refuses is a move the page does not offer. The words the list reads are the
+// door's own, and the key the build reads is the spec's own, both held here.
+func TestARetiredFlowIsShownSoAndOfferedNoFire(t *testing.T) {
+	wf := page(t, "js/workflows.js")
+	list, build := funcOf(wf, "  async list("), funcOf(wf, "  build(")
+	if !strings.Contains(list, "/ · retired: /.test(l)") || !strings.Contains(list, `<span class="badge badge-muted">retired</span>`) {
+		t.Fatal("the list does not mark a retired flow's line")
+	}
+	if !strings.Contains(build, "const retired = String(s.retired || '').trim();") ||
+		!strings.Contains(build, `id="wf-fire" ${s.version && !retired ? '' : 'disabled'}`) ||
+		!strings.Contains(build, "Retired: ${esc(retired)}") {
+		t.Fatal("the build offers Fire on a retired flow, or does not say why it is retired")
+	}
+	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "tools.go"))
+	if err != nil {
+		t.Fatalf("the door's tool table is not beside the glass: %v", err)
+	}
+	body := string(door)
+	i := strings.Index(body, "func toolFlowList(")
+	if i < 0 {
+		t.Fatal("the door's flow_list is not where this stroke reads it")
+	}
+	body = body[i:]
+	if j := strings.Index(body, "\nfunc "); j >= 0 {
+		body = body[:j]
+	}
+	if !strings.Contains(body, `fmt.Fprintf(&b, " · retired: %s", strings.TrimSpace(s.Retired))`) {
+		t.Fatal("the door no longer names a retired flow on its line in the words the page reads")
+	}
+	spec, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "flow", "flow.go"))
+	if err != nil || !strings.Contains(string(spec), "Retired string `json:\"retired,omitempty\"`") {
+		t.Fatalf("the spec no longer carries the key the build reads, retired (%v)", err)
+	}
+}
+
 // A REFUSAL REACHES THE PAGE IN WORDS (2026-10-06). The handlers answer a
 // failure as {"error": words}, and the page's client threw "HTTP 502" and
 // dropped them, so every refusal the door gave a page arrived as a number.

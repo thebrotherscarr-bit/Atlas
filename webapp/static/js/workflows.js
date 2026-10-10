@@ -143,9 +143,13 @@ const Workflows = {
         const m = l.match(/^(\S+)\s+v(\d+)/);
         const name = m ? m[1] : l;
         const ver = m ? m[2] : '';
+        // A RETIRED FLOW (2026-10-10) is named so on the door's own line, with why;
+        // the badge says it at a glance, and the why stays in the words beside it.
+        const retired = / · retired: /.test(l);
         return `<div class="wf-row">
           <div class="wf-row-main"><span class="wf-name">${esc(name)}</span>
             ${ver ? `<span class="badge badge-muted">v${esc(ver)}</span>` : ''}
+            ${retired ? `<span class="badge badge-muted">retired</span>` : ''}
             <span class="muted">${esc(l.replace(/^\S+\s+v\d+\s*·?\s*/, ''))}</span></div>
           <button class="btn btn-sm" data-open="${esc(name)}">Open</button>
         </div>`;
@@ -196,10 +200,15 @@ const Workflows = {
     if (!box || !this.spec) return;
     const s = this.spec;
     const names = s.nodes.map(n => n.name).filter(Boolean);
+    // A RETIRED FLOW IS OFFERED NO FIRE (2026-10-10): the door refuses to fire it,
+    // from any version, and a move the door refuses is a move this page does not
+    // offer. Save carries the mark onto the next version, so an edit keeps it.
+    const retired = String(s.retired || '').trim();
 
     box.innerHTML = `
       <div class="card">
-        <div class="card-title">The build — ${esc(s.name)}${s.version ? ' · v' + s.version : ' · not yet folded'}</div>
+        <div class="card-title">The build — ${esc(s.name)}${s.version ? ' · v' + s.version : ' · not yet folded'}${retired ? ' · retired' : ''}</div>
+        ${retired ? `<div class="muted mb-16">Retired: ${esc(retired)}. The door fires it no more; every version of it is kept.</div>` : ''}
 
         <div class="flex mb-16" style="gap:16px;flex-wrap:wrap">
           <div class="form-group" style="margin:0">
@@ -231,7 +240,7 @@ const Workflows = {
           <div class="muted">Saving folds a new version. The old one is kept whole, never rewritten.</div>
           <div class="flex" style="gap:8px">
             <button class="btn" id="wf-save">Save</button>
-            <button class="btn btn-primary" id="wf-fire" ${s.version ? '' : 'disabled'}>Fire it</button>
+            <button class="btn btn-primary" id="wf-fire" ${s.version && !retired ? '' : 'disabled'}>Fire it</button>
           </div>
         </div>
         <div id="wf-msg"></div>

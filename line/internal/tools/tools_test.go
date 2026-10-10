@@ -1684,6 +1684,64 @@ func TestFlowSaveRefusesAGrantOnAStrangerOrAReader(t *testing.T) {
 	}
 }
 
+// A RETIRED FLOW, THROUGH THE DOOR (2026-10-10, the core's WHAT'S LEFT I2; his
+// card: "Retire both, versions kept"). flow_save carries the mark onto a new
+// version and says so; flow_get serves it and the version before it as it was;
+// flow_list names it with its why, on the line the Workflows page reads; and
+// flow_run, from any version, is refused by name -- the flow package's own
+// refusal, reached through the door's wire.
+func TestTheDoorCarriesARetiredFlowAndFiresItNoMore(t *testing.T) {
+	home := t.TempDir()
+	tr := tenant.NewRegistry()
+	if err := tr.Add("t", home); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.SetDefault("t"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ATLAS_BIN", filepath.Join(home, "NO-SUCH-SPINE.exe"))
+	reg := Build(tr, Options{})
+	glass := Caller{Name: "glass", Service: true}
+	spec := func(retired string) string {
+		mark := ""
+		if retired != "" {
+			mark = `,"retired":"` + retired + `"`
+		}
+		return `{"nodes":[{"name":"a","kind":"ask","question":"Q"}],"edges":[]` + mark + `}`
+	}
+	save := func(s string) (string, error) {
+		return reg.Call(tr, "flow_save", map[string]any{"name": "old", "spec": s}, glass)
+	}
+	if out, err := save(spec("")); err != nil || !strings.Contains(out, "SAVED flow old v1") || strings.Contains(out, "retired") {
+		t.Fatalf("a flow folds as before: %q %v", out, err)
+	}
+	out, err := save(spec("superseded by new"))
+	if err != nil || !strings.Contains(out, "SAVED flow old v2") || !strings.Contains(out, "retired: superseded by new") {
+		t.Fatalf("the mark is carried onto a new version, and said: %q %v", out, err)
+	}
+	if got, err := reg.Call(tr, "flow_get", map[string]any{"name": "old"}, glass); err != nil ||
+		!strings.Contains(got, `"retired": "superseded by new"`) {
+		t.Fatalf("the folded spec carries the mark: %q %v", got, err)
+	}
+	if got, err := reg.Call(tr, "flow_get", map[string]any{"name": "old", "version": 1.0}, glass); err != nil ||
+		strings.Contains(got, "retired") {
+		t.Fatalf("the version before the mark is kept as it was: %q %v", got, err)
+	}
+	list, err := reg.Call(tr, "flow_list", map[string]any{}, glass)
+	if err != nil || !strings.Contains(list, "  - old v2 · 1 nodes · budget 600s · retired: superseded by new\n") {
+		t.Fatalf("flow_list names the mark, with its why, on the flow's own line: %q %v", list, err)
+	}
+	for _, v := range []float64{0, 1} {
+		_, err := reg.Call(tr, "flow_run", map[string]any{"name": "old", "version": v}, glass)
+		if err == nil || !strings.Contains(err.Error(), `flow "old" is retired -- superseded by new`) {
+			t.Fatalf("flow_run of version %v of a retired flow is refused by name: %v", v, err)
+		}
+	}
+	if _, err := save(spec("  ")); err == nil || !strings.Contains(err.Error(), "marked retired with no reason") {
+		t.Fatalf("a mark that says nothing is refused at the door: %v", err)
+	}
+}
+
 // --- the standup, fired from the glass (2026-09-28) -----------------------------
 //
 // His word: "fire the standup through the glass". `standup_run` runs the

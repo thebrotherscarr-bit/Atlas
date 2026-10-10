@@ -168,6 +168,11 @@ func RunOn(home string, eng Engine, s Spec, inputs map[string]string, head Head)
 	if err != nil {
 		return Result{}, err
 	}
+	// A RETIRED FLOW IS FIRED NO MORE (2026-10-10), from any version: the mark
+	// is the flow's latest version, asked before anything is written.
+	if err := retiredRefusal(home, s.Name); err != nil {
+		return Result{}, err
+	}
 	run, err := RunID()
 	if err != nil {
 		return Result{}, err
@@ -1456,6 +1461,11 @@ func Replay(home string, eng Engine, run string) (Result, error) {
 		for k, v := range m {
 			inputs[k] = fmt.Sprintf("%v", v)
 		}
+	}
+	// Nor is a run of a retired flow replayed (2026-10-10): a replay is a fresh
+	// firing of the same flow, asked before anything is written.
+	if err := retiredRefusal(home, s.Name); err != nil {
+		return Result{}, err
 	}
 	fresh, err := RunID()
 	if err != nil {
