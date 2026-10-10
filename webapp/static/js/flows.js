@@ -13,7 +13,7 @@ const Flows = {
   // one: opening the lines of work is not a request to see the marks.
   marked: {},
   // And the pull-requests panel (2026-10-07), a third flag for the same reason, with the door's last answer to an
-  // open kept beside it: every refresh rebuilds the panel, and an answer written into it would go with it.
+  // open or a merge kept beside it: every refresh rebuilds the panel, and an answer written into it would go with it.
   pulled: {},
   pullSaid: {},
   // The one mark, if any, whose Send is ARMED -- "<world>:<name>". One at a
@@ -709,12 +709,17 @@ const Flows = {
 
   // THE PULL REQUESTS (2026-10-07, his ruling on a card: "Open the wall for PRs"). The door's git_pr lists this
   // world's open pull requests with their checks as one word, and opens one from the line of work he stands on into
-  // the main line -- from the button below and nowhere else. NOTHING HERE MERGES: a line still lands with Land and
-  // Send, and GitHub marks the pull request merged once the main line holds its saves. Every refusal is the door's
-  // (the main line, unsaved work, a line GitHub does not have as it stands, the wall), shown in its own words.
+  // the main line -- from the button below and nowhere else. AND MERGES ONE ON GITHUB (2026-10-09, his card: "Merge on
+  // GitHub when green"; his word, superseding the founding law that kept merge out: "we have to be able to merge ...
+  // supersede that one"): each row's Merge on GitHub is live only while that pull request's checks have all passed,
+  // and greyed with the reason otherwise. Land onto main, then Send, still lands a line without one. Every refusal is
+  // the door's (the main line, unsaved work, a line GitHub does not have as it stands, a pull request not green or not
+  // clean, the wall), shown in its own words.
   async pulls(w) {
     const box = document.getElementById('pulls-' + w);
     if (!box) return;
+    // A REPAINT DISARMS, as it does for the marks: the row he armed is destroyed and rebuilt here.
+    this.arming = null;
     if (!this.pulled[w]) { box.innerHTML = ''; return; }
     box.innerHTML = '<div class="loading">Asking GitHub...</div>';
     let said;
@@ -724,23 +729,35 @@ const Flows = {
     try { d = JSON.parse(said); } catch { d = null; }
     const q = escHtml(w);
     const word = { passed: 'checks passed', failed: 'checks FAILED', pending: 'checks still running', none: 'no checks yet' };
-    const rows = (d && d.pull_requests || []).map(p =>
-      `<tr><td style="padding-right:12px;white-space:nowrap"><b>#${escHtml(String(p.number))}</b></td>`
-      + `<td style="padding-right:12px">${escHtml(p.title || '')}</td>`
-      + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(p.line || '')} into ${escHtml(p.into || '')}</td>`
-      + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(word[p.checks] || p.checks || '')}</td>`
-      + `<td class="muted">${escHtml(p.url || '')}</td></tr>`).join('');
+    const notYet = {
+      failed: 'Its checks FAILED: mend the line, send it again, and merge when they pass',
+      pending: 'Its checks are still running: Merge on GitHub waits until every one has passed',
+      none: 'No checks have run on it: Merge on GitHub waits until they have, and passed',
+    };
+    const rows = (d && d.pull_requests || []).map(p => {
+      const n = escHtml(String(p.number));
+      const merge = p.checks === 'passed'
+        ? `<button class="btn btn-sm" data-pull="merge" data-w="${q}" data-n="${n}" title="Merge #${n} on GitHub as a merge commit, then bring the new main line down here">Merge on GitHub</button>`
+        : `<button class="btn btn-sm" disabled title="${escHtml(notYet[p.checks] || 'Its checks have not all passed')}">Merge on GitHub</button>`;
+      return `<tr><td style="padding-right:12px;white-space:nowrap"><b>#${n}</b></td>`
+        + `<td style="padding-right:12px">${escHtml(p.title || '')}</td>`
+        + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(p.line || '')} into ${escHtml(p.into || '')}</td>`
+        + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(word[p.checks] || p.checks || '')}</td>`
+        + `<td class="muted" style="padding-right:12px">${escHtml(p.url || '')}</td>`
+        + `<td>${merge}</td></tr>`;
+    }).join('');
     const kept = this.pullSaid[w] ? `<pre>${escHtml(this.pullSaid[w])}</pre>` : '';
     box.innerHTML = `<div class="card-title mt-16">Pull requests</div>`
       + (!d ? `<pre>${escHtml(said)}</pre>`
         : rows ? `<table>${rows}</table>` : `<div class="empty-text">No pull request is open here.</div>`)
       + `<div class="flex mt-16"><button class="btn btn-sm" data-pull="open" data-w="${q}"`
       + ` title="Open a pull request from the line of work you are on into the main line">Open a pull request</button></div>`
-      + `<div class="muted">A pull request lands nothing by itself. When its checks pass, land the line as always: `
-      + `move to the main line, Land onto main, then Send to GitHub, and GitHub marks it merged.</div>`
+      + `<div class="muted">A pull request lands nothing by itself. Once every check on it has passed, Merge on GitHub `
+      + `merges it there as a merge commit and brings the new main line down to this machine: the first press says what `
+      + `will happen, the second does it. Until then the button stays grey and says why.</div>`
       + `<div id="pullout-${q}" class="muted">${kept}</div>`;
     box.querySelectorAll('[data-pull]').forEach(b => {
-      b.onclick = () => this.pull(b.dataset.w);
+      b.onclick = () => (b.dataset.pull === 'merge' ? this.merge(b.dataset.w, b.dataset.n) : this.pull(b.dataset.w));
     });
   },
 
@@ -754,6 +771,34 @@ const Flows = {
     catch (e) { answer = 'Refused: ' + e.message; }
     this.pullSaid[w] = answer;
     await this.repos();
+  },
+
+  // MERGING ONE ON GITHUB, on his press and the second one (2026-10-09, WHAT'S LEFT I1's fourth step). Armed the way a
+  // mark's Send is: a merge is GitHub's to keep and is not taken back from this page, so the first press says what will
+  // happen and only the second asks the door. The door reads the pull request again before it merges and refuses one
+  // that is not open, not into the main line, not green or not clean, so a row drawn green a minute ago merges nothing
+  // that has turned since; then it brings the new main line down here. Its words are kept on the object, as an open's.
+  async merge(w, n) {
+    const key = w + ':#' + n + ':merge';
+    if (this.arming !== key) {
+      this.arming = key;
+      const btn = document.querySelector(`[data-pull="merge"][data-w="${CSS.escape(w)}"][data-n="${CSS.escape(n)}"]`);
+      if (btn) btn.textContent = 'Click again to merge';
+      const warn = `#${n} will be merged on GitHub as a merge commit, and the new main line brought down to this machine. `
+        + 'GitHub keeps the merge; this page does not take it back. Click again to merge it; anything else leaves it open.';
+      const said = document.getElementById('pullout-' + w);
+      if (said) said.innerHTML = `<pre>${escHtml(warn)}</pre>`;
+      return;
+    }
+    this.arming = null;
+    const out = document.getElementById('pullout-' + w);
+    if (out) out.innerHTML = '<pre>Merging on GitHub...</pre>';
+    let answer;
+    try { answer = await App.tool('git_pr', { project: w, action: 'merge', number: Number(n) }); }
+    catch (e) { answer = 'Refused: ' + e.message; }
+    this.pullSaid[w] = answer;
+    await this.repos();
+    if (App.paintOwed) App.paintOwed();
   },
 
   // ONE CHANGE, SERVED WHOLE. Read-only: git_diff is declared Writes:false at

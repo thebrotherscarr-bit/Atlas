@@ -216,15 +216,20 @@ func TestVersionControlOffersLandingALineOntoMain(t *testing.T) {
 	if !strings.Contains(fl, "const onMain =") || !strings.Contains(fl, "(!b.main && onMain)") {
 		t.Fatal("Land is not gated on standing on the main line and the line not being it")
 	}
-	if strings.Contains(fl, `action: 'merge'`) || strings.Contains(fl, `data-line="merge"`) {
-		t.Fatal("the glass must not ask the door for a verb the table does not carry")
+	// SUPERSEDED IN PART 2026-10-09, on his word: "we have to be able to merge ... supersede that one". The glass asks
+	// git_pr to merge a pull request on GitHub (the stroke below holds it); the Lines-of-work box still lands with
+	// land, fast-forward, and never asks the door to merge.
+	if lines := funcOf(fl, "  async lines(") + funcOf(fl, "  async line("); strings.Contains(lines, "merge") {
+		t.Fatal("the Lines-of-work box asks the door to merge; a line lands onto main with land, fast-forward")
 	}
 }
 
-// PULL REQUESTS ON VERSION CONTROL (2026-10-07, his ruling on a card: "Open the wall for PRs"). Each world's
-// buttons carry Pull requests beside the marks; the panel lists through the door's git_pr and opens one from its
-// own button and nowhere else; nothing asks for a merge -- a line still lands with Land and Send; and the door
-// carries the tool the glass asks for, with list as its reading action and open as its one writing one.
+// PULL REQUESTS ON THE GITHUB TAB (2026-10-07, his ruling on a card: "Open the wall for PRs"; merged there since
+// 2026-10-09, his card: "Merge on GitHub when green"). Each world's buttons carry Pull requests beside the marks; the
+// panel lists through the door's git_pr and opens one from its own button and nowhere else; each row's Merge on GitHub
+// is live only while that pull request's checks have all passed and is greyed with the reason otherwise, and it merges
+// from the panel's own merge, on a second press, and nowhere else; and the door carries the tool the glass asks for,
+// with list as its reading action, open and merge as its writing ones, and merge judged by the pull request's checks.
 func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
 	fl := page(t, "js/flows.js")
 	if !strings.Contains(funcOf(fl, "  controls("), `data-act="pulls"`) || !strings.Contains(funcOf(fl, "  async act("), "await this.pulls(w)") {
@@ -237,8 +242,14 @@ func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
 	if strings.Count(fl, "action: 'open' })") != 1 || !strings.Contains(funcOf(fl, "  async pull("), "App.tool('git_pr', { project: w, action: 'open' })") {
 		t.Fatal("a pull request can be opened from somewhere other than the panel's own button")
 	}
-	if strings.Contains(fl, "action: 'merge'") || strings.Contains(fl, `data-pull="merge"`) {
-		t.Fatal("the glass asks git_pr to merge; a line lands with Land and Send")
+	if !regexp.MustCompile(`(?s)const merge = p\.checks === 'passed'\s+\? `+"`"+`<button class="btn btn-sm" data-pull="merge"`).MatchString(pulls) ||
+		strings.Count(pulls, `data-pull="merge"`) != 1 || !strings.Contains(pulls, `disabled title="${escHtml(notYet[p.checks]`) {
+		t.Fatal("Merge on GitHub is live on a pull request whose checks have not all passed, or is greyed without its reason")
+	}
+	merge := funcOf(fl, "  async merge(")
+	if strings.Count(fl, "action: 'merge'") != 1 || !strings.Contains(merge, "App.tool('git_pr', { project: w, action: 'merge', number: Number(n) })") ||
+		!strings.Contains(merge, "if (this.arming !== key)") || !strings.Contains(merge, "Click again to merge") {
+		t.Fatal("a pull request can be merged from somewhere other than the panel's own button, or on one press")
 	}
 	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "gitpr.go"))
 	if err != nil {
@@ -248,6 +259,9 @@ func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
 		regexp.MustCompile(`Name:\s+"git_pr"`),
 		regexp.MustCompile(`Reads:\s+\[\]string\{"list"\}`),
 		regexp.MustCompile(`case "open":`),
+		regexp.MustCompile(`case "merge":`),
+		regexp.MustCompile(`Args:\s+\[\]string\{"action\?", "project\?", "number\?"\}`),
+		regexp.MustCompile(`(?s)func prMerge\(.*?switch prChecks\(pr\.StatusCheckRollup\)`),
 	} {
 		if !want.Match(door) {
 			t.Fatalf("the door's git_pr no longer carries %s, which the glass is built on", want)

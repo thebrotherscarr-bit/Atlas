@@ -23,10 +23,12 @@ package tools
 // accident.
 //
 // THE WALL OPENED FOR PULL REQUESTS, AND FOR NOTHING ELSE (2026-10-07, his ruling on a card: "Open the
-// wall for PRs"). gitpr.go carries git_pr: it lists a world's open pull requests with their checks and
-// opens one from the line of work he stands on, through gh, on his click and behind the same dial as every
-// send. It never merges -- a line lands here as it always has, fast-forward, and GitHub marks the pull
-// request merged once the main line holds its saves. Issues, releases and the rest stay on the far side.
+// wall for PRs"). gitpr.go carries git_pr: it lists a world's open pull requests with their checks, opens
+// one from the line of work he stands on, and -- since 2026-10-09, his card: "Merge on GitHub when green" --
+// merges one on GitHub once every check has passed, through gh, on his click and behind the same dial as
+// every send. Until then it never merged, and a line still lands here as it always has, fast-forward: the
+// merge is GitHub's, and the main line here only follows it down. Issues, releases and the rest stay on
+// the far side.
 //
 // THREE RULES EVERY VERB HERE KEEPS:
 //   1. stdin closed, every call. A child that inherits a headless door's
@@ -861,7 +863,11 @@ func toolGitBranch(t tenant.Tenant, args map[string]any) (string, error) {
 		// LANDING A LINE OF WORK ONTO THE MAIN LINE (his ruling 2026-09-30,
 		// WHAT'S LEFT B16). The table carries no `merge` by its founding law
 		// and never will; `land` is the act under the estate's own name,
-		// and it is a button he presses himself, like Save and Send. Narrow
+		// and it is a button he presses himself, like Save and Send.
+		// SUPERSEDED 2026-10-09 for a merge on GitHub, on his word: "we have
+		// to be able to merge ... supersede that one". git_pr's `merge` asks
+		// GitHub to merge a pull request whose checks have all passed, as a
+		// merge commit (gitpr.go); `land` stays as it was. Narrow
 		// on purpose: fast-forward only (the main line has not moved since
 		// the line began), from the main line (you stand on it), over saved
 		// work (the tree is clean). A join with two parents is his
