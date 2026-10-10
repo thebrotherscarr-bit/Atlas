@@ -1002,7 +1002,7 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 	// lock — branches declare parallelism, the queue runs them one by one.
 	r.add(Tool{
 		Name: "flow_save", Writes: true,
-		Description: "fold a new flow spec version; history kept whole (N2). A gate's `grants` must name writing tools this door carries",
+		Description: "fold a new flow spec version; history kept whole (N2). A gate's `grants` must name writing tools this door carries; a spec carrying `retired` (why, in words) is a flow the door fires no more, every version of it kept",
 		Args:        []string{"name", "spec", "project?"},
 		Fn: func(t tenant.Tenant, args map[string]any) (string, error) {
 			return toolFlowSave(r, t, args)
@@ -2337,6 +2337,7 @@ func toolFlowSave(r *Registry, t tenant.Tenant, args map[string]any) (string, er
 		Nodes   []flow.Node `json:"nodes"`
 		Edges   []flow.Edge `json:"edges"`
 		BudgetS int         `json:"budget_s"`
+		Retired string      `json:"retired"`
 	}
 	if err := json.Unmarshal([]byte(raw), &doc); err != nil {
 		return "", fmt.Errorf("flow spec must be JSON: %s", err)
@@ -2361,11 +2362,18 @@ func toolFlowSave(r *Registry, t tenant.Tenant, args map[string]any) (string, er
 	askLock.Lock()
 	defer askLock.Unlock()
 	s, err := flow.Save(t.Home, flow.Spec{Name: strings.TrimSpace(name),
-		Nodes: doc.Nodes, Edges: doc.Edges, BudgetS: doc.BudgetS})
+		Nodes: doc.Nodes, Edges: doc.Edges, BudgetS: doc.BudgetS, Retired: doc.Retired})
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("SAVED flow %s v%d — history folds whole, nothing rewritten", s.Name, s.Version), nil
+	out := fmt.Sprintf("SAVED flow %s v%d — history folds whole, nothing rewritten", s.Name, s.Version)
+	// A RETIRED FLOW IS SAID SO AT THE SAVE (2026-10-10): the mark is this new
+	// version, and the door fires the flow no more while it stands.
+	if s.Retired != "" {
+		out += fmt.Sprintf(" · retired: %s -- fired no more, every version before this one kept",
+			strings.TrimSpace(s.Retired))
+	}
+	return out, nil
 }
 
 func toolFlowGet(t tenant.Tenant, args map[string]any) (string, error) {
@@ -2392,7 +2400,13 @@ func toolFlowList(t tenant.Tenant, _ map[string]any) (string, error) {
 	} else {
 		fmt.Fprintf(&b, "FLOWS — %d:\n", len(list))
 		for _, s := range list {
-			fmt.Fprintf(&b, "  - %s v%d · %d nodes · budget %ds\n", s.Name, s.Version, len(s.Nodes), s.BudgetS)
+			fmt.Fprintf(&b, "  - %s v%d · %d nodes · budget %ds", s.Name, s.Version, len(s.Nodes), s.BudgetS)
+			// A RETIRED FLOW IS NAMED SO ON ITS OWN LINE (2026-10-10), with why --
+			// the line the Workflows page reads as it stands.
+			if s.Retired != "" {
+				fmt.Fprintf(&b, " · retired: %s", strings.TrimSpace(s.Retired))
+			}
+			b.WriteString("\n")
 		}
 	}
 	// NOT HIDDEN (2026-09-25). A .json under flows/ that is not a flow the door

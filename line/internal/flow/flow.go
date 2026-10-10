@@ -2,7 +2,7 @@
 // runs, REVIEW gates, eval branches, compare and replay.
 //
 // Specs live in <home>/flows/<name>.json — {name, version, budget_s,
-// nodes, edges}; history folds as <name>.v<k>.json, never rewritten.
+// nodes, edges, retired?}; history folds as <name>.v<k>.json, never rewritten.
 // Node kinds are a closed set: ask | prompt | seat | memory | eval | gate |
 // run | aider | tool -- `run` drives a whole Manjuel turn (the council),
 // `aider` is an attempt by Aider on the files it is handed (and the council's
@@ -182,6 +182,31 @@ type Spec struct {
 	BudgetS int    `json:"budget_s"`
 	Nodes   []Node `json:"nodes"`
 	Edges   []Edge `json:"edges"`
+	// Retired is why this flow is fired no more, in words (2026-10-10, WHAT'S
+	// LEFT I2, his card: "Retire both, versions kept"). The mark is a VERSION of
+	// its own, folded like any other, so every version before it stays whole and
+	// readable (ESTATE LAW 1: fold, never delete), and a version saved without it
+	// brings the flow back. While the latest version carries it the door refuses
+	// to fire the flow, from any version, or to replay a run of it
+	// (retiredRefusal); a run already paused at a gate may still be answered.
+	// flow_list names it, the Workflows page shows it and offers no Fire, and the
+	// core's release gate names the flow retired rather than never COMPLETE,
+	// reading this same key -- a stroke there holds the two to each other.
+	Retired string `json:"retired,omitempty"`
+}
+
+// retiredRefusal is the door's refusal to fire a retired flow, or nil when the
+// flow is not retired (or not on disk). It reads the LATEST version, because the
+// mark is a version of its own: a run fired from an older version, or a replay
+// of one, fires the same flow, and the flow is what was retired. Asked before
+// anything is written, so a refusal leaves the record as it was.
+func retiredRefusal(home, name string) error {
+	cur, err := Get(home, name, 0)
+	if err != nil || cur.Retired == "" {
+		return nil
+	}
+	return fmt.Errorf("refused: flow %q is retired -- %s. It is fired no more, and every "+
+		"version of it is kept and read by flow_get", name, strings.TrimSpace(cur.Retired))
 }
 
 func flowsDir(home string) string { return filepath.Join(home, "flows") }
@@ -224,6 +249,12 @@ func OverBudget(elapsedMs []int64, budgetS int) bool {
 func Validate(s Spec) ([]string, error) {
 	if !NameRe.MatchString(s.Name) {
 		return nil, fmt.Errorf("refused: flow name %q breaks the name law", s.Name)
+	}
+	// A MARK THAT SAYS NOTHING IS REFUSED (2026-10-10): `retired` is why, in
+	// words, and a blank one would retire a flow with no reason on the record.
+	if s.Retired != "" && strings.TrimSpace(s.Retired) == "" {
+		return nil, fmt.Errorf("refused: flow %q is marked retired with no reason; say why in "+
+			"words, or leave `retired` off", s.Name)
 	}
 	if len(s.Nodes) == 0 {
 		return nil, fmt.Errorf("refused: flow %q carries no nodes", s.Name)

@@ -1771,3 +1771,73 @@ func TestAReturnIsRefusedWhereItIsNotALoop(t *testing.T) {
 		t.Fatalf("a return to the start node must validate: %v", err)
 	}
 }
+
+// --- a retired flow is fired no more (2026-10-10) ----------------------------
+//
+// The core's WHAT'S LEFT I2, his card: "Retire both, versions kept". The mark
+// is a version of its own: the versions before it stay whole and readable, the
+// flow is refused by name when it is fired from any version or a run of it is
+// replayed, a refusal writes nothing, a run already paused may still be
+// answered, and a version saved without the mark brings the flow back.
+func TestARetiredFlowIsFiredNoMoreAndEveryVersionIsKept(t *testing.T) {
+	home := t.TempDir()
+	eng := &stubEngine{}
+	s := Spec{Name: "demo", BudgetS: 600, Nodes: []Node{
+		{Name: "a", Kind: "ask", Question: "Q"},
+		{Name: "g", Kind: "gate", Title: "look"},
+	}, Edges: []Edge{{From: "a", To: "g"}}}
+	v1, err := Save(home, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fired, err := Run(home, eng, v1, nil)
+	if err != nil || fired.Verdict != VerdictPaused {
+		t.Fatalf("v1 fires and waits at its gate: %+v %v", fired, err)
+	}
+	blank := s
+	blank.Retired = "  "
+	if _, err := Save(home, blank); err == nil || !strings.Contains(err.Error(), "marked retired with no reason") {
+		t.Fatalf("a mark that says nothing is refused by name: %v", err)
+	}
+	s.Retired = "superseded by demo-tree"
+	v2, err := Save(home, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v2.Version != 2 || v2.Retired != s.Retired {
+		t.Fatalf("the mark is a version of its own, carrying why: %+v", v2)
+	}
+	if old, err := Get(home, "demo", 1); err != nil || old.Retired != "" || len(old.Nodes) != 2 {
+		t.Fatalf("the version before the mark is kept whole: %+v %v", old, err)
+	}
+	if list, _, _ := List(home); len(list) != 1 || list[0].Retired != s.Retired {
+		t.Fatalf("the list carries the mark: %+v", list)
+	}
+	before, err := os.ReadFile(runsPath(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []Spec{v1, v2} {
+		if _, err := Run(home, eng, v, nil); err == nil ||
+			!strings.Contains(err.Error(), `flow "demo" is retired -- superseded by demo-tree`) {
+			t.Fatalf("v%d of a retired flow is refused by name, with why: %v", v.Version, err)
+		}
+	}
+	if _, err := Replay(home, eng, fired.Run); err == nil || !strings.Contains(err.Error(), `flow "demo" is retired`) {
+		t.Fatalf("a run of a retired flow is not replayed: %v", err)
+	}
+	if after, _ := os.ReadFile(runsPath(home)); string(after) != string(before) {
+		t.Fatalf("a refusal wrote to the record: %d bytes before, %d after", len(before), len(after))
+	}
+	// A run already standing at its gate is the hand's to answer, retired or not.
+	if res, err := Resume(home, eng, fired.Run, "stop"); err != nil || res.Verdict != VerdictStopped {
+		t.Fatalf("a run paused before the mark may still be answered: %+v %v", res, err)
+	}
+	s.Retired = ""
+	if _, err := Save(home, s); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := Run(home, eng, s, nil); err != nil || res.Verdict != VerdictPaused {
+		t.Fatalf("a version saved without the mark brings the flow back: %+v %v", res, err)
+	}
+}
