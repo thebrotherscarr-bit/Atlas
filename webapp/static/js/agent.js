@@ -41,9 +41,9 @@
 // THE COUNCIL IS THE AGENT. A line typed here is the REPL's own turn: the
 // sealed law gate stamps it before any model reads a word, the one Router runs
 // the tools, and the recompose puts every failure into the delivery. This page
-// owns no council logic. It reads Run (council.js), the same object the
-// Watchboard and the old Dashboard read, and it writes its turns into
-// Chat.thread, so the three can never tell different stories.
+// owns no council logic. It reads Run (council.js), the one object every turn
+// is drawn from -- the Watchboard's panels in the Run tab included -- and it
+// writes its turns into Chat.thread, so no two places tell different stories.
 //
 // THE GATE IS HIS (RULE 6). Whatever waits for his hand -- a question from the
 // council, a shell line that asks first, any other writing call parked at the
@@ -103,9 +103,11 @@ const Agent = {
     { id: 'laws',   label: 'Laws' },
     { id: 'settings', label: 'Settings' }
   ],
-  // The Inspector's tabs: the seven doors, and the two the bar does not carry.
+  // The Inspector's tabs: the seven doors, and the three the bar does not carry -- Run, What's left (since 2026-10-10, on
+  // his card: "A tab of its own") and Rack.
   TABS: [
     { id: 'run',    label: 'Run' },
+    { id: 'left', label: "What's left" },
     { id: 'aider',  label: 'Aider Pair' },
     { id: 'github', label: 'GitHub' },
     { id: 'ledger', label: 'Audit Ledger' },
@@ -159,6 +161,10 @@ const Agent = {
     this.el = el;
     document.body.classList.add('is-agent');
     if (!this.bound) { Run.on((w) => this.onRun(w)); this.bound = true; this.loadHist(); }
+    // THE FRONT PAGE LANDS ON AGENT (2026-10-10, D17's last part; his word: "the front page should always land on Agent as
+    // default, then go from there", and on his card, "Agent, named tab beside"). Every time the page is drawn the terminal
+    // comes up on its Agent tab, whichever tab was used last; an address that opens an Inspector tab still opens it beside.
+    this.mode = 'agent';
     el.innerHTML = this.shell();
     this.wire();
     this.paintMode();
@@ -813,6 +819,8 @@ const Agent = {
         Chat.thread.push(him, cn);
         this.entries.push({ id: ++this._seq, kind: 'turn', command: him.text, him, cn, isCommand: /^\//.test(him.text) });
       }
+      // A new turn opens every seat's words again on the Run tab's floor, as the Watchboard's own page did.
+      Chat.shut = {};
       this.tick(true);
       this.paintOut();
       this.paintTop();
@@ -1680,6 +1688,12 @@ const Agent = {
       else if (id === 'docs') put(await this.docsHtml());
       else if (id === 'settings') put(await this.settingsHtml());
       else if (id === 'rack') put(await this.rackHtml());
+      else if (id === 'left') {
+        // WHAT'S LEFT IS A TAB OF ITS OWN (2026-10-10, D17's last part; his card: "A tab of its own"). Drawn by the page's own
+        // object (Left), so there is one What's left and not two; the page's address opens this tab.
+        put('<div class="ag-left" id="ag-left"></div>');
+        if (this._pane === stamp && this.tab === id && $ag('ag-left')) await Left.render($ag('ag-left'));
+      }
     } catch (e) {
       put(`<div class="ag-card"><h4>Could not be read</h4><p>${escHtml(e.message || 'refused')}</p></div>`);
     }
@@ -1718,11 +1732,16 @@ const Agent = {
   // THE WATCHBOARD'S WIRE, IN THE TAB (2026-10-07; his word, "go, next: run", and on his card the wire replaces the tab's own list of the
   // turn's events). The turn's events are drawn by the Watchboard's own wire (Chat.paintWire), handed this tab's box, with its one raw
   // switch: folded is a line per event with the tokens counted, raw is every frame whole. The failures stay on the face, in the stages
-  // and NOT EVERYTHING RAN. Only this is drawn again as a turn's events arrive, never the projects under it.
+  // and NOT EVERYTHING RAN. Only this is drawn again as a turn's events arrive, never the projects under it. AND THE REST OF THE
+  // WATCHBOARD (2026-10-10, D17's last part; his word: "Watchboard can go into runs", and on his card, "Yes, floor and tools too"): its
+  // page's address opens this tab, and its floor -- each seat's own words, whole -- and its tool calls are drawn here by its own
+  // panels (Chat.paintFloor, Chat.paintTools), each handed this tab's box.
   paintRun() {
     const box = $ag('ag-run');
     if (!box) return;
     box.innerHTML = this.runHtml();
+    Chat.paintFloor($ag('ag-floor'), $ag('ag-floor-n'));
+    Chat.paintTools($ag('ag-calls'), $ag('ag-calls-n'));
     Chat.paintWire($ag('ag-wire'), $ag('ag-wire-n'));
   },
 
@@ -1739,6 +1758,10 @@ const Agent = {
         (fails.length ? `<div class="ag-notrun"><b>NOT EVERYTHING RAN</b><br>${fails.map(escHtml).join('<br>')}</div>` : ''),
         'read off the events the engine sent; nothing here is inferred from a seat\'s own words') +
       (stepRows ? this.card('Seats', `<table><thead><tr><th>seat</th><th>model</th><th>elapsed</th><th></th></tr></thead><tbody>${stepRows}</tbody></table>`, 'the delivery\'s own per-seat facts') : '') +
+      this.card('The floor <span class="ag-wire-h"><span id="ag-floor-n"></span></span>', '<div class="ag-floor" id="ag-floor"></div>',
+        'each seat that took the turn, its model and its own words whole, drawn by the Watchboard\'s own floor; a seat\'s name folds its words') +
+      this.card('The tool calls <span class="ag-wire-h"><span id="ag-calls-n"></span></span>', '<div class="ag-calls" id="ag-calls"></div>',
+        'every call, who made it, the arguments in and the result out, drawn by the Watchboard\'s own panel; failed is the engine\'s own field') +
       this.card('The wire <span class="ag-wire-h"><span id="ag-wire-n"></span><button type="button" class="ag-btn" data-act="wire-raw" title="raw shows every frame whole; folded shows a line per event, the tokens counted">' + (Chat.raw ? 'folded' : 'raw') + '</button></span>',
         '<div class="ag-wire" id="ag-wire"></div>',
         'every event of the turn, in order, drawn by the Watchboard\'s own wire' + (t.thinned ? ' - this turn came back from storage without its record' : ''));
@@ -1748,10 +1771,11 @@ const Agent = {
 
   // RECORDS, EVALS AND THE LIVE CHECK, IN THE TAB (his word, 2026-10-06: "go, next: audit ledger"; the design pass laid it
   // out as Records, Evals and the live check). What the build has proved and the estate behind it are drawn by the
-  // console's one reader of the proof (App.paintProof, the same that draws them on the Dashboard and on Records), from the
-  // one `proofs` read this tab makes, into the two places this leaves for it; the live check is the Dashboard's own
+  // console's one reader of the proof (App.paintProof, which drew them on the Dashboard and on Records), from the one
+  // `proofs` read this tab makes, into the two places this leaves for it; the live check is the Dashboard's own
   // (standup_run, the morning set), offered while no engine is open because it opens a sitting of its own; the evals are
-  // the ones a person scored by hand, read where the Evals page reads them.
+  // the ones a person scored by hand, read where the Evals page read them. Since 2026-10-10 (D17's last part, his card:
+  // "Audit Ledger as it is") the Evals page's address opens this tab.
   async ledgerHtml() {
     const w = Run.world || 'research';
     let kept = this._report || '';
@@ -1782,7 +1806,7 @@ const Agent = {
         : !scored.length ? '<p>None scored yet. These are the scores a person gives a trace, not the suites or the standups above.</p>'
         : `<table><thead><tr><th>eval</th><th>score</th><th></th><th>when</th></tr></thead><tbody>${scored.slice(0, 40).map(e =>
             `<tr><td>${escHtml(e.name)}</td><td>${escHtml(String(e.score))}</td><td>${e.passed ? 'PASS' : '<span style="color:var(--ag-rose)">FAIL</span>'}</td><td>${escHtml(timeAgo(e.created_at))}</td></tr>`).join('')}</tbody></table>`,
-      'the glass\'s own store of hand-scored evals, as the Evals page reads it');
+      'the glass\'s own store of hand-scored evals, as the Evals page read it');
     const logs = this.card('Transcripts', '<div id="ag-logs"><p>Every run is written down in logs/ with a sha256 receipt.</p></div>' +
       '<div class="ag-btns"><button type="button" class="ag-btn" data-act="logs">List the newest</button></div>', 'records');
     const note = this.card('Chain verdicts',
@@ -1877,9 +1901,11 @@ const Agent = {
 
   // TOOLS, AGENTS AND RECORDS' DOCUMENTS, IN THE TAB (his word, 2026-10-06: "go, next: registry & docs"; on the card, the
   // seats as "The Agents page's own cards" and the documents with what Records shows). A tool is called by the Tools page's
-  // own Call (App.invokeTool, its form in the modal); the seats are drawn by the Agents page's own card (App.seatCard),
-  // told it stands in the panel so its name does not leave the front page; the documents carry Records' changed date and
-  // sealed badge. The settings went to a tab of their own, beside Guardrails (Laws since 2026-10-08).
+  // own Call (App.invokeTool, its form in the modal) and says what it does under its name; the seats are drawn by the
+  // Agents page's own card (App.seatCard), whose name does not leave the front page; the documents carry Records' changed
+  // date and sealed badge. The settings went to a tab of their own, beside Guardrails (Laws since 2026-10-08). Since
+  // 2026-10-10 (D17's last part, his cards) the Agents, Tools and Records pages' addresses open this tab, and the pages are
+  // drawn nowhere else.
   async docsHtml() {
     let tools = [];
     let said = '';
@@ -1893,14 +1919,16 @@ const Agent = {
       this.card('Seats', seatsSaid ? `<p>The seats could not be read: ${escHtml(seatsSaid)}</p>` :
         (seatsErr ? `<p>agents/ could not be read: ${escHtml(seatsErr)}</p>` : '') +
         `<input type="text" id="ag-seats-q" placeholder="Filter ${seats.length} seats..." autocomplete="off" />` +
-        `<div id="agent-grid" class="ag-seats">${seats.map((s, i) => App.seatCard(s, i, true)).join('')}</div>`,
+        `<div id="agent-grid" class="ag-seats">${seats.map((s, i) => App.seatCard(s, i)).join('')}</div>`,
         'seats - agents/ and pipelines.md, each drawn by the Agents page\'s own card') +
       this.card('Documents', '<div id="ag-docs"><p>The estate\'s own documents, sorted by what they are, each served whole with a sha256 receipt.</p></div>' +
         '<div class="ag-btns"><button type="button" class="ag-btn" data-act="kinds">List the kinds</button></div>', 'records');
   },
 
+  // A tool, its arguments and its Call on one line, and what it does on the line under them (2026-10-10, D17's last part;
+  // his card: "Descriptions into the tab"). The Tools page showed it beside the name, and its address opens this tab now.
   toolRows(list, total) {
-    const rows = list.map(t => `<div class="ag-row"><span class="k">${escHtml(t.name)}</span><span class="v" title="${escHtml(t.description || '')}">${escHtml(Object.keys((t.inputSchema && t.inputSchema.properties) || {}).join(', ') || 'no arguments')} <button type="button" class="ag-link" data-act="tool-call" data-tool="${escHtml(t.name)}">Call</button></span></div>`).join('');
+    const rows = list.map(t => `<div class="ag-row ag-tool"><span class="k">${escHtml(t.name)}</span><span class="v">${escHtml(Object.keys((t.inputSchema && t.inputSchema.properties) || {}).join(', ') || 'no arguments')} <button type="button" class="ag-link" data-act="tool-call" data-tool="${escHtml(t.name)}">Call</button></span><span class="ag-desc">${escHtml(t.description || '')}</span></div>`).join('');
     return (rows || '<div class="ag-empty">Nothing matches.</div>') + (list.length < total ? `<div class="ag-src">showing ${list.length} of ${total}; type to narrow</div>` : '');
   },
 
@@ -1976,7 +2004,7 @@ const Agent = {
     const act = b.dataset.act;
     // The one line in Aider Pair, and the Workflows tab's GitHub button, open the GitHub tab, as the bar's door does.
     if (act === 'door') { this.door(b.dataset.door); return; }
-    // The wire's raw switch is the Watchboard's own: one switch, drawn in both places.
+    // The wire's raw switch is the Watchboard's own, drawn in the Run tab, the one place the wire is drawn.
     if (act === 'wire-raw') { Chat.raw = !Chat.raw; this.paintRun(); return; }
     // A tool is called by the Tools page's own Call: its form in the modal, with the tool's arguments listed over the box.
     // The form reads its list off App._tools, so it is handed the one this tab read.

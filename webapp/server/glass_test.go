@@ -143,17 +143,20 @@ func TestUnsentWorkIsANumberOnTheGitHubDoor(t *testing.T) {
 // A WATCHED TURN ENDS THE WAY EVERY TURN ENDS (C27). endWatched emitted 'done'
 // while Home and Chat listen for 'end', so a turn started in another window
 // kept its bubble marked live after the delivery had landed. Home retired on
-// 2026-10-07; the pages that listen now are the Watchboard and the front page.
+// 2026-10-07, and the Watchboard's page on 2026-10-10 (D17's last part: its
+// address opens the Run tab, which draws its panels); the page that listens now
+// is the front page, and chat.js listens to nothing itself.
 func TestAWatchedTurnEndsTheWayEveryTurnEnds(t *testing.T) {
 	council := page(t, "js/council.js")
 	end := funcOf(council, "  endWatched(")
 	if !strings.Contains(end, "this.emit('end')") || strings.Contains(end, "this.emit('done')") {
 		t.Fatalf("endWatched does not end the turn with 'end', the word the pages listen for:\n%s", end)
 	}
-	for _, f := range []string{"js/chat.js", "js/agent.js"} {
-		if !strings.Contains(page(t, f), "what === 'end'") {
-			t.Fatalf("%s no longer finishes a bubble on 'end'", f)
-		}
+	if !strings.Contains(page(t, "js/agent.js"), "what === 'end'") {
+		t.Fatal("js/agent.js no longer finishes a bubble on 'end'")
+	}
+	if strings.Contains(page(t, "js/chat.js"), "Run.on(") {
+		t.Fatal("chat.js still listens to the turn itself, as the Watchboard's page did; the Run tab draws its panels")
 	}
 }
 
@@ -621,23 +624,31 @@ func TestTheAuditLedgerCarriesTheProofAndTheLiveCheck(t *testing.T) {
 // REGISTRY & DOCS CARRIES TOOLS WITH CALL, THE SEATS AND RECORDS' DOCUMENTS (his
 // word, 2026-10-06: "go, next: registry & docs"; on the card, the seats as "The
 // Agents page's own cards" and the documents with what Records shows). A tool is
-// called through the Tools page's own form and from nowhere else in the tab; the
-// seats are the Agents page's cards, told they stand in the panel so a name cannot
-// leave the front page, with the Agents page's own filter; and a document row says
-// when it changed and whether it is sealed, every document of the kind listed.
+// called through App.invokeTool, the Tools page's own form, which stayed when the
+// page went, and from nowhere else in the tab, and says what it does under its
+// name (2026-10-10, D17's last part, his card: "Descriptions into the tab"); the
+// seats are the Agents page's cards with the Agents page's own filter, and since
+// that page's address opens this tab a card is drawn for the panel alone, with no
+// name that leaves the front page; and a document row says when it changed and
+// whether it is sealed, every document of the kind listed.
 func TestRegistryAndDocsCarriesTheToolsTheSeatsAndTheDocuments(t *testing.T) {
 	src := page(t, "js/agent.js")
 	app := page(t, "js/app.js")
 	docs := funcOf(src, "  async docsHtml(")
-	if !strings.Contains(docs, "App.seatCard(s, i, true)") || !strings.Contains(docs, `id="agent-grid"`) {
+	if !strings.Contains(docs, "App.seatCard(s, i)") || !strings.Contains(docs, `id="agent-grid"`) {
 		t.Fatal("the tab does not draw the seats with the Agents page's own card")
 	}
 	card := funcOf(app, "  seatCard(")
-	if !regexp.MustCompile(`(?s)const title = inPanel\s+\? `+"`"+`<span class="card-title">`).MatchString(card) || !strings.Contains(card, `data-act="seat-file"`) {
-		t.Fatal("a seat card in the panel still links away from the front page, or has no way to its file")
+	if card == "" || strings.Contains(card, "inPanel") || strings.Contains(card, "seat-open") || strings.Contains(card, "/agents/") ||
+		!strings.Contains(card, `<span class="card-title">`) || !strings.Contains(card, `data-act="seat-file"`) {
+		t.Fatal("a seat card still asks where it stands or links away from the front page, or has no way to its file")
+	}
+	rows := funcOf(src, "  toolRows(")
+	if !strings.Contains(rows, `<span class="ag-desc">${escHtml(t.description || '')}</span>`) {
+		t.Fatal("a tool in the tab does not say what it does under its name, as the Tools page did")
 	}
 	click := funcOf(src, "  async paneClick(")
-	if !strings.Contains(funcOf(src, "  toolRows("), `data-act="tool-call"`) ||
+	if !strings.Contains(rows, `data-act="tool-call"`) ||
 		!strings.Contains(click, "App.invokeTool(b.dataset.tool)") || strings.Count(src, "App.invokeTool(") != 1 {
 		t.Fatal("a tool is called from the tab by some way other than the Tools page's own Call")
 	}
@@ -805,27 +816,54 @@ func TestGitHubIsATabOfItsOwn(t *testing.T) {
 	}
 }
 
-// RUN CARRIES THE WATCHBOARD'S WIRE AND THE DASHBOARD'S PROJECTS (his word, 2026-10-06: "go, next: run"; on his
-// cards, 2026-10-07, the wire replaces the tab's own list of events, and a pick plays "Beside the terminal"). The
-// turn's events are drawn by the Watchboard's own wire, handed the tab's box, with its one raw switch; the projects
-// are the Projects card's own object, with no frame of its own -- a pick plays in the front page's one play frame --
-// and its words go to the council through the terminal's Agent tab; an event draws the turn again alone, never the
-// projects; and the Watchboard still draws its wire whole. Since the Dashboard retired (2026-10-07) the Run tab is
-// the one place the Projects card stands.
-func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
+// RUN CARRIES THE WATCHBOARD AND THE DASHBOARD'S PROJECTS (his word, 2026-10-06: "go, next: run"; on his cards,
+// 2026-10-07, the wire replaces the tab's own list of events, and a pick plays "Beside the terminal"; and 2026-10-10,
+// D17's last part, his word "Watchboard can go into runs" and his card "Yes, floor and tools too"). The turn's floor --
+// each seat's own words, whole -- its tool calls and its events are drawn by the Watchboard's own three panels, handed
+// the tab's boxes, with the wire's one raw switch; the Watchboard's page is gone and its address opens this tab, so
+// chat.js draws no page of its own, and a new turn opens every seat's words again. The projects are the Projects card's
+// own object, with no frame of its own -- a pick plays in the front page's one play frame -- and its words go to the
+// council through the terminal's Agent tab; an event draws the turn again alone, never the projects. Since the
+// Dashboard retired (2026-10-07) the Run tab is the one place the Projects card stands.
+func TestRunCarriesTheWatchboardAndTheProjects(t *testing.T) {
 	src := page(t, "js/agent.js")
 	chat := page(t, "js/chat.js")
 	proj := page(t, "js/projects.js")
 	css := page(t, "css/agent.css")
-	if !strings.Contains(funcOf(src, "  paintRun("), "Chat.paintWire($ag('ag-wire'), $ag('ag-wire-n'))") || strings.Contains(src, "evRow") {
+	paint, run := funcOf(src, "  paintRun("), funcOf(src, "  runHtml(")
+	for _, want := range []string{"Chat.paintFloor($ag('ag-floor'), $ag('ag-floor-n'))", "Chat.paintTools($ag('ag-calls'), $ag('ag-calls-n'))",
+		"Chat.paintWire($ag('ag-wire'), $ag('ag-wire-n'))"} {
+		if !strings.Contains(paint, want) {
+			t.Fatalf("the Run tab does not draw the turn with the Watchboard's own panels (wanted %s)", want)
+		}
+	}
+	for _, id := range []string{`id="ag-floor"`, `id="ag-floor-n"`, `id="ag-calls"`, `id="ag-calls-n"`, `id="ag-wire"`, `id="ag-wire-n"`} {
+		if !strings.Contains(run, id) {
+			t.Fatalf("the Run tab leaves no place for one of the Watchboard's panels (wanted %s)", id)
+		}
+	}
+	if strings.Contains(src, "evRow") {
 		t.Fatal("the Run tab draws the turn's events its own way, not with the Watchboard's own wire")
 	}
-	if !strings.Contains(chat, "paintWire(box = document.getElementById('wb-wire'), n = document.getElementById('wb-wire-n')) {") {
-		t.Fatal("the Watchboard's wire cannot be handed a box, or no longer draws its own when it is handed none")
+	for _, sig := range []string{"  paintFloor(box, n) {", "  paintTools(box, n) {", "  paintWire(box, n) {"} {
+		if !strings.Contains(chat, sig) {
+			t.Fatalf("a Watchboard panel cannot be handed the tab's box (wanted %s)", strings.TrimSpace(sig))
+		}
+	}
+	if !strings.Contains(funcOf(chat, "  paintFloor("), "this.paintFloor(box, n)") {
+		t.Fatal("folding a seat's words shut draws the floor somewhere other than the box it stands in")
+	}
+	for _, gone := range []string{"  async render(", "Run.start(", "readPast(", "wb-floor", "wb-tools", "wb-wire", "wb-gate"} {
+		if strings.Contains(chat, gone) {
+			t.Fatalf("chat.js still carries the Watchboard's page (%s), whose address opens the Run tab now", gone)
+		}
+	}
+	if !strings.Contains(funcOf(src, "  onRun("), "Chat.shut = {};") {
+		t.Fatal("a new turn keeps the last turn's seats folded shut")
 	}
 	if !strings.Contains(funcOf(src, "  async paneClick("), "if (act === 'wire-raw') { Chat.raw = !Chat.raw; this.paintRun(); return; }") ||
-		!strings.Contains(chat, "type=\"button\">${this.raw ? 'folded' : 'raw'}</button>") {
-		t.Fatal("the Run tab's raw switch is not the Watchboard's own, or the Watchboard's button does not say which way it stands")
+		!strings.Contains(run, "(Chat.raw ? 'folded' : 'raw')") {
+		t.Fatal("the Run tab's raw switch is not the wire's own, or its button does not say which way it stands")
 	}
 	pane := funcOf(src, "  async paintPane(")
 	if !strings.Contains(pane, `id="ag-proj"`) || !strings.Contains(pane, "await Projects.render($ag('ag-proj'))") {
@@ -851,6 +889,16 @@ func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
 	if !regexp.MustCompile(`\.ag-proj \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-proj .btn {") ||
 		!strings.Contains(css, ".ag-wire {") || strings.Contains(css, ".ag-ev") {
 		t.Fatal("the projects or the wire in the panel do not take the page's look, or the old list of events left its rules behind")
+	}
+	if !regexp.MustCompile(`\.ag-floor, \.ag-calls \{[^}]*--muted:`).MatchString(css) {
+		t.Fatal("the floor and the tool calls in the panel do not take the page's look")
+	}
+	appCSS := page(t, "css/app.css")
+	for _, gone := range []string{".wb-grid", ".wb-panel", ".wb-scroll", ".wb-wire", ".wb-obj", ".wb-facts", ".wb-label", ".wb-delivery",
+		".wb-bad", ".wb-gate", ".wb-past"} {
+		if strings.Contains(appCSS, gone) {
+			t.Fatalf("app.css still styles %s, which only the Watchboard's page wore", gone)
+		}
 	}
 }
 
@@ -904,7 +952,10 @@ func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 	// that is neither goes to Page not found from the Pages menu, the palette and the crumb alike. A PAGE WITH A TAB OPENS
 	// ITS TAB (2026-10-10, his word: "everything stays within the new interface"; his cards: "Every page with a tab" and
 	// "Keep them, opening the tab"): Workflows, Laws, GitHub and Settings stay on the list, the router draws none of them,
-	// and each address opens the front page with that Inspector tab open, the way /dashboard opens the front page.
+	// and each address opens the front page with that Inspector tab open, the way /dashboard opens the front page. AND THE
+	// SIX THAT HAD NO TAB WERE PUT TO HIM THE SAME DAY (D17's last part, his cards): the Watchboard opens Run; Agents, Tools
+	// and Records open Registry & Docs; Evals opens the Audit Ledger; and What's left is a tab of its own. The router draws
+	// none of them, and what only those pages drew, and the styles only they wore, went with them.
 	list := regexp.MustCompile(`(?s)  PAGES: \[(.*?)\n  \],`).FindStringSubmatch(app)
 	if list == nil {
 		t.Fatal("the one page list (App.PAGES) is gone")
@@ -919,9 +970,23 @@ func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 			tabbed[kv[1]] = kv[2]
 		}
 	}
-	for pg, tab := range map[string]string{"workflows": "flows", "laws": "laws", "flows": "github", "settings": "settings"} {
+	for pg, tab := range map[string]string{"workflows": "flows", "laws": "laws", "flows": "github", "settings": "settings",
+		"chat": "run", "agents": "docs", "tools": "docs", "records": "docs", "evals": "ledger", "left": "left"} {
 		if tabbed[pg] != tab {
 			t.Fatalf("/%s does not open the Inspector's %s tab (App.TABBED gives %q)", pg, tab, tabbed[pg])
+		}
+	}
+	for _, gone := range []string{"renderAgents(", "renderAgentDetail(", "renderTools(", "renderEvals(", "paintRun(", "runRow(",
+		"runDelivery(", "renderRecords(", "paintDocs(", "openDoc("} {
+		if strings.Contains(app, gone) {
+			t.Fatalf("app.js still carries %s, which only a page that opens its tab now drew", gone)
+		}
+	}
+	appCSS := page(t, "css/app.css")
+	for _, gone := range []string{".cev", ".council-log", ".seat-open", ".home-boot", ".tool-ok", ".btn-mic", ".chat-form", ".home-box",
+		".chat-foot"} {
+		if strings.Contains(appCSS, gone) {
+			t.Fatalf("app.css still styles %s, which only those pages wore", gone)
 		}
 	}
 	tabs := regexp.MustCompile(`(?s)  TABS: \[(.*?)\n  \],`).FindStringSubmatch(src)
@@ -974,6 +1039,22 @@ func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 		if strings.Contains(pal, bad) || strings.Contains(app, bad) {
 			t.Fatalf("%s is still called, and there is no Dashboard under it", bad)
 		}
+	}
+}
+
+// THE FRONT PAGE COMES UP ON ITS AGENT TAB (2026-10-10, D17's last part; his word: "the front page should always land on Agent
+// as default, then go from there", and on his card, "Agent, named tab beside"). The terminal stood on whatever tab was last
+// used -- the hand's reads in the Bash tab left it there -- so the front page lands on Agent: every time it is drawn the
+// terminal comes up on its Agent tab before anything on it is painted, and an address that opens an Inspector tab still
+// opens it beside the terminal.
+func TestTheFrontPageComesUpOnAgent(t *testing.T) {
+	render := funcOf(page(t, "js/agent.js"), "  async render(")
+	set, paint := strings.Index(render, "this.mode = 'agent';"), strings.Index(render, "this.paintMode();")
+	if set < 0 || paint < 0 || set > paint {
+		t.Fatal("the front page is drawn on whatever tab was last used, not on its Agent tab")
+	}
+	if !strings.Contains(funcOf(page(t, "js/app.js"), "  router("), "Agent.open = true;\n      Agent.tab = tab;") {
+		t.Fatal("an address no longer opens its Inspector tab beside the terminal")
 	}
 }
 
@@ -1345,7 +1426,7 @@ func TestTheFrontPagePlaysWhatTheMakerMade(t *testing.T) {
 		t.Fatal("what is played is not read off the turn's delivery (`project`), or is played when the delivery names none")
 	}
 	if strings.Count(src, "this.playProject(") != 1 {
-		t.Fatal("playProject is called from somewhere other than a turn's delivery (his pick in the Run tab has its own way, held by TestRunCarriesTheWireAndTheProjects)")
+		t.Fatal("playProject is called from somewhere other than a turn's delivery (his pick in the Run tab has its own way, held by TestRunCarriesTheWatchboardAndTheProjects)")
 	}
 
 	// Which version it is comes from the door: a quiet read of the read-only `projects` tool (the glass keeps no trace of a quiet read).
