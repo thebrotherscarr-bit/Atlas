@@ -372,3 +372,142 @@ func TestAGreenPullRequestMergesOnGitHubAndTheNewMainComesDown(t *testing.T) {
 		})
 	}
 }
+
+// A FLOW MERGES THE PULL REQUEST FROM THE LINE IT OPENED (2026-10-09, WHAT'S LEFT I1's fifth step): gh reads the pull request
+// from that line and GitHub merges the number gh answered, exactly as the button's merge does; a line whose pull request is
+// merged already is said so and main still comes down, with no second merge asked, so a release that stopped between its
+// merges can be fired again; and a line with no pull request, one gh answers for another line, or a name no line may carry is
+// refused, the last before gh is asked.
+func TestAFlowMergesThePullRequestFromItsLine(t *testing.T) {
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	byLine := func(line string) map[string]any {
+		args := glassArgs("merge")
+		args["line"] = line
+		return args
+	}
+
+	tn := tempWorld(t)
+	calls := ghPRStub(t, prView("OPEN", "main", "abc123", checksPassed, "MERGEABLE"), nil)
+	if out := call(t, toolGitPR, tn, byLine("a line")); !strings.HasPrefix(out, "Refused") || len(*calls) != 0 {
+		t.Fatalf("a merge by a name no line may carry = %v (gh asked %v); want it refused before gh is asked", out, *calls)
+	}
+	ghStub(t, "no pull requests found for branch \"spur\"", errors.New("exit status 1"))
+	if out := call(t, toolGitPR, tn, byLine("spur")); !strings.Contains(out, `gh could not read a pull request from "spur"`) {
+		t.Fatalf("a merge by a line with no pull request = %v; want 'gh could not read a pull request from \"spur\"'", out)
+	}
+	calls = ghPRStub(t, prView("OPEN", "main", "abc123", checksPassed, "MERGEABLE"), nil)
+	if out := call(t, toolGitPR, tn, byLine("spur-two")); !strings.Contains(out, `not from "spur-two"`) || len(*calls) != 1 {
+		t.Fatalf("a pull request gh answered for another line = %v (gh asked %v); want it refused: 'not from \"spur-two\"'", out, *calls)
+	}
+
+	for _, before := range []bool{false, true} {
+		tn := sentLine(t)
+		if _, err := gitRun(tn, 30*time.Second, "push", "origin", "main"); err != nil {
+			t.Fatalf("git push main failed: %v", err)
+		}
+		origin, _ := gitRun(tn, 10*time.Second, "remote", "get-url", "origin")
+		head, _ := gitRun(tn, 10*time.Second, "rev-parse", "spur")
+		state, onMerge, want, asked := "OPEN", githubMerges(origin), "Merged pull request #9 on GitHub", 2
+		if before {
+			if err := githubMerges(origin)(); err != nil {
+				t.Fatalf("GitHub's merge could not be stood in for: %v", err)
+			}
+			state, onMerge, want, asked = "MERGED", nil, `Pull request #9 from "spur" is merged on GitHub already`, 1
+		}
+		calls := ghPRStub(t, prView(state, "main", head, checksPassed, "MERGEABLE"), onMerge)
+
+		out := call(t, toolGitPR, tn, byLine("spur"))
+		if !strings.Contains(out, want) || !strings.Contains(out, "is down on this machine") || len(*calls) != asked {
+			t.Fatalf("a merge by the line (merged before: %v) = %v (gh asked %v); want %q, main down, and %d call(s) to gh", before, out, *calls, want, asked)
+		}
+		if !strings.HasPrefix(strings.Join((*calls)[0], "|"), "pr|view|spur|--json|") {
+			t.Fatalf("gh was not asked for the pull request from the line: %v", *calls)
+		}
+		if !before {
+			if got := strings.Join((*calls)[1], "|"); got != "pr|merge|9|--merge|--match-head-commit|"+head {
+				t.Fatalf("gh was asked to merge as %q; want the number gh answered, merged as the button's merge is", got)
+			}
+		}
+		theirs, err := exec.Command("git", "-C", origin, "rev-parse", "main").Output()
+		if err != nil {
+			t.Fatalf("the origin's main could not be read: %v", err)
+		}
+		if local, _ := gitRun(tn, 10*time.Second, "rev-parse", "main"); local != strings.TrimSpace(string(theirs)) {
+			t.Fatalf("main here is %v; want GitHub's new main %v", local, strings.TrimSpace(string(theirs)))
+		}
+	}
+}
+
+// ghPRSeq stands in for gh for a merge that waits: each `pr view` answers the next of views, the last again once they run
+// out; `pr merge` does GitHub's own act, onMerge, when one is given; and prSleep waits for nothing, counting. Every call is
+// recorded.
+func ghPRSeq(t *testing.T, views []string, onMerge func() error) (*[][]string, *int) {
+	t.Helper()
+	oldGhRun, oldSleep := ghRun, prSleep
+	t.Cleanup(func() {
+		ghRun, prSleep = oldGhRun, oldSleep
+	})
+	calls, slept, next := &[][]string{}, new(int), 0
+	prSleep = func(time.Duration) { *slept++ }
+	ghRun = func(tn tenant.Tenant, timeout time.Duration, args ...string) (string, error) {
+		*calls = append(*calls, args)
+		if len(args) > 1 && args[0] == "pr" && args[1] == "merge" {
+			if onMerge != nil {
+				if err := onMerge(); err != nil {
+					return "GitHub refused the merge: " + err.Error(), err
+				}
+			}
+			return "Merged pull request #9 (work on the spur)", nil
+		}
+		view := views[len(views)-1]
+		if next < len(views) {
+			view = views[next]
+		}
+		next++
+		return view, nil
+	}
+	return calls, slept
+}
+
+// A MERGE THAT WAITS MERGES ONCE THE CHECKS PASS (2026-10-09, WHAT'S LEFT I1's fifth step): the release flow sends a line,
+// opens its pull request and merges it in one pass, so a merge given minutes asks gh again while GitHub's provers have not
+// answered, merges the moment they pass, answers a failure at once, and is refused as before when the wait is spent; a wait
+// that is not a whole number of minutes from 0 to 30 is refused before gh is asked, and a merge given none waits for nothing.
+func TestAMergeThatWaitsMergesOnceTheChecksPass(t *testing.T) {
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	tn := tempWorld(t)
+	waiting := func(wait any) map[string]any {
+		args := mergeArgs(float64(9))
+		args["wait"] = wait
+		return args
+	}
+
+	for _, wait := range []any{"-1", "31", "five", float64(2.5), true} {
+		calls, _ := ghPRSeq(t, []string{prView("OPEN", "main", "abc123", checksPassed, "MERGEABLE")}, nil)
+		if out := call(t, toolGitPR, tn, waiting(wait)); !strings.Contains(out, "whole minutes") || len(*calls) != 0 {
+			t.Fatalf("a merge told to wait %v = %v (gh asked %v); want it refused before gh is asked", wait, out, *calls)
+		}
+	}
+
+	none, running := prView("OPEN", "main", "abc123", checksNone, "MERGEABLE"), prView("OPEN", "main", "abc123", checksRunning, "MERGEABLE")
+	passed, failed := prView("OPEN", "main", "abc123", checksPassed, "MERGEABLE"), prView("OPEN", "main", "abc123", checksFailed, "MERGEABLE")
+	for _, tc := range []struct {
+		wait          any
+		answers       []string
+		want          string
+		asked, waited int
+	}{
+		{"5", []string{none, running, passed}, "Merged pull request #9 on GitHub", 4, 2},
+		{float64(5), []string{running, failed}, "FAILED", 2, 1},
+		{"1", []string{running}, "still running", 3, 2},
+		{"", []string{running}, "still running", 1, 0},
+		{nil, []string{passed}, "Merged pull request #9 on GitHub", 2, 0},
+	} {
+		calls, slept := ghPRSeq(t, tc.answers, nil)
+		out := call(t, toolGitPR, tn, waiting(tc.wait))
+		if !strings.Contains(out, tc.want) || len(*calls) != tc.asked || *slept != tc.waited {
+			t.Fatalf("a merge told to wait %v on %d answers = %v (gh asked %d times, waited %d); want %q, %d asks and %d waits",
+				tc.wait, len(tc.answers), out, len(*calls), *slept, tc.want, tc.asked, tc.waited)
+		}
+	}
+}

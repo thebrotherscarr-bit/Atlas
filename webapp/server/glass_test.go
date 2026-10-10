@@ -260,7 +260,7 @@ func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
 		regexp.MustCompile(`Reads:\s+\[\]string\{"list"\}`),
 		regexp.MustCompile(`case "open":`),
 		regexp.MustCompile(`case "merge":`),
-		regexp.MustCompile(`Args:\s+\[\]string\{"action\?", "project\?", "number\?"\}`),
+		regexp.MustCompile(`Args:\s+\[\]string\{"action\?", "project\?", "number\?", "line\?", "wait\?"\}`),
 		regexp.MustCompile(`(?s)func prMerge\(.*?switch prChecks\(pr\.StatusCheckRollup\)`),
 	} {
 		if !want.Match(door) {
