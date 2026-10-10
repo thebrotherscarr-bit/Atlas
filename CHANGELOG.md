@@ -12,7 +12,7 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-## [v0.2.5] — 2026-10-10 09:27
+## [v0.2.5] — 2026-10-10 09:27 (tag on 144a425)
 
 ### A main on GitHub takes a pull request and nothing else: Land onto main and the Send of main refused by the door and greyed on the GitHub tab, where origin has the main line (2026-10-09; the core's WHAT'S LEFT I1, seventh step; his cards: "Mend Land onto main" and "Main is on GitHub")
 
