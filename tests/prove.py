@@ -340,6 +340,101 @@ def leg_e2e(live):
     return [Leg("E2E", "test_suite", FAIL, tail(text), "", secs)]
 
 
+# THE GITHUB WORKFLOWS THEMSELVES (2026-10-09, the core's WHAT'S LEFT I1, sixth
+# step). Read as text, the way the core's release gate reads its own (its
+# tests/release.py, `workflows`), and held to the same two rules. An action from
+# outside GitHub's own `actions/` is named by its 40-hex commit: a tag is a
+# pointer its owner can move, and release.yml's is the one step that holds
+# `contents: write`. And a line is proved once: a workflow that runs on pull
+# requests does not also run on a push to every line, as prove.yml's bare
+# `push:` did -- the same commit twice on every line with a pull request open.
+USES = re.compile(r"^\s*(?:-\s+)?uses:\s*[\"']?([^\"'\s#]+)")
+SHA_PIN = re.compile(r"^[0-9a-f]{40}$")
+ON_KEY = re.compile(r"^[\"']?on[\"']?:\s*(.*)$")
+SUB_KEY = re.compile(r"^([\w-]+):\s*(.*)$")
+
+
+def triggers(text):
+    """Each trigger in a workflow's top-level `on:`, with the lines under it
+    stripped, read by indentation; `on: push` and `on: [push, pull_request]`
+    as well as the block."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        m = ON_KEY.match(line)
+        if not m:
+            continue
+        rest = m.group(1).split("#")[0].strip()
+        if rest:
+            return dict((t.strip(" \"'"), []) for t in rest.strip("[]").split(",")
+                        if t.strip())
+        out, key, depth = {}, "", 0
+        for body in lines[i + 1:]:
+            if not body.strip() or body.lstrip().startswith("#"):
+                continue
+            ind = len(body) - len(body.lstrip())
+            if not ind:
+                break
+            if not depth or ind <= depth:
+                depth, key = ind, body.strip().lstrip("- ").split(":")[0].strip()
+                out[key] = []
+            else:
+                out[key].append(body.strip())
+        return out
+    return {}
+
+
+def pushes_every_line(on):
+    """Whether a push to any line of work runs the workflow: a `push` with no
+    `branches` to limit it (or only a bare `*`), and not one limited to marks."""
+    body = on.get("push")
+    if body is None:
+        return False
+    for j, line in enumerate(body):
+        m = SUB_KEY.match(line)
+        if m and m.group(1) == "branches":
+            named = m.group(2).split("#")[0].strip()
+            items = named.strip("[]").split(",") if named else []
+            for item in ([] if named else body[j + 1:]):
+                if not item.startswith("-"):
+                    break
+                items.append(item)
+            return any(t.strip(" -\"'") and not t.strip(" -\"'*") for t in items)
+    keys = set(m.group(1) for m in map(SUB_KEY.match, body) if m)
+    return "branches-ignore" in keys or not keys & set(["tags", "tags-ignore"])
+
+
+def leg_github():
+    """The workflows that prove atlas on GitHub, held to the two rules above.
+    Static and hermetic: never ABSENT, it holds or it broke."""
+    wfdir = os.path.join(ATLAS, ".github", "workflows")
+    names = sorted(f for f in os.listdir(wfdir)
+                   if f.endswith((".yml", ".yaml"))) if os.path.isdir(wfdir) else []
+    if not names:
+        return [Leg("GITHUB", ".github/workflows", FAIL,
+                    "no workflow here: nothing proves a line before main takes it")]
+    out = []
+    for fn in names:
+        with open(os.path.join(wfdir, fn), encoding="utf-8", errors="replace") as f:
+            text = f.read()
+        used = [m.group(1) for m in map(USES.match, text.splitlines())
+                if m and not m.group(1).startswith(("./", "actions/"))]
+        faults = ["%s names a tag its owner can move; an action from outside "
+                  "GitHub's own is named by its 40-hex commit" % a
+                  for a in used if not SHA_PIN.match(a.partition("@")[2])]
+        on = triggers(text)
+        if "pull_request" in on and pushes_every_line(on):
+            faults.append("it runs on pull requests AND on a push to every line, so "
+                          "a line with one open is proved twice; limit the push to "
+                          "main (branches: [main])")
+        if faults:
+            out.append(Leg("GITHUB", fn, FAIL, "\n".join(faults)))
+            continue
+        said = ("%d outside action%s, each named by its commit"
+                % (len(used), "" if len(used) == 1 else "s")) if used else "no outside action"
+        out.append(Leg("GITHUB", fn, PASS, said + "; no line proved twice"))
+    return out
+
+
 def report(legs, quiet):
     width = max(len(l.name) for l in legs)
     group = None
@@ -382,6 +477,7 @@ def main():
         legs += leg_mcp()
     legs += leg_goldens()
     legs += leg_chain_verify()
+    legs += leg_github()
     legs += leg_workflows(args.live)
     legs += leg_e2e(args.live)
 

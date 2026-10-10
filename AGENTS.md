@@ -21,14 +21,14 @@ pip packages, no Go modules beyond stdlib. Hand-roll or refuse.
 ```powershell
 $env:Path = "$env:USERPROFILE\.cargo\bin;" + $env:Path
 cargo build -p atlas                    # the door battery shells this binary
-python tests\prove.py                   # THE BALL: all eight legs, one verdict
+python tests\prove.py                   # THE BALL: all nine legs, one verdict
 python tests\prove.py --live            # + the legs needing :8090 and Ollama
 ```
 
 THE BALL gathers every prover atlas has — the Rust spine, both Go modules,
 the two shipped batteries, **twenty-eight** golden verifiers (this file used
-to name four), the six workflows and the E2E suite. Read `tests/PROVING.md`
-for the map.
+to name four), the six workflows, the E2E suite, and the GitHub workflows
+that run it (GITHUB, 2026-10-09). Read `tests/PROVING.md` for the map.
 
 It answers in **three** verdicts, not two. `ABSENT` means a leg named a
 dependency this ground does not hold — the read-only source grounds

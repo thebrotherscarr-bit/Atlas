@@ -5,8 +5,8 @@ what proves atlas, change this file in the same hand.*
 
 atlas proves itself in **eight places**. They had never been gathered into
 one command, and two of the eight had been quietly red for weeks because
-nothing ran them. `python tests/prove.py` runs all eight and gives one
-verdict.
+nothing ran them. `python tests/prove.py` runs them all and gives one
+verdict; a ninth, GITHUB, joined on 2026-10-09.
 
 ```
 python tests/prove.py          the hermetic legs — no server, no model
@@ -63,7 +63,7 @@ core, so the legs reported ABSENT naming paths that **have never existed on
 any machine**. Right verdict, phantom reason, and nothing a reader could act
 on. ADR-006 item 6.
 
-## The eight legs
+## The nine legs
 
 | # | Leg | What it proves | Costs | Needs |
 |---|---|---|---|---|
@@ -75,8 +75,9 @@ on. ADR-006 item 6.
 | 6 | **GOLDENS** — 28 × `--verify` | law 2: every vector re-cut and compared against the pinned fixture; and that no cutter cuts on a word it does not know | ~6s | 14 of them want an oracle not in this ground |
 | 7 | **WORKFLOWS** — 6 × `wf_*.py` | the seat journeys end to end through the live door | minutes | `:8090` answering |
 | 8 | **E2E** — `test_suite.py` | 84 scenarios in 12 categories | minutes | `:8090` + Ollama on `:11434` |
+| 9 | **GITHUB** — `.github/workflows/*.yml`, read as text | an action from outside GitHub's own `actions/` is named by its 40-hex commit, and no workflow proves a line twice, on its push and its pull request; the core's release gate holds its own workflows to the same two rules (2026-10-09) | instant | — |
 
-The **door battery** is not a ninth leg — it lives *inside* leg 3, as
+The **door battery** is not a leg of its own — it lives *inside* leg 3, as
 `TestDoorProveStrokesGreen` in `cmd/atlas-door`. It shells the Rust binary
 over a real loopback socket against a temp book: phone-form writes, the
 badge going red on a flipped byte, a wrong path refused. It is the reason
@@ -377,5 +378,8 @@ retired or repointed at the Rust bench.
    as `--check`, which skips cargo -- so when v0.1.6 was bumped in its root
    `VERSION` alone, the spine's own version strokes went red and the push
    stayed green for four days. Since 2026-09-22 the push runs the whole
-   ball, after `version.ps1 sync`. Nothing yet runs it before a commit
+   ball, after `version.ps1 sync`. Since 2026-10-09 a line of work is proved
+   once, by its pull request, and main takes it only when that run is green;
+   main and the marks are proved by their own push. Nothing yet runs it
+   before a commit
    lands on this machine.
