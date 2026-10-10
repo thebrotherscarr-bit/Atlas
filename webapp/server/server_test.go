@@ -283,14 +283,16 @@ func TestTheGlassSendsItsServiceWireAndOnlyWhenItHasOne(t *testing.T) {
 	}
 }
 
-// THE WHAT'S-LEFT PAGE IS FOUR THINGS THAT MUST AGREE (2026-09-29, his word:
-// "write a page on the webapp"): a line in the one page list, a case in the
-// router, a script the page loads BEFORE the router that calls it, and the one
-// document the page reads. Any one of them missing is a link that goes nowhere
-// or a page that draws nothing, and the binary builds either way. (Until
-// 2026-10-07 the line was the sidebar's, with a glyph of its own; the sidebar
+// WHAT'S LEFT IS A TAB OF ITS OWN (2026-10-10, D17's last part; his card: "A tab of its own"). It was a page from
+// 2026-09-29 (his word: "write a page on the webapp"), four things that had to agree; it is six now. A line in the one
+// page list, whose address opens the front page with the Inspector's What's left tab open; the tab, beside Run; the
+// tab's place, drawn by the page's own object -- one Left, so the two cannot drift -- and drawn nowhere else, and never
+// as a page by the router; a script index.html loads before app.js, whose init draws the first page; the one document
+// it reads, through the door's records tool; and in the tab, no page title, a Read it again that draws it where it
+// stands, and the page's look. Any one of them missing is a link that goes nowhere or a tab that draws nothing, and
+// the binary builds either way. (Until 2026-10-07 the line was the sidebar's, with a glyph of its own; the sidebar
 // retired, and its links became App.PAGES.)
-func TestTheWhatsLeftPageIsWired(t *testing.T) {
+func TestWhatsLeftIsATabOfItsOwn(t *testing.T) {
 	read := func(path string) string {
 		t.Helper()
 		b, err := os.ReadFile(path)
@@ -301,15 +303,23 @@ func TestTheWhatsLeftPageIsWired(t *testing.T) {
 	}
 	index := read("../static/index.html")
 	app := read("../static/js/app.js")
+	src := read("../static/js/agent.js")
 	left := read("../static/js/left.js")
+	css := read("../static/css/agent.css")
 
 	for _, c := range []struct{ in, want, why string }{
 		{app, `{ page: 'left', href: '/left', label: "What's left" }`,
 			"the page list has no line for What's left, so neither Pages nor the palette offers it"},
+		{app, `left: 'left'`,
+			"the page's address does not open the What's left tab"},
+		{src, `{ id: 'left', label: "What's left" }`,
+			"the Inspector has no What's left tab"},
+		{src, `put('<div class="ag-left" id="ag-left"></div>')`,
+			"the What's left tab leaves no place for the page's own object"},
+		{src, `await Left.render($ag('ag-left'))`,
+			"the What's left tab does not draw the page's own object"},
 		{index, `<script src="/js/left.js"></script>`,
 			"index.html does not load the page's script"},
-		{app, `case 'left': await Left.render(el); break;`,
-			"the router has no case for the page, so /left answers Page not found"},
 		{left, `DOC: 'WHATS_LEFT.md'`,
 			"the page no longer names the document it reads"},
 		{left, `App.tool('records', { name: this.DOC })`,
@@ -321,11 +331,28 @@ func TestTheWhatsLeftPageIsWired(t *testing.T) {
 			t.Fatalf("%s -- wanted %s", c.why, c.want)
 		}
 	}
+	if strings.Contains(app, "case 'left':") || strings.Count(src, "Left.render(") != 1 {
+		t.Fatal("the router draws What's left as a page again, or something else on the front page draws it too")
+	}
+	if strings.Contains(left, "page-title") || strings.Contains(left, "page-header") {
+		t.Fatal("What's left still draws a page's title in the tab")
+	}
+	if !strings.Contains(funcOf(left, "  paint("), "this.render(el)") {
+		t.Fatal("Read it again draws What's left somewhere other than where it stands")
+	}
+	rule := ""
+	if k := strings.Index(css, ".ag-left {"); k >= 0 {
+		rule = css[k:]
+		if e := strings.Index(rule, "}"); e >= 0 {
+			rule = rule[:e]
+		}
+	}
+	if !strings.Contains(rule, "--muted:") || !strings.Contains(css, ".ag-left .btn {") {
+		t.Fatal("What's left in the panel does not take the page's look, and .ag button strips its buttons bare")
+	}
 
-	// app.js calls Left.render, and a classic script's const is not there until
-	// its file has run: left.js loads first or the page throws on arrival.
+	// The same order every object the page draws is loaded in: left.js before app.js, whose init draws the first page.
 	if l, a := strings.Index(index, "/js/left.js"), strings.Index(index, "/js/app.js"); l > a {
-		t.Fatal("index.html loads js/left.js after js/app.js -- the router would " +
-			"call Left before it exists")
+		t.Fatal("index.html loads js/left.js after js/app.js")
 	}
 }

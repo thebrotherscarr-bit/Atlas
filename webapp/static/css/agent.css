@@ -312,6 +312,11 @@ body.is-agent .crumb { display: none; }
 .ag-row:last-child { border-bottom: 0; }
 .ag-row .k { color: var(--ag-n300); }
 .ag-row .v { color: var(--ag-n500); text-align: right; font-variant-numeric: tabular-nums; }
+/* A TOOL SAYS WHAT IT DOES (2026-10-10, D17's last part; his card: "Descriptions into the tab"). Its name, its arguments and
+   its Call on one line, and what it does on the line under them, as the Tools page showed it beside the name. */
+.ag-row.ag-tool { flex-wrap: wrap; }
+.ag-row .ag-desc { flex-basis: 100%; color: var(--ag-n500); line-height: 1.5; overflow-wrap: anywhere; }
+.ag-row .ag-desc:empty { display: none; }
 .ag-pane pre {
   margin: 0; padding: 8px; background: var(--ag-n900); border: 1px solid var(--ag-n800); border-radius: 4px;
   font-family: inherit; font-size: 11px; color: var(--ag-n300); white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto;
@@ -421,6 +426,28 @@ body.is-agent .crumb { display: none; }
 .ag-laws .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
 .ag-laws .btn:disabled { opacity: .4; cursor: default; }
 
+/* WHAT'S LEFT, IN ITS OWN TAB (2026-10-10, D17's last part; his card: "A tab of its own"). The tab draws the page's own
+   object (left.js), so its furniture is app.css's and the object's own -- .card, .badge, .btn, .input, .stats, .stat and
+   the .left-* rules it lays down -- with the tokens pointed at this page's palette, as .ag-laws does; the buttons alone need
+   rules, since `.ag button` strips every button bare, and the tiles take the narrower panel as .ag-proof's do. */
+.ag-left {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --bg-3: var(--ag-n900); --bg-4: var(--ag-n800);
+  --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --accent-2: #f5f5f5; --tint: transparent;
+  --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 12px; --t-lg: 13px; --t-num: 20px;
+}
+.ag-left:empty { display: none; }
+.ag-left .card { margin: 0 0 16px; padding: 14px; border-radius: 8px; }
+.ag-left .mt-16 { margin-top: 0; }
+.ag-left .card-header { margin-bottom: 8px; padding-bottom: 8px; }
+.ag-left .card-title { font-size: 12px; text-transform: none; letter-spacing: 0; color: #f5f5f5; }
+.ag-left .btn { padding: 3px 10px; background: var(--ag-n900); border: 1px solid var(--ag-n700); border-radius: 4px; color: var(--ag-n200); font-size: 11px; }
+.ag-left .btn:hover { background: var(--ag-n800); }
+.ag-left .stats { gap: 8px; margin: 0 0 16px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.ag-left .stat { padding: 10px 12px; }
+
 /* VERSION CONTROL, IN THE AIDER PAIR TAB (2026-10-06). The tab draws Version control's own object (flows.js) under Aider,
    the repositories alone, so its furniture is app.css's -- .card, .btn, .input and its tables -- with the tokens pointed
    at this page's palette, as .ag-wf does; the buttons alone need rules, since `.ag button` strips every button bare. */
@@ -454,6 +481,19 @@ body.is-agent .crumb { display: none; }
 .ag-wire .wb-ev { grid-template-columns: 84px 1fr; gap: 8px; border-bottom: 1px solid rgba(38,38,38,.5); }
 .ag-wire .wb-ev code { color: var(--ag-n400); }
 .ag-wire-h { display: flex; align-items: center; gap: 8px; font-weight: 400; color: var(--ag-n500); }
+
+/* AND THE WATCHBOARD'S FLOOR AND TOOL CALLS, IN THE RUN TAB (2026-10-10, D17's last part; his word: "Watchboard can go into
+   runs", and on his card, "Yes, floor and tools too"). The tab hands two more boxes to the Watchboard's own panels
+   (Chat.paintFloor, Chat.paintTools), so their rows are app.css's .wb-seat*, .wb-words, .wb-call*, .wb-args and .wb-err,
+   with the tokens pointed at this page's palette; each box scrolls on its own, and a seat's name is its fold. */
+.ag-floor, .ag-calls {
+  --bg: var(--ag-n900); --bg-2: var(--ag-bg); --border: var(--ag-n800); --border-2: var(--ag-n700);
+  --text: var(--ag-n200); --text-2: var(--ag-n400); --text-3: var(--ag-n500); --muted: var(--ag-n500);
+  --accent: var(--ag-cyan); --green: var(--ag-green); --red: var(--ag-rose); --yellow: var(--ag-amber);
+  --font: var(--font-mono); --t-xs: 10px; --t-sm: 11px; --t-md: 12px; --t-base: 12px;
+  max-height: 46vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ag-n800) transparent;
+}
+.ag-floor .wb-seat-head { color: var(--ag-n200); }
 
 /* THE PROJECTS, IN THE RUN TAB (2026-10-07). The Projects card's own object (projects.js), told it stands in the panel: its
    furniture is app.css's -- .card-header, .badge, .btn, .select, .muted -- with the tokens pointed at this page's palette, as

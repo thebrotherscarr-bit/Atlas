@@ -1,13 +1,19 @@
-// WHAT'S LEFT -- everything still open, on one page.
+// WHAT'S LEFT -- everything still open, in one place.
 //
 // His words, 2026-09-29: "a page with any leftover tasks, checklists, seams ...
 // any blockers or gates, or decisions ... problems or bugs, needs to be in one
 // area where we can see what is actually left" -- and, when the hand answered
 // with a file: "I said write a page on the webapp".
 //
+// A TAB OF ITS OWN (2026-10-10, WHAT'S LEFT D17's last part; his card: "A tab
+// of its own"). It was a page; its address opens the front page with the
+// Inspector's What's left tab open, beside Run, and the tab draws this object
+// into its panel (agent.js, paintPane) -- one Left, so the two cannot drift. It
+// draws no page title there, and Read it again draws it again where it stands.
+//
 // THE LIST IS ONE DOCUMENT, WHATS_LEFT.md at the root of the ground, and this
-// page is how it is read. The door's `records` tool serves it, the way it
-// serves every document on Records; the page keeps no copy.
+// object is how it is read. The door's `records` tool serves it, the way it
+// serves every document in Registry & Docs; this keeps no copy.
 //
 // EVERY NUMBER HERE IS COUNTED FROM THE LINES DRAWN. The document carries no
 // tally of its own, so there is no second count to drift from the first.
@@ -35,10 +41,6 @@ const Left = {
       d = JSON.parse(await App.tool('records', { name: this.DOC }));
     } catch (e) {
       el.innerHTML = `
-        <div class="page-header"><div>
-          <div class="page-title">What's left</div>
-          <div class="page-subtitle">The list could not be read.</div>
-        </div></div>
         <div class="card"><div class="eng-row eng-bad">
           <code>${escHtml(this.DOC)}</code> could not be read: ${escHtml(e.message || 'refused')}
           <span class="brief-src">records</span></div></div>`;
@@ -187,15 +189,9 @@ const Left = {
       </div>`).join('');
 
     el.innerHTML = `<div id="left-page">
-      <div class="page-header">
-        <div>
-          <div class="page-title">What's left</div>
-          <div class="page-subtitle">${total} still open, in one place. Say a number to order the work.</div>
-        </div>
-        <div class="flex">
-          <div class="search-bar"><input class="input" id="left-find" placeholder="Find in the list..."></div>
-          <button class="btn" id="left-again">Read it again</button>
-        </div>
+      <div class="left-head">
+        <div class="stat-note">${total} still open, in one place. Say a number to order the work.</div>
+        <div class="left-actions"><input class="input" id="left-find" placeholder="Find in the list..."><button class="btn" id="left-again">Read it again</button></div>
       </div>
       ${faults}
       <div class="stats">${tiles}</div>
@@ -250,7 +246,10 @@ const Left = {
         border-radius: 3px; }
       .left-box.on { background: var(--green); border-color: var(--green); }
       .left-done .left-text { text-decoration: line-through; color: var(--text-3); }
-      .left-tile { cursor: pointer; }`;
+      .left-tile { cursor: pointer; }
+      .left-head { margin-bottom: 12px; }
+      .left-actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+      .left-actions .input { flex: 1; width: auto; min-width: 0; }`;
     document.head.appendChild(s);
   },
 };

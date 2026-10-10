@@ -137,7 +137,7 @@
    re-reading each one. tabular-nums is the whole fix. */
 .stat-value, table, .hash, code, .badge,
 .timeline-time, .timeline-hash, .organ-src code,
-.voice-gb, .chat-now, .home-said-meta, .cev-mark {
+.voice-gb, .chat-now, .home-said-meta {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
@@ -163,7 +163,7 @@ body {
 }
 /* Sentences, and only sentences. */
 .page-subtitle, .hero-says, .brief-text, .brief-ok, .empty-text,
-.wb-delivery .wb-words, .notshown, .stat-note, .led-note,
+.notshown, .stat-note, .led-note,
 .chat-q, .chat-a, .home-said, .home-heard { font-family: var(--font-prose); }
 
 /* Layout */
@@ -295,12 +295,6 @@ body {
 .ledger { background: var(--bg-2); border: 1px solid var(--border);
           border-radius: var(--radius-lg); padding: var(--s2) var(--s4) var(--s3);
           display: flex; flex-direction: column; }
-/* A seat's name opens it. It reads as a title until you go near it, because
-   on a page of fourteen cards a row of blue links is a row of noise. */
-.seat-open { text-decoration: none; }   /* `color: inherit` was dead here —
-   .card-title is declared later and sets it, which is what this link wanted
-   anyway: to look like every other card title until you go near it. The hover
-   below still wins, because a pseudo-class outranks a bare class. */
 /* A SYSTEM PROMPT IS PROSE, so it wraps. It is written in a mono face because
    it is a declared artifact and every character in it counts, but the base
    `pre` rule now scrolls anything too wide, and a paragraph you have to drag
@@ -311,8 +305,6 @@ body {
                overflow-x: visible; margin: 0;
                background: var(--bg); border: 1px solid var(--border);
                border-radius: var(--radius); padding: var(--s4); }
-.seat-open:hover { color: var(--accent); text-decoration: underline;
-                   text-underline-offset: 3px; }
 .led-head { font-size: var(--t-xs); letter-spacing: 0.09em; text-transform: uppercase;
             color: var(--text-3); font-weight: 600; padding: var(--s2) 0 var(--s1); }
 .led-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline;
@@ -344,38 +336,18 @@ body {
 }
 
 
-/* ---- THE WATCHBOARD -----------------------------------------------------
-   Four panels, because they answer four different questions and reading them
-   interleaved is what made the single-column step-by-step unreadable. The two
-   busy ones sit side by side and scroll in their own boxes: a turn can carry
-   hundreds of events, and a panel that grows the page instead of scrolling
-   itself throws the other three off screen the moment anything happens. */
-.wb-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--s4); }
-.wb-grid > * { min-width: 0; }
-.wb-panel { display: flex; flex-direction: column; }
-.wb-scroll { overflow-y: auto; max-height: 46vh; }
-.wb-wire { max-height: 34vh; }
-
-/* THE TURN */
-.wb-obj { font-size: var(--t-lg); color: var(--text); line-height: 1.5;
-          margin-bottom: var(--s3); }
-.wb-facts { display: flex; flex-wrap: wrap; gap: var(--s4);
-            font-size: var(--t-sm); color: var(--text-3);
-            font-variant-numeric: tabular-nums;
-            padding-bottom: var(--s3); border-bottom: 1px solid var(--border); }
-.wb-facts b { color: var(--text-2); }
-.wb-label { font-size: var(--t-xs); letter-spacing: 0.08em; text-transform: uppercase;
-            color: var(--text-3); font-weight: 600; margin: var(--s4) 0 var(--s2); }
+/* ---- THE WATCHBOARD'S PANELS --------------------------------------------
+   The floor, the tool calls and the wire, drawn by Chat (chat.js) into the
+   boxes the front page's Run tab hands them. The Watchboard was a page of its
+   own -- four panels on a grid of its own, with its turn and its gate --
+   until 2026-10-10 (WHAT'S LEFT D17's last part), when its address opened the
+   Run tab; what only that page wore went with it. The tab's own rules
+   (agent.css: .ag-floor, .ag-calls, .ag-wire) point these tokens at its
+   palette and let each box scroll on its own. */
 .wb-words { font-size: var(--t-md); line-height: 1.65; color: var(--text-2);
             white-space: pre-wrap; overflow-wrap: anywhere; }
-.wb-delivery .wb-words { color: var(--text); }
-/* A FAILURE IS NEVER FOLDED (LAW 5). It is loud, on the turn's own face. */
-.wb-bad { margin-top: var(--s3); padding: var(--s3) var(--s4); font-size: var(--t-sm);
-          line-height: 1.55; color: var(--red); border-radius: var(--radius);
-          background: rgba(226,104,90,0.08); border: 1px solid rgba(226,104,90,0.25); }
-.wb-bad .muted { color: var(--red); opacity: 0.75; }
 
-/* THE FLOOR -- a seat's own words, which is the whole reason this page exists */
+/* THE FLOOR -- a seat's own words, which is the whole reason the Watchboard existed */
 .wb-seat { border-bottom: 1px solid var(--border); }
 .wb-seat:last-child { border-bottom: 0; }
 .wb-seat-head { display: flex; align-items: baseline; gap: var(--s3); width: 100%;
@@ -409,21 +381,6 @@ body {
            overflow: hidden; text-overflow: ellipsis; }
 .wb-ev code { font-size: var(--t-xs); color: var(--text-3); overflow-wrap: anywhere; }
 .wb-dim .wb-kind, .wb-dim code { opacity: 0.55; }
-
-/* THE GATE -- answered here, in a field, never a prompt() (RULE 6) */
-.wb-gate { padding: var(--s4); margin-bottom: var(--s3); border-radius: var(--radius);
-           background: rgba(232,165,68,0.06); border: 1px solid rgba(232,165,68,0.25); }
-.wb-gate-title { font-weight: 600; color: var(--yellow); font-size: var(--t-md); }
-.wb-gate-prompt { white-space: pre-wrap; margin: var(--s2) 0 var(--s3);
-                  font-size: var(--t-base); line-height: 1.55; }
-
-/* EARLIER RUNS */
-.wb-past-row { cursor: pointer; }
-.wb-past-row:hover td { color: var(--accent); }
-.wb-past-open { margin-top: var(--s4); padding-top: var(--s4);
-                border-top: 1px solid var(--border); }
-
-@media (max-width: 900px) { .wb-grid { grid-template-columns: 1fr; } }
 
 /* Page header */
 .page-header {
@@ -858,8 +815,6 @@ pre { overflow-x: auto; max-width: 100%; }
 .chat-q { align-self: flex-end; background: var(--accent-dim, rgba(77,224,208,0.14)); border: 1px solid var(--border); border-radius: 10px 10px 2px 10px; padding: 8px 12px; max-width: 85%; white-space: pre-wrap; }
 .chat-a { align-self: flex-start; background: var(--surface, #12121a); border: 1px solid var(--border); border-radius: 10px 10px 10px 2px; padding: 8px 12px; max-width: 90%; white-space: pre-wrap; }
 .chat-a.live { border-color: var(--accent); animation: pulse 2s ease-in-out infinite; }
-.chat-form { display: flex; gap: 8px; margin-top: 12px; }
-.chat-form input { flex: 1; }
 .chat-session { padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; word-break: break-all; }
 .chat-session:hover { background: var(--bg); }
 .chat-session.active { border: 1px solid var(--accent); }
@@ -917,43 +872,8 @@ pre { overflow-x: auto; max-width: 100%; }
   .organ-src { text-align: left; }
 }
 
-/* Chat: the log needs a floor or the card collapses on an empty session,
-   and the form needs to sit off the last bubble. */
+/* Chat: the log needs a floor or the card collapses on an empty session. */
 .chat-log { min-height: 220px; max-height: 52vh; overflow-y: auto; }
-.chat-form { margin-top: 12px; gap: 8px; }
-.chat-form .input { flex: 1; }
-
-/* ---- the council feed: every engine event, told apart at a glance ---- */
-.council-log { max-height: 60vh; gap: 6px; font-size: 12px; }
-.cev { border-left: 3px solid var(--border); padding: 6px 10px; border-radius: 0 6px 6px 0;
-       background: var(--surface, #12121a); align-self: stretch; max-width: 100%;
-       white-space: normal; word-break: break-word; }
-.cev code { font-size: 11px; }
-.cev-obj { border-left-color: var(--accent); background: rgba(77,224,208,0.10); font-weight: 600; }
-.cev-law { border-left-color: #cba6f7; }
-.cev-meta, .cev-note, .cev-other { border-left-color: var(--muted, #6c7086); color: var(--muted, #6c7086); }
-.cev-seat { border-left-color: #89dceb; }
-.cev-tool { border-left-color: var(--muted, #6c7086); }
-.cev-report { border-left-color: var(--muted, #6c7086); font-family: var(--mono, monospace); }
-.cev-mark { font-size: 11px; color: var(--muted, #6c7086); }
-.cev-ok { border-left-color: #a6e3a1; }
-.cev-fail { border-left-color: #f38ba8; background: rgba(226,104,90,0.08); }
-.cev-guard { border-left-color: #f9e2af; }
-.cev-tok { white-space: pre-wrap; margin-top: 4px; color: var(--text, #e0e0e0); }
-.cev-dots::after { content: '...'; animation: cevdots 1.2s steps(4, end) infinite; }
-@keyframes cevdots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
-
-/* the gate: the one row that is waiting on the operator */
-.cev-gate { border-left-color: #f9e2af; background: rgba(232,165,68,0.10); }
-.cev-prompt { white-space: pre-wrap; margin-top: 6px; }
-
-/* the delivery, with what actually ran under it */
-.cev-delivery { border-left-color: #a6e3a1; background: rgba(143,239,178,0.06); }
-.cev-text { white-space: pre-wrap; margin: 8px 0; font-size: 13px; }
-.cev-notrun { border: 1px solid #f38ba8; border-radius: 6px; padding: 6px 8px; margin: 8px 0;
-              background: rgba(226,104,90,0.08); }
-.cev-steps { width: 100%; margin-top: 8px; font-size: 11px; }
-.cev-steps td, .cev-steps th { padding: 2px 6px; text-align: left; }
 
 /* ---- the chat: a conversation, nothing else ---- */
 .chat-card { display: flex; flex-direction: column; }
@@ -963,7 +883,6 @@ pre { overflow-x: auto; max-width: 100%; }
 .chat-now { font-size: 11px; color: var(--muted, #6c7086); padding: 6px 2px 0;
             font-family: var(--mono, monospace); }
 .chat-now::before { content: '●  '; color: var(--accent, #89b4fa); }
-.chat-foot { font-size: 11px; margin-top: 8px; }
 /* [hidden] is a UA rule and loses to any class selector, so a .btn marked
    hidden kept showing -- the Cancel button stayed up after every turn ended. */
 [hidden] { display: none !important; }
@@ -990,7 +909,6 @@ pre { overflow-x: auto; max-width: 100%; }
 
 /* ---- Home: the launchpad. A line earns its place only if it changes what
    you do next; green is silence, so the quiet state is one row. ---- */
-.home-box { padding: 18px 20px; }
 .home-input { font-size: 15px; padding: 12px 14px; }
 .home-block { margin-top: 10px; font-size: 12px; color: var(--muted, #6c7086); }
 
@@ -1025,12 +943,6 @@ pre { overflow-x: auto; max-width: 100%; }
   animation: seatcaret 1s step-end infinite; margin-left: 1px; }
 @keyframes seatcaret { 50% { opacity: 0; } }
 
-/* ---- the mic: local whisper, held by the engine, not the browser ---- */
-.btn-mic { font-size: 15px; line-height: 1; padding: 8px 11px; }
-.btn-mic.hot { border-color: #f38ba8; background: rgba(226,104,90,0.16);
-               animation: micpulse 1.4s ease-in-out infinite; }
-@keyframes micpulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
-
 /* ---- the engine, controllable from the dashboard ---- */
 .eng-row { padding: 9px 0; font-size: 12px; line-height: 1.55;
            border-bottom: 1px solid var(--border); }
@@ -1041,28 +953,15 @@ pre { overflow-x: auto; max-width: 100%; }
 /* An engine open and doing nothing. Amber, not red: it is waste, not a
    fault, and the card must not cry the same colour as a dead door. */
 .eng-idle { color: #f9e2af; font-weight: 600; }
-.home-boot { margin-top: 10px; max-height: 40vh; overflow: auto; font-size: 11px;
-             white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border);
-             border-radius: var(--radius, 6px); padding: 10px; line-height: 1.5; }
-
 /* the dashboard answers where he typed; the whole run is on Evals */
 .home-out { margin-top: 12px; padding: 12px 14px; white-space: pre-wrap;
             max-height: 46vh; overflow-y: auto; font-size: 13px; line-height: 1.55;
             background: var(--bg); border: 1px solid var(--border);
             border-radius: var(--radius, 6px); }
 
-/* A long delivery must not own the Evals page. It scrolls inside its own row;
-   the transcript named beneath it is the whole thing. */
-.cev-text { max-height: 32vh; overflow-y: auto; }
-.council-log { overflow-y: auto; }
-
-/* a named skill, and one that failed -- the engine's own field, not a reading */
-.tool-ok  { color: var(--text, #e0e0e0); font-family: var(--mono, monospace); }
+/* a failure named in a row (a sitting still open, in the estate's table) -- the record's own field, not a reading */
 .tool-bad { color: #f38ba8; font-family: var(--mono, monospace);
             text-decoration: underline dotted; cursor: help; }
-.cev-skills { margin-top: 8px; padding-top: 8px; font-size: 11px;
-              border-top: 1px solid var(--border); }
-.cev-steps th { color: var(--muted, #6c7086); font-weight: 500; }
 
 /* the dashboard's conversation: the tail of the one Chat holds */
 .home-thread { max-height: 44vh; overflow-y: auto; margin-bottom: 12px;
@@ -1226,7 +1125,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @keyframes skel { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.8; } }
 @media (prefers-reduced-motion: reduce) {
   .skel { animation: none; opacity: 0.55; }
-  .pulse, .btn-mic.hot { animation: none; }
+  .pulse { animation: none; }
 }
 
 /* An empty screen is an invitation, so it is given room and a plain sentence

@@ -24,8 +24,14 @@ const App = {
   // judged"; his cards: "Every page with a tab", "Keep them, opening the tab"). Workflows, Laws, GitHub and Settings stay
   // on the list above, so the Pages menu, the palette and an old bookmark still reach them, and each address opens the
   // front page with that Inspector tab open, as /dashboard opens the front page: the tab draws what the page drew, beside
-  // the cards that wait for his hand. The page's address, and the Inspector tab it opens.
-  TABBED: { workflows: 'flows', laws: 'laws', flows: 'github', settings: 'settings' },
+  // the cards that wait for his hand. The page's address, and the Inspector tab it opens. AND THE SIX THAT HAD NO TAB, put
+  // to him page by page the same day (D17's last part, his cards): the Watchboard opens Run, which draws its floor, tool
+  // calls and wire; Agents, Tools and Records open Registry & Docs, which carries their seats, tools and documents; Evals
+  // opens the Audit Ledger, which carries the hand-scored evals; and What's left has a tab of its own.
+  TABBED: {
+    workflows: 'flows', laws: 'laws', flows: 'github', settings: 'settings',
+    chat: 'run', agents: 'docs', tools: 'docs', records: 'docs', evals: 'ledger', left: 'left'
+  },
 
   init() {
     this.router();
@@ -185,18 +191,12 @@ const App = {
       // THE FRONT PAGE (agent.js): one terminal, five doors, an Inspector.
       case 'agent': await Agent.render(el); break;
       // The launchpad (home.js) retired on 2026-10-07 at his word; the router sends /dashboard to the front page.
-      // Everything still open, read from WHATS_LEFT.md (left.js).
-      case 'left': await Left.render(el); break;
-      case 'agents': this.pageParam ? await this.renderAgentDetail(el) : await this.renderAgents(el); break;
       case 'traces': this.pageParam ? await this.renderTraceDetail(el) : await this.renderTraces(el); break;
-      case 'tools': await this.renderTools(el); break;
-      case 'evals': await this.renderEvals(el); break;
-      case 'records': await this.renderRecords(el); break;
-      case 'chat': await Chat.render(el); break;
       case 'playground': await Play.render(el); break;
       case 'messages': await this.renderMessages(el); break;
-      // Workflows, Laws, GitHub and Settings are the front page's Inspector tabs since 2026-10-10: the router opens
-      // them (TABBED) and draws none of them here.
+      // Every other page on the list is one of the front page's Inspector tabs since 2026-10-10 -- Workflows, Laws,
+      // GitHub and Settings first, then (D17's last part, his cards) What's left, the Watchboard, Agents, Tools, Evals
+      // and Records: the router opens them (TABBED) and draws none of them here.
       default: el.innerHTML = '<div class="empty"><div class="empty-icon">?</div><div class="empty-text">Page not found</div></div>';
     }
   },
@@ -221,56 +221,11 @@ const App = {
     } catch (e) { throw new Error(e.message || 'unreadable answer'); }
   },
 
-  // === AGENTS ===
-  // THE SEATS, read from agents/*.md and pipelines.md -- the source of truth.
-  // This page listed the webapp's own SQLite table, which nothing writes, on a
-  // ground holding fourteen declared seats. Third instance of that fault today
-  // and the last page carrying it.
-  async renderAgents(el) {
-    el.innerHTML = '<div class="loading">Reading the seats...</div>';
-    let d;
-    try {
-      d = JSON.parse(await this.tool('seats', {}));
-    } catch (e) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">!</div>
-        <div class="empty-text">The seats could not be read: ${escHtml(e.message || 'refused')}</div></div>`;
-      return;
-    }
-    const seats = d.seats || [];
-    this._seats = seats;
-
-    // Which pipelines exist at all, so a seat that stands in none is visibly
-    // a racked seat rather than an omission.
-    const pipes = [];
-    for (const s of seats) for (const st of (s.stands_in || [])) {
-      if (pipes.indexOf(st.pipeline) < 0) pipes.push(st.pipeline);
-    }
-
-    el.innerHTML = `
-      <div class="page-header">
-        <div>
-          <div class="page-title">Seats</div>
-          <div class="page-subtitle">${seats.length} declared in <code>agents/</code> ·
-            ${pipes.length} pipelines in <code>pipelines.md</code></div>
-        </div>
-        <div class="search-bar">
-          <input class="input" placeholder="Search seats..." oninput="App.filterAgents(this.value)">
-        </div>
-      </div>
-      ${d.seats_error ? `<div class="card"><div class="eng-row eng-bad">
-        agents/ could not be read: ${escHtml(d.seats_error)}
-        <span class="brief-src">seats</span></div></div>` : ''}
-      <div id="agent-grid">${seats.map((s, i) => this.seatCard(s, i)).join('')}</div>`;
-
-    el.querySelectorAll('[data-prompt]').forEach(b => {
-      b.onclick = () => {
-        const box = document.getElementById('prompt-' + b.dataset.prompt);
-        if (box) { box.hidden = !box.hidden; b.textContent = box.hidden ? 'prompt' : 'hide prompt'; }
-      };
-    });
-  },
-
-  seatCard(s, i, inPanel) {
+  // === THE SEATS ===
+  // A seat, as its card: what Registry & Docs draws for each seat declared in agents/, read through the `seats` tool from
+  // agents/*.md and pipelines.md -- the source of truth. The Agents page drew the same cards until its address opened that
+  // tab (2026-10-10, D17's last part).
+  seatCard(s, i) {
     if (s.error) {
       return `<div class="card seat-card"><div class="eng-row eng-bad">
         <b>${escHtml(s.file)}</b> could not be read: ${escHtml(s.error)}</div></div>`;
@@ -285,25 +240,17 @@ const App = {
       `<span class="badge badge-blue" title="${escHtml(st.note || '')}">${escHtml(st.pipeline)}
        <span class="muted">#${st.step}</span>${st.when ? ' · ' + escHtml(st.when) : ''}</span>`).join(' ');
 
-    // THE NAME IS THE WAY IN. /agents/<file stem> existed for months with
-    // nothing on this page pointing at it, which is most of why it was left
-    // reading a table nobody writes: a route nobody can reach is a route
-    // nobody notices is broken.
-    const stem = String(s.file || '').replace(/\.md$/i, '');
-    // IN THE FRONT PAGE'S PANEL (2026-10-06) the name does not leave the page: the card is the same, and its file, with its
-    // receipt, opens under it from a button of its own (agent.js, `seat-file`).
-    const title = inPanel
-      ? `<span class="card-title">${escHtml(s.name)}</span>`
-      : `<a class="card-title seat-open" href="/agents/${escHtml(stem)}"
-           title="The declaration whole, with the file and its receipt"
-           onclick="event.preventDefault();history.pushState(null,'','/agents/${escHtml(stem)}');App.router();">${escHtml(s.name)}</a>`;
+    // THE NAME DOES NOT LEAVE THE FRONT PAGE (2026-10-06): the card stands in the Inspector's Registry & Docs tab, and its
+    // file, with its receipt, opens under it from a button of its own (agent.js, `seat-file`) -- what the seat's own page
+    // showed until the Agents page's address opened the tab (2026-10-10, D17's last part).
+    const title = `<span class="card-title">${escHtml(s.name)}</span>`;
     return `<div class="card seat-card" data-seat="${escHtml((s.name || '').toLowerCase())}">
       <div class="card-header">
         ${title}
         <span class="flex">
           ${f['Model Target'] ? `<code class="seat-model">${escHtml(f['Model Target'])}</code>` : ''}
           ${s.prompt ? `<button class="btn btn-sm" data-prompt="${i}">prompt</button>` : ''}
-          ${inPanel ? `<button class="btn btn-sm" data-act="seat-file" data-i="${i}" data-file="agents/${escHtml(s.file)}">file</button>` : ''}
+          <button class="btn btn-sm" data-act="seat-file" data-i="${i}" data-file="agents/${escHtml(s.file)}">file</button>
         </span>
       </div>
       <div class="seat-rows">
@@ -319,7 +266,7 @@ const App = {
         <span class="brief-src">${escHtml(s.file)}</span>
       </div>
       ${s.prompt ? `<pre class="seat-prompt" id="prompt-${i}" hidden>${escHtml(s.prompt)}</pre>` : ''}
-      ${inPanel ? `<div id="seat-file-${i}"></div>` : ''}
+      <div id="seat-file-${i}"></div>
     </div>`;
   },
 
@@ -329,107 +276,6 @@ const App = {
       const hay = (c.dataset.seat || '') + ' ' + c.textContent.toLowerCase();
       c.hidden = q !== '' && hay.indexOf(q) < 0;
     });
-  },
-
-  // ONE SEAT, WHOLE. Reached by clicking its name on /agents.
-  //
-  // THIS ROUTE WAS AN ORPHAN AND A LIE. Nothing on the seats page linked to
-  // it, so the only way in was to type the URL -- and when you did, it read
-  // `API.getAgent`, which queries the WEBAPP'S OWN SQLite `agents` table.
-  // Nothing writes that table. The list beside it reads agents/*.md through
-  // the `seats` tool, so a ground with fourteen declared seats answered 404
-  // for every one of them, and the fields it was built to show (office,
-  // reports_to, mode, permissions) do not exist in a declaration at all.
-  // Fourth instance of a page counting the webapp's store instead of asking
-  // the record, and the last one standing.
-  //
-  // THE KEY IS THE FILE STEM, not a name. `deep_researcher` is stable,
-  // unique, url-safe and is already what the record calls the document;
-  // a display name ("Deep Researcher") is none of those.
-  //
-  // WHAT THE DETAIL ADDS over the card: the declaration in full with nothing
-  // folded, the system prompt open rather than behind a toggle, and THE FILE
-  // ITSELF with its sha256 -- served by `records`, the same receipt the
-  // Records page hands out. The card is the summary; this is the document.
-  async renderAgentDetail(el) {
-    el.innerHTML = '<div class="loading">Reading the seat...</div>';
-    const stem = String(this.pageParam || '');
-    let seats;
-    try {
-      seats = (JSON.parse(await this.tool('seats', {})).seats) || [];
-    } catch (e) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">!</div>
-        <div class="empty-text">The seats could not be read: ${escHtml(e.message || 'refused')}</div></div>`;
-      return;
-    }
-    const stemOf = (f) => String(f || '').replace(/\.md$/i, '');
-    const s = seats.find(x => stemOf(x.file) === stem);
-    if (!s) {
-      // AN ABSENT NAME IS DENIED HONESTLY, and the denial names what IS here.
-      el.innerHTML = `<div class="empty"><div class="empty-icon">!</div>
-        <div class="empty-text">No seat is declared as <code>${escHtml(stem)}.md</code> in
-        <code>agents/</code>. The ${seats.length} that are:
-        ${seats.map(x => `<a href="/agents/${escHtml(stemOf(x.file))}"
-          onclick="event.preventDefault();history.pushState(null,'','/agents/${escHtml(stemOf(x.file))}');App.router();"><code>${escHtml(stemOf(x.file))}</code></a>`).join(' ')}
-        </div></div>`;
-      return;
-    }
-
-    const f = s.fields || {};
-    const order = s.field_order || Object.keys(f);
-    const rows = order.filter(k => (f[k] || '').trim() && k !== 'System Prompt')
-      .map(k => `<tr><td>${escHtml(k)}</td><td>${escHtml(f[k])}</td></tr>`).join('');
-    const stands = (s.stands_in || []).map(st =>
-      `<div class="seat-row"><span class="seat-k">${escHtml(st.pipeline)}
-        <span class="muted">step ${escHtml(String(st.step))}</span></span>
-       <span class="seat-v">${escHtml(st.when || st.note || '')}</span></div>`).join('');
-
-    el.innerHTML = `
-      <div class="page-header">
-        <div>
-          <div class="page-title">${escHtml(s.name || stem)}</div>
-          <div class="page-subtitle">Declared in <code>agents/${escHtml(s.file)}</code>${
-            f['Model Target'] ? ` · runs on <code>${escHtml(f['Model Target'])}</code>` : ''}</div>
-        </div>
-        <a href="/agents" class="btn" onclick="event.preventDefault();history.pushState(null,'','/agents');App.router();">All seats</a>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><span class="card-title">The declaration</span></div>
-          ${rows ? `<div class="table-wrap"><table>${rows}</table></div>`
-                 : '<div class="empty-text">This declaration carries no fields.</div>'}
-          <div class="brief-src">seats · agents/${escHtml(s.file)}</div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">Where it stands</span>
-            <span class="badge badge-blue">${(s.stands_in || []).length}</span></div>
-          ${stands || `<div class="empty-text">Stands in no pipeline — racked, and
-            summoned only when its flag is raised.</div>`}
-          <div class="brief-src">pipelines.md</div>
-        </div>
-      </div>
-      <div class="card mt-16">
-        <div class="card-header"><span class="card-title">System prompt</span>
-          <span class="muted">${s.prompt_chars || (s.prompt || '').length} characters</span></div>
-        ${s.prompt ? `<pre class="seat-prompt">${escHtml(s.prompt)}</pre>`
-                   : `<div class="empty-text">No system prompt is declared. The seat runs on
-                      the pipeline's own framing.</div>`}
-      </div>
-      <div class="card mt-16" id="seat-file"><div class="loading">Reading the file...</div></div>`;
-
-    // THE DOCUMENT ITSELF, with the receipt. Asked for separately so a seat
-    // still renders whole when the records hold cannot serve the file.
-    const box = document.getElementById('seat-file');
-    try {
-      const d = JSON.parse(await this.tool('records', { name: 'agents/' + s.file }));
-      box.innerHTML = `<div class="card-header"><span class="card-title">The file, as it is on disk</span>
-          <span class="muted">${d.bytes} bytes</span></div>
-        <pre class="seat-prompt">${escHtml(d.text || '')}</pre>
-        <div class="brief-src">records · sha256 ${escHtml(String(d.sha256 || '').slice(0, 16))}</div>`;
-    } catch (e) {
-      box.innerHTML = `<div class="eng-row eng-warn">The file could not be served:
-        ${escHtml(e.message || 'refused')}<span class="brief-src">records</span></div>`;
-    }
   },
 
   // === TRACES ===
@@ -450,7 +296,7 @@ const App = {
         </div>
         <div class="card">
           ${traces.length === 0
-            ? '<div class="empty"><div class="empty-icon">&#128269;</div><div class="empty-text">No traces yet. Call a tool from the Tools page to start recording.</div></div>'
+            ? '<div class="empty"><div class="empty-icon">&#128269;</div><div class="empty-text">No traces yet. Call a tool from Registry & Docs to start recording.</div></div>'
             : '<div class="table-wrap"><table><thead><tr><th>Tool</th><th>Agent</th><th>Status</th><th>Duration</th><th>Hash</th><th>Time</th></tr></thead><tbody>' +
               traces.map(t => `
                 <tr onclick="location.href='/traces/${t.id}'" style="cursor:pointer">
@@ -578,51 +424,16 @@ const App = {
     };
   },
 
-  // === TOOLS ===
-  async renderTools(el) {
-    el.innerHTML = '<div class="loading">Loading tools...</div>';
-    try {
-      const data = await API.tools();
-      const tools = data.tools || [];
-      this._tools = tools;
-      el.innerHTML = `
-        <div class="page-header">
-          <div>
-            <div class="page-title">Tool Surface</div>
-            <div class="page-subtitle">${tools.length} tools registered</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Name</th><th>Description</th><th>Arguments</th><th>Action</th></tr></thead>
-              <tbody>
-                ${tools.map(t => `
-                  <tr>
-                    <td><code>${escHtml(t.name)}</code></td>
-                    <td>${escHtml(t.description || '—')}</td>
-                    <td><code>${Object.keys(t.inputSchema?.properties || {}).join(', ') || 'none'}</code></td>
-                    <td><button class="btn btn-sm btn-primary" onclick="App.invokeTool('${escHtml(t.name)}')">Call</button></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    } catch (e) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">!</div><div class="empty-text">${escHtml(e.message)}</div></div>`;
-    }
-  },
-
   // THE TOOLS PAGE ASKS IN THE PAGE, NOT IN A POP-UP (2026-09-29, WHAT'S LEFT
   // C26). This collected the arguments with a native prompt(), which the
   // desktop app's browser pane dismisses unseen -- so Call did nothing there
   // -- and which this glass's own rule forbids everywhere else (the spec's
-  // §4.7: no prompt() anywhere; chat.js, prompts.js say the same). The modal
-  // this page already owns takes the arguments as a form: the tool's declared
+  // §4.7: no prompt() anywhere; prompts.js says the same). The modal the
+  // console already owns takes the arguments as a form: the tool's declared
   // arguments listed over the box so nobody has to remember them, JSON in,
   // and the answer painted into the same modal with a way to call again.
+  // Since 2026-10-10 the Tools page's address opens Registry & Docs, whose
+  // Call hands this form the list it read (App._tools).
   invokeTool(name, raw) {
     const tool = (this._tools || []).find(t => t.name === name) || {};
     const props = Object.keys((tool.inputSchema && tool.inputSchema.properties) || {});
@@ -688,205 +499,6 @@ const App = {
     document.getElementById('modal').style.display = 'none';
   },
 
-  // === EVALS ===
-  // === EVALS: the run, then the judgements on it ===
-  //
-  // The waterfall lives HERE, not on Chat (the operator, 2026-09-09: "this
-  // looks like the evals loops. lets put it there"). Chat is the conversation;
-  // this page is the evidence -- every seat, every tool, every result, the
-  // per-seat table and the transcript, live while a turn runs and kept after
-  // it ends. It reads Run (council.js), the same object Chat reads, so the two
-  // pages can never tell different stories about the same turn.
-  //
-  // NOTHING ON THIS PAGE IS INFERRED. Each row is an event the engine emitted.
-  // `failed` is the engine's own field, the per-seat numbers are its
-  // StepResults -- never a reading of what a seat said about itself (LAW 5).
-  async renderEvals(el) {
-    el.innerHTML = '<div class="loading">Loading evals...</div>';
-    if (!this._runBound) { Run.on(() => this.paintRun()); this._runBound = true; }
-    try {
-      const data = await API.listEvals();
-      const evals = data.evals || [];
-      const passed = evals.filter(e => e.passed).length;
-      const failed = evals.length - passed;
-      el.innerHTML = `
-        <div class="page-header">
-          <div>
-            <div class="page-title">Evaluations</div>
-            <div class="page-subtitle">${evals.length} scored evals, ${passed} passed, ${failed} failed. The last run, whole, is in the front page's Run tab; the suites, standups and sittings are on <a href="/records" onclick="event.preventDefault();history.pushState(null,'','/records');App.router();">Records</a>.</div>
-          </div>
-          <!-- #ev-run-state and #ev-run-cancel WERE HERE and were dead. The
-               run card moved to the Dashboard on 2026-09-10 and took the
-               ev-run element with it; paintRun returns at its first line when
-               that element is
-               absent, so this badge was never painted once. It sat in the
-               header of every visit showing a hardcoded em dash — a control
-               that looks like a reading and is a literal. -->
-        </div>
-        <div class="card">
-          <div class="card-title">Scored evals <span class="muted">— written by the Add-an-eval flow, not by the suites</span></div>
-          ${evals.length === 0
-            ? '<div class="empty-text">None scored yet. The suites and standups are on <a href="/records" onclick="event.preventDefault();history.pushState(null,&#39;&#39;,&#39;/records&#39;);App.router();">Records</a>, read from the record; this table is what someone scored by hand from a trace.</div>'
-            : '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Trace</th><th>Score</th><th>Passed</th><th>Detail</th><th>Time</th></tr></thead><tbody>' +
-              evals.map(e => `
-                <tr>
-                  <td>${escHtml(e.name)}</td>
-                  <td><code style="cursor:pointer" onclick="location.href='/traces/${e.trace_id}'">${escHtml(e.trace_id)}</code></td>
-                  <td><span class="eval-score ${e.passed ? 'pass' : 'fail'}">${e.score}</span></td>
-                  <td><span class="badge ${e.passed ? 'badge-green' : 'badge-red'}">${e.passed ? 'PASS' : 'FAIL'}</span></td>
-                  <td>${escHtml(e.detail || '—')}</td>
-                  <td>${timeAgo(e.created_at)}</td>
-                </tr>
-              `).join('') + '</tbody></table></div>'}
-        </div>
-      `;
-      const c = document.getElementById('ev-run-cancel');
-      if (c) c.onclick = () => Run.cancel();
-      this.paintRun();
-      Run.check();
-    } catch (e) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">!</div><div class="empty-text">${escHtml(e.message)}</div></div>`;
-    }
-  },
-
-  // paintRun draws the whole turn from Run's kept events. It redraws on every
-  // event rather than appending, so a page opened halfway through a run shows
-  // everything that already happened instead of only the rest.
-  paintRun() {
-    const box = document.getElementById('ev-run');
-    if (!box) return;
-    const t = Run.turn;
-    const badge = document.getElementById('ev-run-state');
-    const cancel = document.getElementById('ev-run-cancel');
-    if (badge) {
-      badge.className = 'badge ' + (Run.running ? 'badge-blue' : t ? 'badge-green' : '');
-      badge.textContent = Run.running ? 'running · ' + Run.elapsed()
-        : t ? (t.verdict || 'done') + ' · ' + Run.elapsed()
-        : (Run.engineOpen ? 'engine open · sitting ' + (Run.sitting || '?') : 'no engine');
-    }
-    if (cancel) cancel.hidden = !Run.running;
-
-    if (!t) {
-      box.innerHTML = '<div class="empty-text">No run yet. Say something on Chat and the whole turn lands here.</div>';
-      return;
-    }
-    const rows = [`<div class="cev cev-obj">${escHtml(t.objective)}</div>`];
-    if (t.thinned) rows.push(`<div class="cev cev-fail"><b>the events were not kept</b> — this turn came back from storage without its record; the delivery below is whole, the step-by-step is not</div>`);
-    for (const ev of t.events) rows.push(this.runRow(ev));
-    if (t.refusal) rows.push(`<div class="cev cev-fail"><b>${escHtml((t.verdict || 'refused').toUpperCase())}</b> ${escHtml(t.refusal)}</div>`);
-    if (t.dropped) rows.push(`<div class="cev cev-fail"><b>${t.dropped} events were dropped</b> — this page did not see everything that ran</div>`);
-    box.innerHTML = rows.join('');
-    box.scrollTop = box.scrollHeight;
-  },
-
-  // One event, one row. An event this build has never heard of is shown
-  // verbatim rather than dropped: an unknown event is still something that
-  // happened, and on this page an omission looks like nothing happening.
-  runRow(d) {
-    const k = d._kind;
-    switch (k) {
-      case 'opened':
-        return `<div class="cev cev-meta"><b>opened</b> sitting ${escHtml(String(d.sitting ?? ''))} · session ${escHtml(d.session || '')}</div>`;
-      case 'run':
-        return `<div class="cev cev-meta"><b>run</b> pipeline <b>${escHtml(d.pipeline || '')}</b>` +
-          (d.review_only ? ' · review only' : '') +
-          (d.feed_chars ? ` · feed ${d.feed_chars} chars` : '') +
-          (d.transcript ? `<br><span class="muted">transcript <code>${escHtml(d.transcript)}</code></span>` : '') + `</div>`;
-      case 'report':
-        return `<div class="cev cev-report">${escHtml((d.text || '').trim())}</div>`;
-      case 'seat':
-        return `<div class="cev cev-seat"><b>${escHtml(d.seat || 'seat')}</b> <span class="muted">${escHtml(d.model || '')}` +
-          (d.timeout ? ` · timeout ${d.timeout}s` : '') + `</span></div>`;
-      case 'token':
-        return '';   // the seat's words are shown whole under its delivery
-      case 'tool':
-        return `<div class="cev cev-tool"><b>skill</b> ${escHtml(d.action || d.tool || d.name || '?')}` +
-          (d.seat ? ` <span class="muted">called by ${escHtml(d.seat)}</span>` : '') +
-          (d.args ? ` <code>${escHtml(JSON.stringify(d.args)).slice(0, 200)}</code>` : '') + `</div>`;
-      case 'tool_result':
-        return `<div class="cev ${d.failed ? 'cev-fail' : 'cev-ok'}"><b>${d.failed ? 'FAILED' : 'ok'}</b> ` +
-          escHtml(d.action || d.tool || d.name || '?') +
-          (d.error ? ` — ${escHtml(d.error)}` : '') +
-          (d.failed && d.text ? ` — ${escHtml(String(d.text).slice(0, 300))}` : '') + `</div>`;
-      case 'note':
-        return `<div class="cev cev-note"><b>note</b> ${escHtml(d.text || '')}</div>`;
-      case 'needs_answer':
-        return `<div class="cev cev-gate"><b>THE COUNCIL IS ASKING</b><div class="cev-prompt">${escHtml(d.prompt || '')}</div>` +
-          `<span class="muted">answered on Chat — the gate is the operator's (RULE 6)</span></div>`;
-      case 'delivery':
-        return this.runDelivery(d);
-      case 'refused': case 'aborted': case 'cancelled': case 'unreachable': case 'error':
-        return `<div class="cev cev-fail"><b>${escHtml(k.toUpperCase())}</b> ${escHtml(d.text || d.error || '')}</div>`;
-      case 'closed':
-        return `<div class="cev cev-meta"><b>closed</b> ${escHtml(d.text || 'the sitting is tolled')}</div>`;
-      // A /command, or any turn that finished without running a pipeline, ends
-      // with `command` (serve.py's seventh terminal). It fell to the default
-      // below and was drawn as raw JSON (2026-09-14).
-      case 'command':
-        return `<div class="cev cev-meta"><b>command</b> ${escHtml(d.text || '')} <span class="muted">· finished without running a pipeline</span></div>`;
-      default:
-        return `<div class="cev cev-other"><b>${escHtml(String(k))}</b> <code>${escHtml(JSON.stringify(d)).slice(0, 400)}</code></div>`;
-    }
-  },
-
-  runDelivery(d) {
-    const list = (a) => (a || []).map(f => escHtml(typeof f === 'string' ? f : JSON.stringify(f))).join('<br>');
-    let extra = '';
-    if ((d.failures || []).length) {
-      extra += `<div class="cev-notrun"><b>NOT EVERYTHING RAN</b><br>${list(d.failures)}
-        <br><span class="muted">machine-emitted from what happened, not a seat's account of it</span></div>`;
-    }
-    if ((d.out_of_time || []).length) extra += `<div class="cev-notrun"><b>OUT OF TIME</b><br>${list(d.out_of_time)}</div>`;
-    if ((d.notes || []).length) extra += `<div class="muted" style="margin-top:6px">${list(d.notes)}</div>`;
-    // Which calls FAILED, off the engine's own tool_result field -- never a
-    // reading of the words that came back.
-    const failed = {};
-    for (const x of (Run.turn && Run.turn.tools) || []) {
-      if (x.failed) failed[x.name] = x.error || 'failed';
-    }
-    const named = (list) => {
-      const names = (list || []).filter(Boolean);
-      if (!names.length) return '<span class="muted">—</span>';
-      return names.map(n => failed[n]
-        ? `<span class="tool-bad" title="${escHtml(failed[n])}">${escHtml(n)}</span>`
-        : `<span class="tool-ok">${escHtml(n)}</span>`).join(' ');
-    };
-    const steps = (d.steps || []).map(s =>
-      `<tr><td>${escHtml(String(s.seat || ''))}</td>
-       <td class="muted">${escHtml(String(s.model || ''))}</td>
-       <td>${escHtml(String(s.elapsed ?? ''))}s</td>
-       <td>${named(s.tools)}</td>
-       <td>${s.drift == null ? '<span class="muted" title="not scored this run">—</span>'
-              : '<span class="' + (s.drifted ? 'tool-bad' : '') + '">' + escHtml(Number(s.drift).toFixed(2)) + '</span>'}</td>
-       <td>${s.skipped ? '<span class="badge badge-yellow">skipped</span>'
-              : s.error ? '<span class="badge badge-red">error</span>'
-                        : '<span class="badge badge-green">ran</span>'}</td></tr>`).join('');
-
-    // THE ROLL-UP. The per-seat rows answer "who called what"; this answers
-    // "what did this run touch", which is the question an eval asks. A skill
-    // and a tool are the same thing in this estate -- the 37 skills ARE the
-    // tool surface -- so it is said once here rather than implied as two lists.
-    const used = [];
-    for (const s of (d.steps || [])) for (const n of (s.tools || [])) {
-      if (n && used.indexOf(n) < 0) used.push(n);
-    }
-    for (const x of (Run.turn && Run.turn.tools) || []) {
-      if (x.name && used.indexOf(x.name) < 0) used.push(x.name);
-    }
-    const roll = used.length
-      ? `<div class="cev-skills"><b>skills used</b> ${named(used)}
-         <span class="muted">· a skill and a tool are one thing here; the estate's skills are its tool surface</span></div>`
-      : `<div class="cev-skills"><b>skills used</b> <span class="muted">none — the seats answered from what they were handed</span></div>`;
-
-    return `<div class="cev cev-delivery"><b>DELIVERY</b> ${escHtml(d.pipeline || '')}` +
-      (d.elapsed != null ? ' · ' + escHtml(String(d.elapsed)) + 's' : '') +
-      `<div class="cev-text">${escHtml(d.text || '')}</div>${extra}` + roll +
-      (steps ? `<table class="cev-steps"><thead><tr><th>seat</th><th>model</th><th>elapsed</th><th>tools</th><th>drift</th><th></th></tr></thead><tbody>${steps}</tbody></table>` : '') +
-      (d.transcript ? `<div class="muted" style="margin-top:6px">transcript <code>${escHtml(d.transcript)}</code></div>` : '') +
-      `</div>`;
-  },
-
-
   // WHAT THIS WORLD HAS PROVED, read from its own record and nowhere else.
   // Every card names the file it came from; a world that never ran a suite
   // says so rather than rendering as a zero, because "zero passed" and "never
@@ -898,8 +510,9 @@ const App = {
   // `only` SPLITS THE TWO HALVES, because they answer different questions and
   // they belong on different pages now (the operator, 2026-09-10): the SCORES
   // are "is the build sound", which is the first thing the Dashboard should
-  // say; the ESTATE is "what has sat here", which is the record and stays on
-  // Records. One reader, one `proofs` call, two placements.
+  // say; the ESTATE is "what has sat here", which is the record, and is drawn
+  // under the rows in the Audit Ledger tab since Records' address opened the
+  // tabs (2026-10-10). One reader, one `proofs` call, two placements.
   //   'scores' -- strokes, smoke, standup, standups run, parity
   //   'estate' -- sittings, tolls, runs, and the live standups table
   //   'ledger' -- the proof's rows (proofLedger), for the front page's Audit Ledger tab
@@ -911,9 +524,9 @@ const App = {
   // then asked again, so every refresh read the record files twice and wrote
   // two 20 KB traces -- 14,440 `proofs` calls over 2026-09-12..14, half of
   // everything the glass called. A caller holding the answer hands it over; a
-  // caller that holds none (Records, the end of a turn) still asks.
+  // caller that holds none still asks.
   async paintProof(boxId, only, read) {
-    const box = document.getElementById(boxId || 'rec-proof');
+    const box = document.getElementById(boxId);
     if (!box) return;
     let p;
     try {
@@ -1123,115 +736,6 @@ const App = {
         ${rows.join('')}
         <div class="led-foot"><span class="brief-src">proofs · read, never counted here</span></div>
       </div>`;
-  },
-
-  // === RECORDS ===
-  // The estate's own memory: what was proven, what sat, and every document it
-  // carries, sorted by what the document IS.
-  async renderRecords(el) {
-    el.innerHTML = `
-      <div class="page-header">
-        <div>
-          <div class="page-title">Records</div>
-          <div class="page-subtitle">What was proven, what sat, and what this ground carries — read from the record, never counted here</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">The documents</div>
-        <!-- The kinds get their own line and WRAP. In the header they were one
-             unwrapping flex row 621px wide inside a narrower card, so "skills"
-             and "logs" were clipped off the right edge -- two whole kinds
-             invisible on a page whose job is to show what the ground carries. -->
-        <div class="flex" id="rec-kinds" style="flex-wrap:wrap;gap:6px;margin:8px 0 12px"></div>
-        <div id="rec-list"><div class="skel skel-60"></div><div class="skel skel-80"></div><div class="skel skel-40"></div></div>
-      </div>
-      <div id="rec-doc"></div>
-      <div id="rec-proof" class="mt-16"></div>`;
-    // THE DOCUMENTS OPEN THE PAGE (the operator, 2026-09-10). What this ground
-    // CARRIES is the question Records is opened to answer; the sittings and the
-    // standups are the history behind it, and they read better after. The
-    // SCORES that used to head this page moved to the Dashboard entirely.
-    this.paintDocs();
-    this.paintProof('rec-proof', 'estate');
-  },
-
-  // The docs, by kind. `records` sorts them; this page only draws the sections
-  // it is handed, so a kind added to the tool appears here without an edit.
-  async paintDocs() {
-    const bar = document.getElementById('rec-kinds');
-    const list = document.getElementById('rec-list');
-    if (!bar || !list) return;
-    let r;
-    try {
-      r = JSON.parse(await this.tool('records', {}));
-    } catch (e) {
-      list.innerHTML = `<div class="eng-row eng-bad">The documents could not be read:
-        ${escHtml(e.message || 'refused')}<span class="brief-src">records</span></div>`;
-      return;
-    }
-    this._recs = r;
-    const kinds = r.kinds || [];
-    if (!kinds.length) { list.innerHTML = '<div class="empty-text">This ground carries no documents.</div>'; return; }
-    this._recKind = this._recKind && kinds.some(k => k.kind === this._recKind)
-      ? this._recKind : kinds[0].kind;
-
-    bar.innerHTML = kinds.map(k =>
-      `<button class="btn btn-sm ${k.kind === this._recKind ? 'btn-primary' : ''}" data-kind="${escHtml(k.kind)}">
-         ${escHtml(k.kind)} <span class="muted">${k.count}</span></button>`).join('') +
-      `<span class="brief-src">records · ${r.count} documents</span>`;
-    bar.querySelectorAll('[data-kind]').forEach(btn => {
-      btn.onclick = () => { this._recKind = btn.dataset.kind; this.paintDocs(); };
-    });
-
-    const kind = kinds.find(k => k.kind === this._recKind) || kinds[0];
-    // Every kind is sorted by name by the tool, except logs, which come back
-    // newest first and capped -- so the note says so rather than letting the
-    // page look like the whole of logs/.
-    list.innerHTML =
-      (kind.kind === 'logs'
-        ? '<div class="stat-note" style="margin-bottom:10px">The newest 60 transcripts, most recent first. The rest are on disk in <code>logs/</code>.</div>'
-        : '') +
-      '<div class="table-wrap"><table><thead><tr><th>document</th><th>kind</th><th class="num">size</th><th>changed</th></tr></thead><tbody>' +
-      kind.documents.map(d => `<tr class="rec-row" data-name="${escHtml(d.name)}" style="cursor:pointer">
-        <td><code>${escHtml(d.name)}</code>${d.sealed ? ' <span class="badge badge-yellow">sealed</span>' : ''}</td>
-        <td><span class="muted">${escHtml(d.kind)}</span></td>
-        <td class="num">${(d.bytes / 1024).toFixed(1)} KB</td>
-        <td>${escHtml(when(Date.parse(d.modified) || 0))}</td></tr>`).join('') +
-      '</tbody></table></div>';
-    list.querySelectorAll('.rec-row').forEach(tr => {
-      tr.onclick = () => this.openDoc(tr.dataset.name);
-    });
-  },
-
-  // One document whole, with the sha256 of the bytes that were served. The
-  // receipt is the point: a page showing a document can be checked against the
-  // disk without trusting the page.
-  async openDoc(name) {
-    const box = document.getElementById('rec-doc');
-    if (!box) return;
-    box.innerHTML = `<div class="card mt-16"><div class="loading">Reading ${escHtml(name)}...</div></div>`;
-    let d;
-    try {
-      d = JSON.parse(await this.tool('records', { name: name }));
-    } catch (e) {
-      box.innerHTML = `<div class="card mt-16"><div class="eng-row eng-bad">
-        ${escHtml(e.message || 'refused')}<span class="brief-src">records</span></div></div>`;
-      return;
-    }
-    box.innerHTML = `<div class="card mt-16">
-      <div class="card-header">
-        <span class="card-title">${escHtml(d.name)}
-          ${d.sealed ? '<span class="badge badge-yellow">sealed — read, never edited</span>' : ''}</span>
-        <span class="flex"><button class="btn btn-sm" id="rec-close">Close</button></span>
-      </div>
-      <div class="stat-note">${escHtml(d.kind)} · ${(d.bytes / 1024).toFixed(1)} KB ·
-        changed ${escHtml(when(Date.parse(d.modified) || 0))}
-        <br><span class="hash">sha256 ${escHtml(d.sha256)}</span></div>
-      <pre class="home-boot" style="max-height:60vh;overflow:auto">${escHtml(d.text || '')}</pre>
-    </div>`;
-    const c = document.getElementById('rec-close');
-    if (c) c.onclick = () => { box.innerHTML = ''; };
-    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
 
   // === MESSAGES (team bridge) ===
