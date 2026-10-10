@@ -17,11 +17,11 @@ const Laws = {
   RULES: 'CLAUDE.md',
   LEDGER: 'law/LAW_LEDGER.md',
 
-  // THE SAME LAWS IN TWO PLACES (2026-10-06, his word: "go, next: guardrails"; the tab is Laws since 2026-10-08, his card:
-  // "It becomes Laws"). The front page's Laws tab draws THIS object -- `inPanel`, without the page's title -- and the page
-  // under Pages draws it whole; Read it again, Set and Seal draw it again where it stands.
-  async render(el, inPanel) {
-    this.inPanel = !!inPanel;
+  // THE LAWS ARE THE TAB (2026-10-06, his word: "go, next: guardrails"; the tab is Laws since 2026-10-08, his card: "It
+  // becomes Laws"; and the page's address opens the tab since 2026-10-10, his cards: "Every page with a tab"). The front
+  // page's Laws tab draws THIS object, the one place it is drawn; Read it again, Set and Seal draw it again where it
+  // stands.
+  async render(el) {
     this.style();
     el.innerHTML = '<div class="loading">Reading the laws...</div>';
     let st;
@@ -154,19 +154,10 @@ const Laws = {
 
     const counts = `${ruleList.length} standing rules, ${entries.length} ledger entries, ${sealedFiles} of ${files.length} laws sealed`;
     el.innerHTML = `<div id="laws-page">
-      ${this.inPanel ? `<div class="laws-head">
+      <div class="laws-head">
         <div class="stat-note">What every hand and every agent reads first: ${counts}.</div>
         <div class="laws-actions"><input class="input" id="laws-find" placeholder="Find in the laws..."><button class="btn" id="laws-again">Read it again</button></div>
-      </div>` : `<div class="page-header">
-        <div>
-          <div class="page-title">Laws</div>
-          <div class="page-subtitle">What every hand and every agent reads first: ${counts}.</div>
-        </div>
-        <div class="flex">
-          <div class="search-bar"><input class="input" id="laws-find" placeholder="Find in the laws..."></div>
-          <button class="btn" id="laws-again">Read it again</button>
-        </div>
-      </div>`}
+      </div>
       ${chain}${wait}${draft}
       <div class="card mt-16" data-sec>
         <div class="card-header"><span class="card-title">Set a law</span></div>
@@ -205,7 +196,7 @@ const Laws = {
 
   bind(el, st) {
     const $ = (id) => document.getElementById(id);
-    $('laws-again').onclick = () => this.render(el, this.inPanel);
+    $('laws-again').onclick = () => this.render(el);
     $('laws-find').oninput = (e) => this.find(e.target.value);
     el.querySelectorAll('details[data-lazy]').forEach(d => {
       d.addEventListener('toggle', async () => {
@@ -233,7 +224,7 @@ const Laws = {
         const r = JSON.parse(await App.tool('law_add', { title, text, from }));
         if (r.state !== 'added') { say('laws-msg', 'Not set: ' + (r.why || 'refused'), true); $('laws-add').disabled = false; return; }
         toast('Law set as entry ' + r.entry + ' -- a draft until it is sealed');
-        this.render(el, this.inPanel);
+        this.render(el);
       } catch (e) {
         say('laws-msg', 'Not set: ' + (e.message || 'refused'), true);
         $('laws-add').disabled = false;
@@ -250,7 +241,7 @@ const Laws = {
           const r = JSON.parse(await App.tool('law_seal', {}));
           if (r.state !== 'sealed') { say('laws-seal-msg', 'Not sealed: ' + (r.why || 'refused'), true); $('laws-seal-go').disabled = false; return; }
           toast('The ledger is sealed to byte ' + r.sealed_to);
-          this.render(el, this.inPanel);
+          this.render(el);
         } catch (e) {
           say('laws-seal-msg', 'Not sealed: ' + (e.message || 'refused'), true);
           $('laws-seal-go').disabled = false;

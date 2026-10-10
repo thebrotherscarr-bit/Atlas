@@ -1,9 +1,12 @@
 // ATLAS Flows — version control, and every way into it.
 //
 // This was the DAG builder. The builder came off 2026-09-10 ("not used, wipe
-// it") and the page is now the one place git lives: the per-world overwatch in
-// plain language, and the council path beneath it. Its routes and strokes all
-// stand, so the builder is a render away if it is ever wanted.
+// it") and the page became the one place git lives: the per-world overwatch in
+// plain language. Its routes and strokes all stand, so the builder is a render
+// away if it is ever wanted. Since 2026-10-10 (his cards: "Every page with a
+// tab", "Remove what nothing reads") it is drawn in the front page's GitHub tab
+// alone: the page's address opens the tab, and what only the page drew went
+// with it.
 const Flows = {
   current: null,
   // Which worlds have their lines-of-work panel open. Kept here and not in
@@ -21,92 +24,20 @@ const Flows = {
   // a loaded button somewhere off screen.
   arming: null,
 
-  // THE SAME GITHUB IN TWO PLACES (2026-10-06, his word: "go, next: aider pair"; a tab and a name of its own on 2026-10-08,
-  // his word: "it should be in its own github tab on the inspector so its less confusing"). The front page's GitHub tab
-  // draws THIS object -- `inPanel`, the repositories alone -- and the page under Pages draws it whole. In the
-  // panel the page's other parts are left to the front page's own: the hold queue is the cards pinned at the foot of the
-  // terminal, the way through the council is the terminal itself, and Recent is the terminal's own history.
-  async render(el, inPanel) {
-    this.inPanel = !!inPanel;
-    const repos = `<div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
+  // GITHUB IS THE TAB (2026-10-06, his word: "go, next: aider pair"; a tab and a name of its own on 2026-10-08, his word:
+  // "it should be in its own github tab on the inspector so its less confusing"; and the page's address opens the tab since
+  // 2026-10-10, his cards: "Every page with a tab"). The front page's GitHub tab draws THIS object: the repositories. What
+  // the page drew besides them went with it (his card: "Remove what nothing reads"), each to the front page's own: the hold
+  // queue is the cards pinned at the foot of the terminal, the way through the council is the terminal itself, and Recent
+  // is the terminal's own history.
+  async render(el) {
+    el.innerHTML = `<div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
         <div id="repo-watch"><div class="skel skel-60"></div><div class="skel skel-80"></div><div class="skel skel-40"></div></div>
         <div class="muted mt-16">Every button here is your hand, not the machine's.
         Nothing fires on its own, nothing sends while the wall is shut, and
         nothing is thrown away without saying so first.</div>
       </div>`;
-    if (inPanel) { el.innerHTML = repos; await this.repos(); return; }
-    el.innerHTML = `
-      <div class="page-header"><div><div class="page-title">GitHub</div>
-      <div class="page-subtitle">What is saved, what is not, and every way to move it</div></div></div>
-
-      <!-- WAITING FOR HIS HAND. A writing call from something that is not his
-           glass parks at the door (internal/tools/holds.go) and waits here.
-           Above the repositories on purpose: a call held pending his decision
-           outranks the state of a tree nobody is asking him about. -->
-      <div class="card" id="holds-card" hidden>
-        <div class="card-title">Waiting for your hand</div>
-        <div id="holds-box"></div>
-      </div>
-
-      ${repos}
-
-      <!-- THE SAME REPOSITORY, THE OTHER WAY IN. The buttons above call the
-           door directly and work with no engine standing. This card sends the
-           objective through the COUNCIL instead: the law gate stamps it, the
-           Router runs the skill, and the turn lands in the record like any
-           other. Two paths on purpose — the operator, 2026-09-10: "there is
-           a series of redundancies.. its called safety, bud."
-           Moved here from the Dashboard the same day. -->
-      <div class="card" id="flow-council-card" hidden>
-        <div class="card-header">
-          <span class="card-title">Through the council</span>
-          <span class="flex" id="flow-council-controls"></span>
-        </div>
-        <div id="flow-council"></div>
-      </div>
-
-      <!-- Recent came with the repository card (2026-09-10). It reads Chat's
-           own thread, so it cannot disagree with what he can scroll back and
-           read for himself. -->
-      <div class="card" id="flow-recent-card" hidden>
-        <div class="card-title">Recent</div>
-        <div id="flow-recent"></div>
-      </div>`;
-    await this.holds();
     await this.repos();
-    await this.readGit();
-    // THE THREAD IS RESTORED BEFORE IT IS READ. Chat.thread is per-tab and
-    // empty on a fresh load; the front page refills it from the settings store
-    // on render, so Recent was full there and blank here for anyone who landed
-    // on this page first. Chat's own restore is reused rather than copied --
-    // it is a no-op when the thread is already held.
-    await Chat.showKept();
-    this.paintRecent();
-  },
-
-  // The last few things he asked for, read off Chat's own thread.
-  //
-  // CLICKING ONE STILL FILLS THE BOX, and the box is the front page's terminal
-  // (the Dashboard's, until it retired on 2026-10-07). The objective is staged
-  // on Chat and the router is sent home, where the terminal picks it up.
-  // Nothing is RUN by a click: it lands in the line for him to read and press.
-  paintRecent() {
-    const said = (Chat.thread || []).filter(m => m.who === 'him').slice(-5).reverse();
-    const card = document.getElementById('flow-recent-card');
-    const box = document.getElementById('flow-recent');
-    if (!card || !box) return;
-    card.hidden = !said.length;
-    box.innerHTML = said.map(m => `
-      <div class="home-recent-row" data-say="${escHtml(m.text)}">
-        <span class="home-recent-text">${escHtml(m.text)}</span>
-      </div>`).join('');
-    box.querySelectorAll('[data-say]').forEach(r => {
-      r.onclick = () => {
-        Chat.pending = r.dataset.say;
-        history.pushState(null, '', '/');
-        App.router();
-      };
-    });
   },
 
   // THE OVERWATCH, IN PLAIN LANGUAGE (the operator, 2026-09-10: "all the
@@ -458,85 +389,6 @@ const Flows = {
     say(answer);
   },
 
-  // THE HOLD QUEUE. Writing calls that did not come from this glass park at
-  // the door and wait for him. Two things are shown and they are different:
-  // what is WAITING, and whether the door is holding at all.
-  //
-  // THE DISARMED LINE IS NOT NOISE, IT IS THE POINT. With the door started
-  // without --auth it cannot tell a seat from this page, so nothing is held
-  // and RULE 6 is a convention again. An empty queue would look exactly like a
-  // guarded one. It says which, every time, because a guard that is believed
-  // and absent is worse than one that is plainly off.
-  async holds() {
-    const card = document.getElementById('holds-card');
-    const box = document.getElementById('holds-box');
-    if (!card || !box) return;
-    let d;
-    try { d = JSON.parse(await App.tool('hold_list', {})); }
-    catch { card.hidden = true; return; }
-
-    const held = d.held || [];
-    card.hidden = false;
-
-    if (!d.armed) {
-      card.innerHTML = `<div class="card-title">Waiting for your hand</div>
-        <div class="muted">Nothing is being held — and nothing CAN be. The door
-        was started without <code>--auth</code>, so it cannot tell a seat from
-        this page and every caller may write. RULE 6 is a convention again
-        until it is restarted with <code>--auth</code> and a service wire.</div>`;
-      return;
-    }
-    if (!held.length) {
-      card.innerHTML = `<div class="card-title">Waiting for your hand</div>
-        <div class="muted">Nothing is waiting. Writing calls from anything but
-        this page park here for your decision.</div>`;
-      return;
-    }
-
-    const rows = held.map(h => `
-      <div class="wf-node">
-        <div class="wf-node-head">
-          <span class="badge badge-blue">${escHtml(h.tool)}</span>
-          <span class="muted">asked by ${escHtml(h.caller)} · ${escHtml(h.project || '')} · ${escHtml(h.when || '')}</span>
-        </div>
-        <pre>${escHtml(JSON.stringify(h.args || {}, null, 1))}</pre>
-        <div class="flex">
-          <button class="btn btn-sm" data-hold="approve" data-id="${escHtml(h.id)}"
-            title="Run exactly this call, now">Approve — run it</button>
-          <button class="btn btn-sm btn-danger" data-hold="deny" data-id="${escHtml(h.id)}"
-            title="Throw it away; nothing runs">Deny</button>
-        </div>
-      </div>`).join('');
-
-    card.innerHTML = `<div class="card-title">Waiting for your hand</div>
-      <div class="muted mb-16">${held.length} writing call${held.length === 1 ? '' : 's'}
-      parked at the door. Approving runs EXACTLY the call shown — the arguments
-      it was parked with, not a fresh reading of them.</div>
-      ${rows}
-      <div id="holdout" class="muted"></div>`;
-
-    card.querySelectorAll('[data-hold]').forEach(b => {
-      b.onclick = () => this.answerHold(b.dataset.hold, b.dataset.id);
-    });
-  },
-
-  async answerHold(decision, id) {
-    const say = t => {
-      const out = document.getElementById('holdout');
-      if (out) out.innerHTML = `<pre>${escHtml(t)}</pre>`;
-    };
-    let answer;
-    try {
-      say(decision === 'approve' ? 'Running it...' : 'Denying...');
-      answer = await App.tool('hold_answer', { id: id, decision: decision });
-    } catch (e) { say('Refused: ' + e.message); return; }
-    // The queue first (the row is gone), then the repositories (an approved
-    // write may have moved the tree), then the answer into what was rebuilt.
-    await this.holds();
-    await this.repos();
-    say(answer);
-  },
-
   // THE VERSION MARKS. A mark is what a stranger fetches and takes on faith:
   // he pulls v0.1.5 and believes it is 0.1.5 because the name says so, and
   // unlike a line of work a mark is not expected to move under him.
@@ -822,105 +674,6 @@ const Flows = {
       box.innerHTML = `<div class="card-title mt-16">${escHtml(world)} · ${escHtml(file)}</div>`
         + `<div class="empty-text">Could not read it: ${escHtml(e.message)}</div>`;
     }
-  },
-
-
-  // ---- THE COUNCIL PATH ---------------------------------------------------
-  //
-  // Lifted whole from the Dashboard, 2026-09-10 ("this needs to go with the
-  // other github stuff"). The buttons in the overwatch above call the door
-  // and need no engine; these send an objective through the COUNCIL, where the
-  // law gate stamps it and the run lands in the record.
-  //
-  // THE ELEMENTS ARE FOUND AFTER THE AWAIT, NEVER BEFORE IT. Captured up top,
-  // they point at DETACHED nodes if the page changes during the round trip --
-  // and writing innerHTML into a detached node SUCCEEDS, so the throw lands a
-  // line later on a null lookup. That cost a constant console error on the
-  // Dashboard until it was found the same day.
-  async readGit() {
-    if (!document.getElementById('flow-council-card')) return;
-    let g, err;
-    try { g = JSON.parse(await App.tool('git', {})); }
-    catch (e) { err = e; }
-
-    const card = document.getElementById('flow-council-card');
-    const box = document.getElementById('flow-council');
-    const bar = document.getElementById('flow-council-controls');
-    if (!card || !box || !bar) return;
-    card.hidden = false;
-
-    if (err) {
-      box.innerHTML = `<div class="eng-row eng-bad">git could not be read:
-        ${escHtml(err.message || 'refused')}<span class="brief-src">git</span></div>`;
-      bar.innerHTML = '';
-      return;
-    }
-    this._git = g;
-
-    if (!g.is_repo) {
-      box.innerHTML = `<div class="eng-row">${escHtml(g.note || 'not a repository')}
-        <span class="brief-src">git</span></div>`;
-      bar.innerHTML = '';
-      return;
-    }
-
-    const where = Run.engineOpen
-      ? `the council is standing · sitting ${escHtml(String(Run.sitting || '?'))}`
-      : 'no engine is open, so this path cannot run · boot one on the front page';
-    box.innerHTML = `<div class="eng-row">
-      Same repository, sent through the council instead of straight to the door:
-      the law gate stamps the objective, the Router runs the skill, and the turn
-      is written into the record like any other.
-      <div class="muted" style="margin-top:6px">${where}</div>
-      <span class="brief-src">git</span></div>`;
-
-    bar.innerHTML = `<input id="git-msg" class="input git-msg" type="text"
-        placeholder="what changed (optional — the council writes one if you don't)" />
-      <button class="btn btn-sm ${g.dirty ? 'btn-primary' : ''}" id="git-commit"
-        ${g.dirty && Run.engineOpen ? '' : 'disabled'}>Commit</button>
-      <button class="btn btn-sm" id="git-push"
-        ${g.remote_allowed && g.ahead && !g.why_not_send && Run.engineOpen ? '' : 'disabled'}>Push</button>`;
-    const commit = bar.querySelector('#git-commit');
-    const push = bar.querySelector('#git-push');
-    if (!commit || !push) return;
-    commit.title = !Run.engineOpen ? 'no engine is open — boot one on the front page'
-      : g.dirty ? 'send the commit through the council' : 'nothing to commit';
-    commit.onclick = () => this.commit();
-    push.title = g.why_not_send ? g.why_not_send : !g.remote_allowed
-      ? 'sending is walled by MANJUEL_GIT_REMOTE (the estate, not your credentials)'
-      : !Run.engineOpen ? 'no engine is open — boot one on the front page'
-      : (g.ahead ? 'send ' + g.ahead + ' save(s) to the remote' : 'nothing to send');
-    push.onclick = () => this.push();
-  },
-
-  commit() {
-    // HIS OWN PHRASING, from the record: a quoted message reads the way he
-    // types one, and an empty field falls back to what already works. The
-    // first wrapper read "Commit the working tree with this message: X" and
-    // the Router passed that WHOLE SENTENCE as the message.
-    const msg = (document.getElementById('git-msg') || {}).value || '';
-    this.ask(msg.trim() ? `git commit: "${msg.trim()}"` : 'git commit');
-  },
-
-  push() {
-    const g = this._git || {};
-    if (!g.remote_allowed) {
-      toast('Sending is walled by MANJUEL_GIT_REMOTE', 'error');
-      return;
-    }
-    this.ask('Push the committed work to the remote.');
-  },
-
-  // One objective, into the same loop as anything he types. The thread is
-  // Chat's, shared: the front page and the Watchboard both render it, so the turn is
-  // watchable from either even though it was started here.
-  ask(objective) {
-    if (!Run.engineOpen) { toast('No engine is open — boot one on the front page', 'error'); return; }
-    if (Run.running) { toast('A turn is already running', 'error'); return; }
-    Chat.thread.push({ who: 'him', text: objective });
-    Chat.thread.push({ who: 'council', text: '', live: true });
-    Run.start({ objective });
-    toast('Sent to the council — the run is in the Run tab on the front page');
   },
 
   // THE FLOW BUILDER CAME OFF, 2026-09-10 ("not used, wipe it"). The

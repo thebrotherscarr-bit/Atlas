@@ -327,11 +327,11 @@ func TestALineThatHasNeverBeenSentCanBeSent(t *testing.T) {
 // both repositories and from him too, and the page still offered Land onto main and a Send of main: a road that ended
 // in GitHub's refusal. The door judges it once (mainByPullRequest: origin has the main line) and carries its sentence on
 // the lines list (`why_not_land`) and on the `git` state while he stands on main (`why_not_send`), and land and git_push
-// refuse in those words; so the page greys Land onto main, Send to GitHub and the council's Push with the door's
-// sentence, says it once under the lines, and judges nothing itself.
+// refuse in those words; so the page greys Land onto main and Send to GitHub with the door's sentence, says it once
+// under the lines, and judges nothing itself. (The council's Push went with the page's council path, 2026-10-10.)
 func TestAMainOnGitHubIsOfferedThePullRequestAndNothingElse(t *testing.T) {
 	fl := page(t, "js/flows.js")
-	lines, controls, council := funcOf(fl, "  async lines("), funcOf(fl, "  controls("), funcOf(fl, "  async readGit(")
+	lines, controls := funcOf(fl, "  async lines("), funcOf(fl, "  controls(")
 	if !strings.Contains(lines, "d.why_not_land ? `<button class=\"btn btn-sm\" disabled title=\"${escHtml(d.why_not_land)}\">Land onto main</button>`") ||
 		!strings.Contains(lines, "<div class=\"muted mt-16\">${escHtml(d.why_not_land)}</div>") {
 		t.Fatal("Land onto main is live on a main GitHub has, or is greyed without the door's sentence, or the sentence is not said under the lines")
@@ -339,9 +339,6 @@ func TestAMainOnGitHubIsOfferedThePullRequestAndNothingElse(t *testing.T) {
 	if !strings.Contains(controls, "const mainByPr = g.why_not_send || '';") || !strings.Contains(controls, ": mainByPr ? mainByPr") ||
 		!strings.Contains(controls, "${walled || nothingToSend || mainByPr ? 'disabled' : ''}") {
 		t.Fatal("Send to GitHub is live on a main GitHub has, or is greyed without the door's sentence")
-	}
-	if !strings.Contains(council, "g.ahead && !g.why_not_send && Run.engineOpen") || !strings.Contains(council, "push.title = g.why_not_send ? g.why_not_send") {
-		t.Fatal("the council's Push is live on a main GitHub has, or is greyed without the door's sentence")
 	}
 	if strings.Contains(fl, "Land onto main, then Send, still lands a line") {
 		t.Fatal("the page still says that Land onto main, then Send, lands a line without a pull request")
@@ -446,7 +443,9 @@ func TestTheBuilderAsksForEveryVarTheEngineRenders(t *testing.T) {
 // and no longer sends him to that page for it; the flow in hand outlives the
 // redraw the tab gets every time it opens; a run that comes back while the tab
 // is shut waits on the record; the builder takes the page's look; and the tab
-// is named as the bar's door is.
+// is named as the bar's door is. Since 2026-10-10 (his cards: "Every page with a
+// tab") the page's address opens the tab, so the builder is drawn there alone,
+// and the tab's way to GitHub opens the GitHub tab rather than a page.
 func TestTheInspectorDrawsTheBuilderItself(t *testing.T) {
 	src := page(t, "js/agent.js")
 	wf := page(t, "js/workflows.js")
@@ -455,15 +454,16 @@ func TestTheInspectorDrawsTheBuilderItself(t *testing.T) {
 	if !strings.Contains(pane, "id === 'flows'") || !strings.Contains(pane, "this.flowsPane(stamp)") {
 		t.Fatal("the Workflows tab does not draw the builder")
 	}
-	if !strings.Contains(funcOf(src, "  async flowsPane("), "Workflows.render(box, true)") {
+	if !strings.Contains(funcOf(src, "  async flowsPane("), "Workflows.render(box)") {
 		t.Fatal("the Workflows tab draws something other than the Workflows page's own builder")
 	}
-	if strings.Contains(src, `data-path="/workflows"`) {
-		t.Fatal("the tab still sends him to the Workflows page for the builder it draws")
+	if strings.Contains(src, `data-act="goto"`) || strings.Contains(src, "act === 'goto'") ||
+		!strings.Contains(funcOf(src, "  async flowsPane("), `data-act="door" data-door="github"`) {
+		t.Fatal("a tab still sends him to a page, or the builder's way to GitHub does not open the GitHub tab")
 	}
 	render := funcOf(wf, "  async render(")
-	if !strings.Contains(render, "inPanel ? ''") {
-		t.Fatal("the builder draws the page's header into the panel")
+	if strings.Contains(wf, "inPanel") || strings.Contains(render, "page-title") {
+		t.Fatal("the builder still asks whether it stands in the panel, or draws a page's header")
 	}
 	if !strings.Contains(render, "if (this.spec) this.build();") {
 		t.Fatal("the flow in hand is lost when the tab is drawn again, and an unsaved edit with it")
@@ -635,8 +635,9 @@ func TestRegistryAndDocsCarriesTheToolsTheSeatsAndTheDocuments(t *testing.T) {
 // for messaging integration."): beside Laws (Guardrails until 2026-10-08) in the
 // bar and among the Inspector's tabs; the door's address and the pass mark read from the glass's own
 // store and saved only by the button beside each, in a shape it can hold; the
-// messaging bridge as the door reports it; and none of the old page's written-in
-// badges.
+// messaging bridge as the door reports it; none of the old page's written-in
+// badges; and since 2026-10-10 (his cards: "Every page with a tab", "Remove what
+// nothing reads") the page's address opens the tab, and the old page is gone.
 func TestSettingsIsADoorOfItsOwn(t *testing.T) {
 	src := page(t, "js/agent.js")
 	if !regexp.MustCompile(`(?s)DOORS: \[.*?\{ id: 'laws',   label: 'Laws' \},\s+\{ id: 'settings', label: 'Settings' \}\s+\],`).MatchString(src) ||
@@ -661,13 +662,17 @@ func TestSettingsIsADoorOfItsOwn(t *testing.T) {
 	if !strings.Contains(click, "API.setSetting(b.dataset.key, v)") || !strings.Contains(click, "if (!ok)") {
 		t.Fatal("a setting is saved without its shape being checked first")
 	}
+	app := page(t, "js/app.js")
+	if strings.Contains(app, "renderSettings") || strings.Contains(app, "saveSetting(") || !strings.Contains(app, "settings: 'settings'") {
+		t.Fatal("the old Settings page is drawn still, or its address does not open the Settings tab")
+	}
 }
 
 // THE LAWS ARE A TAB OF THEIR OWN (his card, 2026-10-08: "It becomes Laws"; from 2026-10-06, his word "go, next:
 // guardrails", they stood under the Guardrails tab's hold queue, which is the dock at the foot of the terminal now).
-// The tab draws the Laws page's own object, told it stands in the panel -- one Laws, so the two cannot drift -- and
-// its Read it again, Set and Seal draw it again where it stands, never sending him to the page; the page under Pages
-// still draws it whole.
+// The tab draws the Laws page's own object -- one Laws, so the two cannot drift -- and its Read it again, Set and Seal
+// draw it again where it stands, never sending him to a page; and since 2026-10-10 (his cards: "Every page with a
+// tab") the page's address opens the tab, the one place the laws are drawn.
 func TestTheLawsTabCarriesTheLaws(t *testing.T) {
 	src := page(t, "js/agent.js")
 	laws := page(t, "js/laws.js")
@@ -683,17 +688,17 @@ func TestTheLawsTabCarriesTheLaws(t *testing.T) {
 		branch = branch[:k]
 	}
 	if !strings.Contains(branch, `put('<div class="ag-laws" id="ag-laws"></div>')`) ||
-		!strings.Contains(branch, "await Laws.render($ag('ag-laws'), true)") || strings.Count(src, "Laws.render(") != 1 {
+		!strings.Contains(branch, "await Laws.render($ag('ag-laws'))") || strings.Count(src, "Laws.render(") != 1 {
 		t.Fatal("the Laws tab does not draw the Laws page's own object, or something else on the front page draws it too")
 	}
-	if !strings.Contains(funcOf(laws, "  async render("), "this.inPanel = !!inPanel") || !strings.Contains(funcOf(laws, "  paint("), "this.inPanel ?") {
-		t.Fatal("the laws draw the page's title into the panel")
+	if strings.Contains(laws, "inPanel") || strings.Contains(funcOf(laws, "  paint("), "page-header") {
+		t.Fatal("the laws still ask whether they stand in the panel, or draw a page's title")
 	}
-	if strings.Count(laws, "this.render(el, this.inPanel)") != 3 || strings.Contains(laws, "this.render(el);") {
+	if strings.Count(laws, "this.render(el)") != 3 {
 		t.Fatal("Read it again, Set or Seal draws the laws somewhere other than where they stand")
 	}
-	if !strings.Contains(app, "case 'laws': await Laws.render(el); break;") {
-		t.Fatal("the page under Pages no longer draws the laws whole")
+	if !strings.Contains(app, "laws: 'laws'") || strings.Contains(app, "case 'laws':") {
+		t.Fatal("the Laws page's address does not open the tab, or the router draws the page again")
 	}
 	if !regexp.MustCompile(`\.ag-laws \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-laws .btn {") {
 		t.Fatal("the laws in the panel do not take the page's look")
@@ -704,9 +709,11 @@ func TestTheLawsTabCarriesTheLaws(t *testing.T) {
 // on the inspector so its less confusing", "let's make sure we are using the existing infrastructure to underpin the new
 // tab", and "let's rename it to Github"). Version control stood under Aider Pair from 2026-10-06 ("go, next: aider
 // pair"); now the page is GitHub, under Pages and in the Inspector's own tab beside Aider Pair, and the tab draws the
-// page's own object, told it stands in the panel -- the repositories alone, one object so the two cannot drift -- with
+// page's own object -- the repositories alone, one object so the two cannot drift -- with
 // the whole-world diff under it. Aider Pair draws Aider alone and points the way in one line, nothing on the front page
-// sends him to Version control by its old name, and the page under Pages still draws it whole.
+// sends him to Version control by its old name, and since 2026-10-10 (his cards: "Every page with a tab", "Remove
+// what nothing reads") the page's address opens the tab: the object is drawn there alone, and what only the page drew
+// went with it.
 func TestGitHubIsATabOfItsOwn(t *testing.T) {
 	src := page(t, "js/agent.js")
 	fl := page(t, "js/flows.js")
@@ -733,7 +740,7 @@ func TestGitHubIsATabOfItsOwn(t *testing.T) {
 		branch = branch[:k]
 	}
 	gh := funcOf(src, "  async githubHtml(")
-	if !strings.Contains(branch, "put(await this.githubHtml())") || !strings.Contains(branch, "await Flows.render($ag('ag-vc'), true)") ||
+	if !strings.Contains(branch, "put(await this.githubHtml())") || !strings.Contains(branch, "await Flows.render($ag('ag-vc'))") ||
 		!strings.Contains(gh, `id="ag-vc"`) || strings.Count(src, "Flows.render(") != 1 {
 		t.Fatal("the GitHub tab does not draw the GitHub page's own object, or something else on the front page draws it too")
 	}
@@ -751,15 +758,23 @@ func TestGitHubIsATabOfItsOwn(t *testing.T) {
 		}
 	}
 	render := funcOf(fl, "  async render(")
-	p, q := strings.Index(render, "if (inPanel) { el.innerHTML = repos; await this.repos(); return; }"), strings.Index(render, "await this.holds()")
-	if !strings.Contains(render, "this.inPanel = !!inPanel") || p < 0 || q < 0 || p > q {
-		t.Fatal("in the panel GitHub draws more than its repositories, or draws the page whole")
+	if !strings.Contains(render, "await this.repos();") || strings.Contains(fl, "inPanel") || strings.Contains(render, "page-title") {
+		t.Fatal("GitHub draws more than its repositories, or still asks whether it stands in the panel")
 	}
-	if !strings.Contains(render, `<div class="page-title">GitHub</div>`) || !strings.Contains(app, "{ page: 'flows', href: '/flows', label: 'GitHub' },") {
-		t.Fatal("the page is not called GitHub under Pages, or does not say so at its head")
+	if !strings.Contains(app, "{ page: 'flows', href: '/flows', label: 'GitHub' },") || !strings.Contains(app, "flows: 'github'") ||
+		strings.Contains(app, "case 'flows':") {
+		t.Fatal("GitHub is not on the page list, or its address does not open the tab, or the router draws the page again")
 	}
-	if !strings.Contains(app, "case 'flows': await Flows.render(el); break;") {
-		t.Fatal("the page under Pages no longer draws GitHub whole")
+	// WHAT ONLY THE PAGE DREW WENT WITH IT (2026-10-10), each to the front page's own: the hold queue to the dock at the
+	// foot of the terminal, the way through the council to the terminal itself, Recent to the terminal's own history.
+	for _, gone := range []string{"async holds(", "answerHold(", "async readGit(", "paintRecent(", "flow-council", "holds-card"} {
+		if strings.Contains(fl, gone) {
+			t.Fatalf("the GitHub object still carries %s, which only the page drew", gone)
+		}
+	}
+	if strings.Contains(page(t, "js/chat.js"), "  pending: ''") || strings.Contains(src, "Chat.pending") ||
+		strings.Contains(page(t, "css/app.css"), ".home-recent") {
+		t.Fatal("Recent went with the page, and what it left behind is still here: Chat.pending, or its styles")
 	}
 	if !regexp.MustCompile(`\.ag-vc \{[^}]*--muted:`).MatchString(css) || !strings.Contains(css, ".ag-vc .btn {") {
 		t.Fatal("GitHub in the panel does not take the page's look")
@@ -827,8 +842,9 @@ func TestRunCarriesTheWireAndTheProjects(t *testing.T) {
 // retire the sidebar and the old dashboard"). The launchpad kept whole at
 // /dashboard is gone and the address opens the front page; the sidebar's links
 // became one list (App.PAGES) that the front page's Pages menu, the palette and
-// each page's crumb read, and every line on it is a page the router draws; Boot
-// and Close, which the sidebar carried, act through the front page.
+// each page's crumb read, and every line on it is a page the router draws or, since
+// 2026-10-10, a tab it opens; Boot and Close, which the sidebar carried, act through
+// the front page.
 func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 	index := page(t, "index.html")
 	app := page(t, "js/app.js")
@@ -860,8 +876,11 @@ func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 	if strings.Contains(render, `case 'dashboard'`) || strings.Contains(app, "Home.render(") {
 		t.Fatal("the page table still draws the Dashboard")
 	}
-	// EVERY LINE ON THE LIST IS A PAGE THE ROUTER DRAWS, at the address the router reads it from: a line that is not
-	// goes to Page not found from the Pages menu, the palette and the crumb alike.
+	// EVERY LINE ON THE LIST IS A PAGE THE ROUTER DRAWS OR A TAB IT OPENS, at the address the router reads it from: a line
+	// that is neither goes to Page not found from the Pages menu, the palette and the crumb alike. A PAGE WITH A TAB OPENS
+	// ITS TAB (2026-10-10, his word: "everything stays within the new interface"; his cards: "Every page with a tab" and
+	// "Keep them, opening the tab"): Workflows, Laws, GitHub and Settings stay on the list, the router draws none of them,
+	// and each address opens the front page with that Inspector tab open, the way /dashboard opens the front page.
 	list := regexp.MustCompile(`(?s)  PAGES: \[(.*?)\n  \],`).FindStringSubmatch(app)
 	if list == nil {
 		t.Fatal("the one page list (App.PAGES) is gone")
@@ -870,9 +889,28 @@ func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 	if len(pages) < 10 {
 		t.Fatalf("read %d pages off App.PAGES; this stroke is reading the wrong thing", len(pages))
 	}
+	tabbed := map[string]string{}
+	if m := regexp.MustCompile(`  TABBED: \{([^}]*)\},`).FindStringSubmatch(app); m != nil {
+		for _, kv := range regexp.MustCompile(`([a-z]+): '([a-z]+)'`).FindAllStringSubmatch(m[1], -1) {
+			tabbed[kv[1]] = kv[2]
+		}
+	}
+	for pg, tab := range map[string]string{"workflows": "flows", "laws": "laws", "flows": "github", "settings": "settings"} {
+		if tabbed[pg] != tab {
+			t.Fatalf("/%s does not open the Inspector's %s tab (App.TABBED gives %q)", pg, tab, tabbed[pg])
+		}
+	}
+	tabs := regexp.MustCompile(`(?s)  TABS: \[(.*?)\n  \],`).FindStringSubmatch(src)
+	if tabs == nil {
+		t.Fatal("the Inspector's tabs are gone; this stroke is reading the wrong thing")
+	}
 	for _, p := range pages {
-		if !strings.Contains(render, "case '"+p[1]+"':") {
-			t.Fatalf("App.PAGES offers %s and the router draws no such page", p[1])
+		tab, opens := tabbed[p[1]]
+		if drawn := strings.Contains(render, "case '"+p[1]+"':"); drawn == opens {
+			t.Fatalf("App.PAGES offers %s, and the router draws it and opens a tab for it both, or neither", p[1])
+		}
+		if opens && !strings.Contains(tabs[1], "{ id: '"+tab+"',") {
+			t.Fatalf("/%s opens the Inspector's %s tab, which the Inspector does not have", p[1], tab)
 		}
 		href := "/" + p[1]
 		if p[1] == "agent" {
@@ -880,6 +918,15 @@ func TestTheFrontPageIsRoutedAndTheSidebarIsRetired(t *testing.T) {
 		}
 		if p[2] != href {
 			t.Fatalf("App.PAGES sends %s to %s, which the router reads as another page", p[1], p[2])
+		}
+	}
+	for _, want := range []string{
+		"const tab = Object.hasOwn(this.TABBED, first) ? this.TABBED[first] : '';",
+		"history.replaceState(null, '', '/');\n      if (this.currentPage === 'agent' && document.getElementById('ag')) { Agent.door(tab); return; }",
+		"Agent.open = true;\n      Agent.tab = tab;",
+	} {
+		if !strings.Contains(router, want) {
+			t.Fatalf("the router does not open the front page on a page's tab (wanted %s)", want)
 		}
 	}
 	for _, c := range []struct{ who, in, want string }{
@@ -1053,7 +1100,12 @@ func TestTheShellTabsAreTheDoorsShellAndNothingElse(t *testing.T) {
 			t.Fatalf("the page carries its own opinion of what a command does (%s); the door judges, the page draws", bad)
 		}
 	}
-	// A card answered somewhere else (another window, or the GitHub page under Pages) stops offering buttons that could only be refused.
+	// A card answered somewhere else (another window) stops offering buttons that could only be refused. The GitHub page
+	// answered them too until it retired into its tab (2026-10-10, his cards: "Every page with a tab"), and the words that
+	// sent him there went with it.
+	if strings.Contains(src, "GitHub page under Pages") {
+		t.Fatal("a settled card still sends him to the GitHub page under Pages, whose address opens the GitHub tab now")
+	}
 	if !strings.Contains(funcOf(src, "  async readHolds("), "this.settleCards(") || !strings.Contains(funcOf(src, "  settleCards("), "en.state = 'gone'") {
 		t.Fatal("a shell card answered elsewhere keeps its buttons")
 	}

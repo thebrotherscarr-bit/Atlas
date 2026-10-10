@@ -167,9 +167,6 @@ const Agent = {
     this.paintOut();
     this.paintPanel();
     const input = $ag('ag-input');
-    // An objective staged from the GitHub page's Recent lands in the line,
-    // unrun, for him to read and press.
-    if (Chat.pending) { input.value = Chat.pending; Chat.pending = ''; }
     input.focus();
     this.who();
     this.version();
@@ -635,7 +632,7 @@ const Agent = {
     if (en.state === 'held') lines.push('<div class="ag-src">This asks first: its card is pinned at the foot of the window, over the line you type in, until you answer it.</div>');
     if (en.state === 'refused') lines.push(`<div class="ag-notrun"><b>REFUSED BY NAME</b><br>${why.map(escHtml).join('<br>')}<br><span class="ag-src">no click lifts a refusal; nothing ran</span></div>`);
     if (en.state === 'denied') lines.push('<div class="ag-notrun"><b>DENIED</b> by you. Nothing ran.</div>');
-    if (en.state === 'gone') lines.push('<div class="ag-src">This was answered somewhere else (another window, or the GitHub page under Pages), or the door restarted and dropped it. Nothing more happens from here.</div>');
+    if (en.state === 'gone') lines.push('<div class="ag-src">This was answered somewhere else (another window), or the door restarted and dropped it. Nothing more happens from here.</div>');
     if (en.state === 'error') lines.push(`<div class="ag-notrun"><b>COULD NOT RUN</b><br>${escHtml(en.err || '')}</div>`);
     if (a && a.timed_out) lines.push(`<div class="ag-notrun"><b>ENDED</b> ${escHtml(a.note || 'it ran past its limit')}</div>`);
     else if (a && a.note) lines.push(`<div class="ag-src">${escHtml(a.note)}</div>`);
@@ -1564,8 +1561,8 @@ const Agent = {
     this.paintDock();
   },
 
-  // A shell card whose hold has left the door's queue was answered somewhere else (another window, or the GitHub page
-  // under Pages) or dropped when the door restarted. It stops offering buttons that can only be refused.
+  // A shell card whose hold has left the door's queue was answered somewhere else (another window) or dropped
+  // when the door restarted. It stops offering buttons that can only be refused.
   settleCards(waiting) {
     let moved = false;
     for (const en of this.entries) {
@@ -1662,8 +1659,8 @@ const Agent = {
       if (id === 'aider') put(await this.aiderHtml());
       else if (id === 'github') {
         put(await this.githubHtml());
-        // GitHub is drawn by the GitHub page's own object (Flows), in the panel's own shape.
-        if (this._pane === stamp && this.tab === id && $ag('ag-vc')) await Flows.render($ag('ag-vc'), true);
+        // GitHub is drawn by the GitHub page's own object (Flows); the page's address opens this tab since 2026-10-10.
+        if (this._pane === stamp && this.tab === id && $ag('ag-vc')) await Flows.render($ag('ag-vc'));
       }
       else if (id === 'ledger') {
         put(await this.ledgerHtml());
@@ -1675,10 +1672,10 @@ const Agent = {
       }
       else if (id === 'laws') {
         // THE LAWS ARE THE TAB (2026-10-08, his card: "It becomes Laws"). Guardrails drew them under its hold queue from
-        // 2026-10-06; the queue is the dock at the foot of the terminal now. Drawn by the Laws page's own object, in the
-        // panel's own shape, so there is one Laws and not two.
+        // 2026-10-06; the queue is the dock at the foot of the terminal now. Drawn by the Laws page's own object, so there
+        // is one Laws and not two; the page's address opens this tab since 2026-10-10.
         put('<div class="ag-laws" id="ag-laws"></div>');
-        if (this._pane === stamp && this.tab === id && $ag('ag-laws')) await Laws.render($ag('ag-laws'), true);
+        if (this._pane === stamp && this.tab === id && $ag('ag-laws')) await Laws.render($ag('ag-laws'));
       }
       else if (id === 'docs') put(await this.docsHtml());
       else if (id === 'settings') put(await this.settingsHtml());
@@ -1863,15 +1860,16 @@ const Agent = {
   // tab drew the flows and the runs as text under a button that went to the Workflows page to do anything with them. It
   // now draws that page's own builder -- the same object, workflows.js, into the panel -- so there is one builder and
   // not two that drift: the flows and their Open, a new one, the steps and edges, Save, the boxes a flow needs from him
-  // and Fire, a gate's two buttons, and the runs waiting on him and the runs before. The page under Pages draws the
-  // same object, whole. Its furniture takes this page's look from agent.css (.ag-wf).
+  // and Fire, a gate's two buttons, and the runs waiting on him and the runs before. Since 2026-10-10 (his cards: "Every
+  // page with a tab") the page's address opens this tab, the one place the builder is drawn. Its furniture takes this
+  // page's look from agent.css (.ag-wf).
   async flowsPane(stamp) {
     const box = $ag('ag-wf');
     if (!box || this._pane !== stamp) return;
-    try { await Workflows.render(box, true); }
+    try { await Workflows.render(box); }
     catch (e) { box.innerHTML = this.card('Could not be read', `<p>${escHtml(e.message || 'refused')}</p>`); return; }
     if (this._pane === stamp && $ag('ag-wf') === box) {
-      box.insertAdjacentHTML('beforeend', '<div class="ag-btns"><button type="button" class="ag-btn" data-act="goto" data-path="/flows">GitHub</button></div>');
+      box.insertAdjacentHTML('beforeend', '<div class="ag-btns"><button type="button" class="ag-btn" data-act="door" data-door="github">GitHub</button></div>');
     }
   },
 
@@ -1976,8 +1974,7 @@ const Agent = {
     const b = e.target.closest('[data-act]');
     if (!b) return;
     const act = b.dataset.act;
-    if (act === 'goto') { history.pushState(null, '', b.dataset.path); App.router(); return; }
-    // The one line in Aider Pair opens the GitHub tab, as the bar's door does.
+    // The one line in Aider Pair, and the Workflows tab's GitHub button, open the GitHub tab, as the bar's door does.
     if (act === 'door') { this.door(b.dataset.door); return; }
     // The wire's raw switch is the Watchboard's own: one switch, drawn in both places.
     if (act === 'wire-raw') { Chat.raw = !Chat.raw; this.paintRun(); return; }

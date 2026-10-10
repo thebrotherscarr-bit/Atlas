@@ -12,8 +12,9 @@ import (
 	"testing"
 )
 
-// THE LAWS PAGE IS FOUR THINGS THAT MUST AGREE, as What's left is: a line in the one page list, a case in the router, a script loaded BEFORE the router
-// that calls it, and what the page reads and asks. (Until 2026-10-07 the line was the sidebar's, with a glyph of its own; the sidebar retired, and its
+// THE LAWS PAGE IS FOUR THINGS THAT MUST AGREE, as What's left is: a line in the one page list, the tab its address opens (a case in
+// the router until 2026-10-10, when the page retired into its tab; his cards: "Every page with a tab"), a script loaded BEFORE the
+// router, and what the page reads and asks. (Until 2026-10-07 the line was the sidebar's, with a glyph of its own; the sidebar retired, and its
 // links became App.PAGES, which the front page's Pages menu, the palette and each page's crumb read.)
 func TestTheLawsPageIsWired(t *testing.T) {
 	index := page(t, "index.html")
@@ -22,7 +23,7 @@ func TestTheLawsPageIsWired(t *testing.T) {
 	for _, c := range []struct{ in, want, why string }{
 		{app, `{ page: 'laws', href: '/laws', label: 'Laws' }`, "the page list has no line for Laws, so neither Pages nor the palette offers it"},
 		{index, `<script src="/js/laws.js"></script>`, "index.html does not load the page's script"},
-		{app, `case 'laws': await Laws.render(el); break;`, "the router has no case for the page, so /laws answers Page not found"},
+		{app, "laws: 'laws'", "the Laws page's address opens no tab, so /laws answers Page not found"},
 		{laws, `App.tool('law_status', {})`, "the page no longer reads how far each law is sealed from the door's law_status"},
 		{laws, `RULES: 'CLAUDE.md'`, "the page no longer names the standing rules it shows"},
 		{laws, `LEDGER: 'law/LAW_LEDGER.md'`, "the page no longer names the ledger it shows"},

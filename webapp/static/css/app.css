@@ -1012,12 +1012,6 @@ pre { overflow-x: auto; max-width: 100%; }
 .brief-warn { border-left-color: #f9e2af; }
 .brief-bad  { border-left-color: #f38ba8; background: rgba(226,104,90,0.08); }
 
-.home-recent-row { padding: 7px 10px; border-radius: 6px; cursor: pointer;
-                   font-size: 12px; color: var(--muted, #6c7086); }
-.home-recent-row:hover { background: var(--bg); color: var(--text, #e0e0e0); }
-.home-recent-text { display: block; overflow: hidden; text-overflow: ellipsis;
-                    white-space: nowrap; }
-
 /* ---- the seats, streaming, each under its own name ---- */
 .chat-a.live { min-width: 60%; }
 .seat-block { margin: 0 0 10px; }

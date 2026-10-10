@@ -20,6 +20,13 @@ const App = {
     { page: 'settings', href: '/settings', label: 'Settings' }
   ],
 
+  // A PAGE WITH A TAB OPENS ITS TAB (2026-10-10, his word: "everything stays within the new interface, as previously
+  // judged"; his cards: "Every page with a tab", "Keep them, opening the tab"). Workflows, Laws, GitHub and Settings stay
+  // on the list above, so the Pages menu, the palette and an old bookmark still reach them, and each address opens the
+  // front page with that Inspector tab open, as /dashboard opens the front page: the tab draws what the page drew, beside
+  // the cards that wait for his hand. The page's address, and the Inspector tab it opens.
+  TABBED: { workflows: 'flows', laws: 'laws', flows: 'github', settings: 'settings' },
+
   init() {
     this.router();
     window.addEventListener('popstate', () => this.router());
@@ -37,6 +44,16 @@ const App = {
   router() {
     // THE OLD DASHBOARD IS RETIRED (2026-10-07): a bookmark to it opens the front page, which carries what it had.
     if (location.pathname === '/dashboard') history.replaceState(null, '', '/');
+    // A PAGE WITH A TAB OPENS ITS TAB (2026-10-10, TABBED): the front page, with the Inspector open on it. A front page
+    // already drawn opens the tab where it stands, and nothing on it is drawn again.
+    const first = location.pathname.slice(1).split('/')[0];
+    const tab = Object.hasOwn(this.TABBED, first) ? this.TABBED[first] : '';
+    if (tab) {
+      history.replaceState(null, '', '/');
+      if (this.currentPage === 'agent' && document.getElementById('ag')) { Agent.door(tab); return; }
+      Agent.open = true;
+      Agent.tab = tab;
+    }
     const path = location.pathname.slice(1) || 'agent';
     const parts = path.split('/');
     this.currentPage = parts[0];
@@ -170,8 +187,6 @@ const App = {
       // The launchpad (home.js) retired on 2026-10-07 at his word; the router sends /dashboard to the front page.
       // Everything still open, read from WHATS_LEFT.md (left.js).
       case 'left': await Left.render(el); break;
-      // The laws, and how far each is sealed (laws.js).
-      case 'laws': await Laws.render(el); break;
       case 'agents': this.pageParam ? await this.renderAgentDetail(el) : await this.renderAgents(el); break;
       case 'traces': this.pageParam ? await this.renderTraceDetail(el) : await this.renderTraces(el); break;
       case 'tools': await this.renderTools(el); break;
@@ -179,14 +194,9 @@ const App = {
       case 'records': await this.renderRecords(el); break;
       case 'chat': await Chat.render(el); break;
       case 'playground': await Play.render(el); break;
-      case 'flows': await Flows.render(el); break;
-      // The DAG builder, back on the panel 2026-09-11 at his word. It is a
-      // SEPARATE page from Version control on purpose: /flows is the git
-      // overwatch he uses every day, and taking that route back would cost
-      // him the one he actually stands on.
-      case 'workflows': await Workflows.render(el); break;
       case 'messages': await this.renderMessages(el); break;
-      case 'settings': await this.renderSettings(el); break;
+      // Workflows, Laws, GitHub and Settings are the front page's Inspector tabs since 2026-10-10: the router opens
+      // them (TABBED) and draws none of them here.
       default: el.innerHTML = '<div class="empty"><div class="empty-icon">?</div><div class="empty-text">Page not found</div></div>';
     }
   },
@@ -1294,70 +1304,6 @@ const App = {
       document.getElementById('team-content').value = '';
       this.router();
     } catch (e) { document.getElementById('team-send-status').textContent = 'Refused: ' + e.message; }
-  },
-
-  // === SETTINGS ===
-  async renderSettings(el) {
-    el.innerHTML = '<div class="loading">Loading settings...</div>';
-    try {
-      const [mcp, evals] = await Promise.all([
-        API.getSetting('mcp_url').catch(() => ({ value: '' })),
-        API.getSetting('eval_threshold').catch(() => ({ value: '0.5' }))
-      ]);
-      el.innerHTML = `
-        <div class="page-header">
-          <div>
-            <div class="page-title">Settings</div>
-            <div class="page-subtitle">System configuration</div>
-          </div>
-        </div>
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header"><span class="card-title">MCP Connection</span></div>
-            <div class="form-group">
-              <div class="form-label">MCP Server URL</div>
-              <input class="input" id="mcp-url" value="${escHtml(mcp.value || 'http://localhost:8090')}" placeholder="http://localhost:8090">
-            </div>
-            <button class="btn btn-primary" onclick="App.saveSetting('mcp_url', document.getElementById('mcp-url').value)">Save</button>
-          </div>
-          <div class="card">
-            <div class="card-header"><span class="card-title">Evals</span></div>
-            <div class="form-group">
-              <div class="form-label">Pass Threshold (0-1)</div>
-              <input class="input" id="eval-threshold" value="${escHtml(evals.value || '0.5')}" type="number" min="0" max="1" step="0.1">
-            </div>
-            <button class="btn btn-primary" onclick="App.saveSetting('eval_threshold', document.getElementById('eval-threshold').value)">Save</button>
-          </div>
-          <div class="card">
-            <div class="card-header"><span class="card-title">Messaging Platforms</span></div>
-            <div id="msg-presence"><div class="loading">Checking bridge...</div></div>
-            <p style="font-size:11px;color:var(--text-3);margin-top:12px">Connect: place webhook URLs + hook secret in the tenant's <code>state/chat_secrets.json</code> (0600). Secrets never surface here — presence only. Inbound door: <code>POST /hooks/:platform</code> with <code>X-Atlas-Signature</code>.</p>
-          </div>
-          <div class="card">
-            <div class="card-header"><span class="card-title">Provenance</span></div>
-            <table>
-              <tr><td>Chain Integrity</td><td><span class="badge badge-green">SHA-256</span></td></tr>
-              <tr><td>Append-Only</td><td><span class="badge badge-green">enabled</span></td></tr>
-              <tr><td>Structural Enforcement</td><td><span class="badge badge-green">can_approve:false</span></td></tr>
-            </table>
-          </div>
-        </div>
-      `;
-      API.teamStatus().then(r => {
-        document.getElementById('msg-presence').innerHTML = `<pre>${escHtml(r.status || 'bridge silent')}</pre>`;
-      }).catch(() => {
-        document.getElementById('msg-presence').innerHTML = '<div class="empty-text">Bridge unreachable.</div>';
-      });
-    } catch (e) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">!</div><div class="empty-text">${escHtml(e.message)}</div></div>`;
-    }
-  },
-
-  async saveSetting(key, value) {
-    try {
-      await API.setSetting(key, value);
-      toast('Setting saved');
-    } catch (e) { toast(e.message, 'error'); }
   },
 
   async runProve() {

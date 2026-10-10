@@ -46,18 +46,14 @@
 //   · that no engine is open: a disabled box with the reason written out
 //
 // The object is still called Chat because it still owns the conversation with
-// the council: the front page and Version control read `Chat.thread`, and since
-// the Dashboard retired (2026-10-07) Chat also keeps it (keep, showKept) and
-// holds an objective staged for the terminal (pending). The PAGE it draws is
-// the watchboard.
+// the council: the front page reads `Chat.thread`, and since the Dashboard
+// retired (2026-10-07) Chat also keeps it (keep, showKept). The PAGE it draws
+// is the watchboard.
 const Chat = {
   thread: [],          // [{who:'him'|'council', text, turn?}] — shared with Home
   bound: false,
   shut: {},            // seats folded shut by hand, by index; open by default
   raw: false,          // the wire: every frame, or tokens folded
-  // An objective staged from another page (Version control's Recent), waiting for
-  // the front page's terminal to put it in the line. Never run on its own.
-  pending: '',
   TAIL: 6,             // how many exchanges are kept for another browser
 
   // ---- THE CONVERSATION IS KEPT WHERE BOTH BROWSERS CAN READ IT ----------

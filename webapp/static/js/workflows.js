@@ -80,17 +80,12 @@ const Workflows = {
   // this reason; naming the set means the next number field cannot forget.
   NUMERIC: { version: true, retries: true, loops: true },
 
-  // THE SAME BUILDER IN TWO PLACES (2026-10-06, his word: the builder goes
-  // "Inside the Inspector"). The front page's Workflows tab draws THIS object
-  // into its panel -- `inPanel`, without the page's header -- and the page under
-  // Pages draws it whole: one builder, so the two can never drift apart.
-  async render(el, inPanel) {
+  // THE BUILDER IS THE TAB (2026-10-06, his word: the builder goes "Inside the
+  // Inspector"; and the page's address opens the tab since 2026-10-10, his
+  // cards: "Every page with a tab"). The front page's Workflows tab draws THIS
+  // object into its panel, the one place the builder is drawn.
+  async render(el) {
     el.innerHTML = `
-      ${inPanel ? '' : `<div class="page-header"><div>
-        <div class="page-title">Workflows</div>
-        <div class="page-subtitle">Build a run, fire it, and watch every step land</div>
-      </div></div>`}
-
       <div class="card">
         <div class="card-title">The flows — what is folded here</div>
         <div id="wf-list"><div class="skel skel-60"></div><div class="skel skel-80"></div></div>
