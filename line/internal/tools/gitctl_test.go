@@ -803,14 +803,14 @@ func TestAMarkLeavesOnlyAfterItsHistoryHas(t *testing.T) {
 	call(t, toolGitTag, tn, map[string]any{
 		"action": "cut", "name": "v0.1.6", "message": "ahead of its line"})
 	out = call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.6"})
-	mustContain(t, out, "Send the main line first", "a mark ahead of origin's main line must wait")
+	mustContain(t, out, "onto origin's main line first", "a mark ahead of origin's main line must wait")
 	mustNotContain(t, out, "Sent v0.1.6", "nothing may be sent on that refusal")
 	if remoteHas(bare, "refs/tags/v0.1.6") || remoteHas(bare, ahead) {
 		t.Fatal("the refused send reached the remote anyway")
 	}
 
-	// Send the line, and the same mark follows.
-	mustContain(t, call(t, toolGitPush, tn, nil), "Sent main", "the main line must go")
+	// The line reaches origin, as a pull request merged there brings it (a plain push here), and the same mark follows.
+	mustGit(t, tn, "push", "origin", "main")
 	out = call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.6"})
 	mustContain(t, out, "Sent v0.1.6 to origin", "once its line is there the mark follows")
 
@@ -825,7 +825,7 @@ func TestAMarkLeavesOnlyAfterItsHistoryHas(t *testing.T) {
 	mustGit(t, tn, "tag", "v0.0.9", private)
 	mustGit(t, tn, "switch", "main")
 	out = call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.0.9"})
-	mustContain(t, out, "Send the main line first", "a mark off the main line must never leave")
+	mustContain(t, out, "onto origin's main line first", "a mark off the main line must never leave")
 	if remoteHas(bare, "refs/tags/v0.0.9") || remoteHas(bare, private) {
 		t.Fatal("the stripped history reached the remote")
 	}
@@ -876,7 +876,7 @@ func TestTheListSaysWhetherAMarkCouldBeSentAndWhyNot(t *testing.T) {
 	if marks["v0.1.6"].Sendable {
 		t.Fatalf("a mark ahead of its line must not be offered: %+v", marks["v0.1.6"])
 	}
-	mustContain(t, marks["v0.1.6"].WhyNot, "Send the main line first",
+	mustContain(t, marks["v0.1.6"].WhyNot, "onto origin's main line first",
 		"the list must carry the reason, not just a false")
 
 	// THE SAME WORDS AS THE ACT. A button that says one thing while the send
@@ -887,8 +887,8 @@ func TestTheListSaysWhetherAMarkCouldBeSentAndWhyNot(t *testing.T) {
 			marks["v0.1.6"].WhyNot, send)
 	}
 
-	// AND IT MOVES WITH THE GROUND. Send the line, and the same mark is offered.
-	mustContain(t, call(t, toolGitPush, tn, nil), "Sent main", "the main line must go")
+	// AND IT MOVES WITH THE GROUND. The line reaches origin, as a merged pull request brings it, and the mark is offered.
+	mustGit(t, tn, "push", "origin", "main")
 	marks = read()
 	if !marks["v0.1.6"].Sendable || marks["v0.1.6"].WhyNot != "" {
 		t.Fatalf("once its line is sent the mark must be offered: %+v", marks["v0.1.6"])
@@ -933,7 +933,7 @@ func TestAMarkOnlyOnThisMachineComesBackAndOneGitHubHasDoesNot(t *testing.T) {
 	mustContain(t, call(t, toolGitTag, tn, map[string]any{"action": "send", "name": "v0.1.5"}),
 		"Sent v0.1.5", "the first mark must go to the remote")
 	saveVersion(t, tn, "0.1.6")
-	mustContain(t, call(t, toolGitPush, tn, nil), "Sent main", "the line must go before the second mark")
+	mustGit(t, tn, "push", "origin", "main") // the line goes before the second mark, as a merged pull request takes it
 	call(t, toolGitTag, tn, map[string]any{
 		"action": "cut", "name": "v0.1.6", "message": "kept on this machine"})
 
@@ -1157,4 +1157,81 @@ func TestGitDiffWillNotServeWhatTheWorldKeepsOutOfItsHistory(t *testing.T) {
 	out = call(t, toolGitDiff, tn, map[string]any{"file": "first.txt"})
 	mustContain(t, out, "the ground moved", "a tracked file's real change must still diff")
 	mustNotContain(t, out, "Refused", "a tracked change was refused")
+}
+
+// --- the main line on GitHub ------------------------------------------------
+//
+// EARNED 2026-10-09 (the core's WHAT'S LEFT I1, seventh step; his card: "Main is on GitHub"). Since the fifth step
+// GitHub takes a change to main only through a pull request whose checks have passed, in both repositories and from
+// him too, and the GitHub tab still offered Land onto main and then Send: a road that ended in GitHub's refusal. A
+// main origin has is now refused by name before either act, in the words the lists carry for the glass's buttons --
+// and a main origin has never had still lands here, and a line of work is still sent, as they always were.
+func TestAMainOriginHasTakesAPullRequestAndNothingElse(t *testing.T) {
+	tn := tempWorld(t)
+	t.Setenv("MANJUEL_GIT_REMOTE", "1")
+	call(t, toolGitBranch, tn, map[string]any{"action": "new", "name": "spur"})
+	write(t, tn.Home, "spur.txt", "work on the spur\n")
+	call(t, toolGitCommit, tn, map[string]any{"message": "work on the spur"})
+	call(t, toolGitBranch, tn, map[string]any{"action": "switch", "name": "main"})
+
+	type landList struct {
+		WhyNotLand string `json:"why_not_land"`
+	}
+	type gitState struct {
+		WhyNotSend string `json:"why_not_send"`
+	}
+	read := func(fn func(tenant.Tenant, map[string]any) (string, error), into any) {
+		t.Helper()
+		if err := json.Unmarshal([]byte(call(t, fn, tn, map[string]any{"action": "list"})), into); err != nil {
+			t.Fatalf("the answer must be JSON: %v", err)
+		}
+	}
+
+	// BEFORE ORIGIN HAS MAIN, neither list holds anything back.
+	var l landList
+	var s gitState
+	read(toolGitBranch, &l)
+	read(toolGit, &s)
+	if l.WhyNotLand != "" || s.WhyNotSend != "" {
+		t.Fatalf("a main origin has never had is held back: land %q, send %q", l.WhyNotLand, s.WhyNotSend)
+	}
+
+	// ONCE ORIGIN HAS IT, a landing onto it is refused by name, and the main line does not move.
+	bare := originFor(t, tn)
+	before := headOf(t, tn)
+	land := call(t, toolGitBranch, tn, map[string]any{"action": "land", "name": "spur"})
+	mustContain(t, land, "only through a pull request", "a landing onto a main origin has must be refused")
+	mustContain(t, land, "Merge on GitHub", "the refusal must name the road there is")
+	mustNotContain(t, land, "Landed", "nothing may land on that refusal")
+	if headOf(t, tn) != before {
+		t.Fatal("the refused landing moved the main line")
+	}
+	read(toolGitBranch, &l)
+	if strings.TrimSpace(l.WhyNotLand) != strings.TrimSpace(land) {
+		t.Fatalf("the list and the landing refuse differently:\n  list: %s\n  land: %s", l.WhyNotLand, land)
+	}
+
+	// A SAVE MADE ON MAIN IS NOT SENT, in the words the state carries, and the remote never sees it.
+	write(t, tn.Home, "on-main.txt", "a save made on main\n")
+	call(t, toolGitCommit, tn, map[string]any{"message": "a save made on main"})
+	ahead := headOf(t, tn)
+	send := call(t, toolGitPush, tn, nil)
+	mustContain(t, send, "only through a pull request", "a send of a main origin has must be refused")
+	mustNotContain(t, send, "Sent main", "nothing may be sent on that refusal")
+	if remoteHas(bare, ahead) {
+		t.Fatal("the refused send reached the remote")
+	}
+	read(toolGit, &s)
+	if strings.TrimSpace(s.WhyNotSend) != strings.TrimSpace(send) {
+		t.Fatalf("the state and the send refuse differently:\n  state: %s\n  send: %s", s.WhyNotSend, send)
+	}
+
+	// AND THE ROAD THERE IS STAYS OPEN: a line of work is sent as it always was, and on it nothing is held back.
+	call(t, toolGitBranch, tn, map[string]any{"action": "switch", "name": "spur"})
+	mustContain(t, call(t, toolGitPush, tn, nil), "Sent spur", "a line of work must still be sent")
+	s = gitState{}
+	read(toolGit, &s)
+	if s.WhyNotSend != "" {
+		t.Fatalf("standing on a line of work, the send is held back: %s", s.WhyNotSend)
+	}
 }

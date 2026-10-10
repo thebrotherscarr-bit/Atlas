@@ -26,9 +26,9 @@ package tools
 // wall for PRs"). gitpr.go carries git_pr: it lists a world's open pull requests with their checks, opens
 // one from the line of work he stands on, and -- since 2026-10-09, his card: "Merge on GitHub when green" --
 // merges one on GitHub once every check has passed, through gh, on his click and behind the same dial as
-// every send. Until then it never merged, and a line still lands here as it always has, fast-forward: the
-// merge is GitHub's, and the main line here only follows it down. Issues, releases and the rest stay on
-// the far side.
+// every send. The merge is GitHub's, and the main line here only follows it down: a line lands here only
+// onto a main origin has never had, since a main GitHub has takes a pull request and nothing else (2026-10-09,
+// mainByPullRequest). Issues, releases and the rest stay on the far side.
 //
 // THREE RULES EVERY VERB HERE KEEPS:
 //   1. stdin closed, every call. A child that inherits a headless door's
@@ -164,6 +164,15 @@ func toolGitPush(t tenant.Tenant, args map[string]any) (string, error) {
 	branch, err := currentBranch(t)
 	if err != nil {
 		return "Refused: this world has no branch to send (no commits yet).", nil
+	}
+	// A MAIN GITHUB HAS IS NOT SENT TO (2026-10-09, WHAT'S LEFT I1's seventh step; his card: "Main is on GitHub").
+	// GitHub takes a change to it only through a pull request whose checks have passed, his own included, so a send
+	// of it is refused here by name, before GitHub refuses it, in the words the `git` state carries for the glass's
+	// Send. A main origin has never had is sent as any line is, the first time.
+	if branch == mainLine(t) {
+		if refusal := mainByPullRequest(t); refusal != "" {
+			return refusal, nil
+		}
 	}
 
 	// AN UPSTREAM IS SET ONCE, DELIBERATELY, AND SAID OUT LOUD. A silent
@@ -611,8 +620,8 @@ func sendRefusal(t tenant.Tenant, name string) string {
 		short, _ := gitRun(t, 10*time.Second, "rev-parse", "--short", commit)
 		return fmt.Sprintf("Refused: %s is on %s, and origin's main line does not "+
 			"carry that commit -- not as this machine last saw it. Sending the "+
-			"mark would send that history with it. Send the main line first, "+
-			"then the mark.", name, strings.TrimSpace(short))
+			"mark would send that history with it. Bring the commit onto origin's main line first "+
+			"(a main origin has takes it only through a pull request), then the mark.", name, strings.TrimSpace(short))
 	}
 	return ""
 }
@@ -881,6 +890,12 @@ func toolGitBranch(t tenant.Tenant, args map[string]any) (string, error) {
 		if name == mainName {
 			return "Refused: the main line is not landed onto itself.", nil
 		}
+		// A MAIN GITHUB HAS TAKES A PULL REQUEST, NOT A LANDING (2026-10-09, WHAT'S LEFT I1's seventh step; his card:
+		// "Main is on GitHub"). A landing here would move a main no send can carry there, so it is refused by name,
+		// wherever he stands, in the words the lines list carries for the glass's button.
+		if refusal := mainByPullRequest(t); refusal != "" {
+			return refusal, nil
+		}
 		if cur != mainName {
 			return fmt.Sprintf("Refused: you are standing on %q. Move to %q first (switch), "+
 				"then land %q onto it.", cur, mainName, name), nil
@@ -971,8 +986,41 @@ func branchList(t tenant.Tenant) (string, error) {
 		"on":       cur,
 		"branches": lines,
 	}
+	// WHETHER THIS DOOR WOULD LAND ONTO MAIN, ANSWERED BEFORE THE BUTTON IS PRESSED (2026-10-09, WHAT'S LEFT I1's
+	// seventh step), the way the marks' list answers for Send: one sentence for the world, since it is the main line's
+	// and not any one line's, and absent while a landing here is still the road.
+	if why := mainByPullRequest(t); why != "" {
+		out["why_not_land"] = why
+	}
 	b, err := json.MarshalIndent(out, "", " ")
 	return string(b), err
+}
+
+// mainByPullRequest answers whether this world's main line takes a change only through a pull request, in the
+// door's own words, and "" when it does not (2026-10-09, WHAT'S LEFT I1's seventh step; his card: "Main is on
+// GitHub").
+//
+// SINCE THE FIFTH STEP GITHUB TAKES NOTHING ELSE. In both repositories a change reaches main only through a pull
+// request whose checks have passed, his own included, so a main origin has is changed only that way: a landing here
+// would move a main no send can carry, and a send of it is refused there. Origin having the main line, as this
+// machine last saw it, is the whole test -- read here, with no network and whether or not the wall is open -- and a
+// main origin has never had, a world on this machine alone or one never sent, lands and sends as it always has.
+//
+// ONE JUDGEMENT IN ONE PLACE, the shape sendRefusal keeps: land and git_push ask it before they act, and the lines
+// list and the `git` state carry it for the glass's buttons, so what a button says and what the act does cannot
+// drift apart.
+func mainByPullRequest(t tenant.Tenant) string {
+	mainName := mainLine(t)
+	if mainName == "" {
+		return ""
+	}
+	if _, err := gitRun(t, 10*time.Second, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+mainName); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("Refused: %s is on GitHub, and GitHub takes a change to it only through a pull request whose "+
+		"checks have passed. Do the work on a line of work, send that line, and open a pull request from it (Pull "+
+		"requests, on the GitHub tab); once its checks pass, Merge on GitHub merges it there and brings the new %s "+
+		"down here.", mainName, mainName)
 }
 
 // --- remotes ---------------------------------------------------------------

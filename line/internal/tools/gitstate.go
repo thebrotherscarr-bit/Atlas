@@ -103,6 +103,15 @@ func toolGit(t tenant.Tenant, _ map[string]any) (string, error) {
 	if v, ok := run("remote"); ok && v != "" {
 		out["remotes"] = strings.Fields(v)
 	}
+	// WHETHER A SEND FROM HERE WOULD GO, WHERE THE ANSWER IS THE MAIN LINE'S (2026-10-09, WHAT'S LEFT I1's seventh
+	// step; his card: "Main is on GitHub"). Standing on a main origin already has, git_push refuses by name, since
+	// GitHub takes a change to it only through a pull request; the same sentence is reported here so the glass greys
+	// Send with it. A local read, like everything above: nothing here reaches the remote.
+	if b, ok := out["branch"].(string); ok && b == mainLine(t) {
+		if why := mainByPullRequest(t); why != "" {
+			out["why_not_send"] = why
+		}
+	}
 
 	// The core's wall, read WHERE THE ENGINE READS IT. gitstate.py: REMOTE_ENV,
 	// on for "1", "true", "yes", "on".

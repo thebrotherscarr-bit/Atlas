@@ -322,6 +322,61 @@ func TestALineThatHasNeverBeenSentCanBeSent(t *testing.T) {
 	}
 }
 
+// A MAIN ON GITHUB IS OFFERED THE PULL REQUEST AND NOTHING ELSE (2026-10-09, the core's WHAT'S LEFT I1, seventh step;
+// his card: "Main is on GitHub"). Since the fifth step GitHub takes a change to main only through a pull request, in
+// both repositories and from him too, and the page still offered Land onto main and a Send of main: a road that ended
+// in GitHub's refusal. The door judges it once (mainByPullRequest: origin has the main line) and carries its sentence on
+// the lines list (`why_not_land`) and on the `git` state while he stands on main (`why_not_send`), and land and git_push
+// refuse in those words; so the page greys Land onto main, Send to GitHub and the council's Push with the door's
+// sentence, says it once under the lines, and judges nothing itself.
+func TestAMainOnGitHubIsOfferedThePullRequestAndNothingElse(t *testing.T) {
+	fl := page(t, "js/flows.js")
+	lines, controls, council := funcOf(fl, "  async lines("), funcOf(fl, "  controls("), funcOf(fl, "  async readGit(")
+	if !strings.Contains(lines, "d.why_not_land ? `<button class=\"btn btn-sm\" disabled title=\"${escHtml(d.why_not_land)}\">Land onto main</button>`") ||
+		!strings.Contains(lines, "<div class=\"muted mt-16\">${escHtml(d.why_not_land)}</div>") {
+		t.Fatal("Land onto main is live on a main GitHub has, or is greyed without the door's sentence, or the sentence is not said under the lines")
+	}
+	if !strings.Contains(controls, "const mainByPr = g.why_not_send || '';") || !strings.Contains(controls, ": mainByPr ? mainByPr") ||
+		!strings.Contains(controls, "${walled || nothingToSend || mainByPr ? 'disabled' : ''}") {
+		t.Fatal("Send to GitHub is live on a main GitHub has, or is greyed without the door's sentence")
+	}
+	if !strings.Contains(council, "g.ahead && !g.why_not_send && Run.engineOpen") || !strings.Contains(council, "push.title = g.why_not_send ? g.why_not_send") {
+		t.Fatal("the council's Push is live on a main GitHub has, or is greyed without the door's sentence")
+	}
+	if strings.Contains(fl, "Land onto main, then Send, still lands a line") {
+		t.Fatal("the page still says that Land onto main, then Send, lands a line without a pull request")
+	}
+	// The keys the page reads are the door's, and the door's land, git_push, lines list and git state ask one judgement.
+	read := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", name))
+		if err != nil {
+			t.Fatalf("the door's %s is not beside the glass: %v", name, err)
+		}
+		return string(b)
+	}
+	body := func(src, sig string) string {
+		i := strings.Index(src, sig)
+		if i < 0 {
+			t.Fatalf("the door has no %s; this stroke is reading the wrong thing", sig)
+		}
+		src = src[i:]
+		if j := strings.Index(src, "\nfunc "); j >= 0 {
+			src = src[:j]
+		}
+		return src
+	}
+	ctl, state := read("gitctl.go"), read("gitstate.go")
+	if !strings.Contains(body(ctl, "func mainByPullRequest("), `"rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+mainName`) {
+		t.Fatal("the door no longer judges a main on GitHub by origin having it")
+	}
+	if !strings.Contains(body(ctl, "func toolGitBranch("), `if refusal := mainByPullRequest(t); refusal != ""`) ||
+		!strings.Contains(body(ctl, "func toolGitPush("), `if refusal := mainByPullRequest(t); refusal != ""`) ||
+		!strings.Contains(body(ctl, "func branchList("), `out["why_not_land"] = why`) ||
+		!strings.Contains(body(state, "func toolGit("), `out["why_not_send"] = why`) {
+		t.Fatal("land, git_push, the lines list and the git state no longer ask one judgement, so a button and its act could disagree")
+	}
+}
+
 func TestTheBuilderOffersLoopsAndFindsAPausedRunAfterAReload(t *testing.T) {
 	wf := page(t, "js/workflows.js")
 	for _, kind := range []string{"ask:", "run:", "seat:", "prompt:", "memory:"} {

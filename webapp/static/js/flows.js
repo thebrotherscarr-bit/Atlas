@@ -295,9 +295,15 @@ const Flows = {
     // (gitctl.go, toolGitPush), so Send is offered whenever this world has an origin to send it to.
     const origin = (g.remotes || []).includes('origin');
     const nothingToSend = !g.upstream ? !origin : !g.ahead;
+    // MAIN ON GITHUB TAKES A PULL REQUEST, NOT A SEND (2026-10-09, WHAT'S LEFT I1's seventh step; his card: "Main is on
+    // GitHub"). Standing on a main line origin already has, the door's `git` answers `why_not_send` in its own words and
+    // git_push refuses in the same ones, as GitHub takes a change to that main only through a pull request; so Send is
+    // greyed with the door's sentence before the press, rather than offered and refused.
+    const mainByPr = g.why_not_send || '';
 
     const sendWhy = walled
       ? 'Sending is OFF — the estate wall (MANJUEL_GIT_REMOTE) is shut'
+      : mainByPr ? mainByPr
       : !g.upstream && !origin ? 'Nowhere to send — this world has no remote called origin'
         : !g.upstream ? `Send ${g.branch || 'this line'} to GitHub for the first time, and link it there`
           : nothingToSend ? 'Nothing to send — GitHub already has every save here'
@@ -315,7 +321,7 @@ const Flows = {
         <button class="btn btn-sm" data-act="save" data-w="${q}"
           title="Save every change in this world under the message above">Save the work</button>
         <button class="btn btn-sm" data-act="send" data-w="${q}"
-          ${walled || nothingToSend ? 'disabled' : ''} title="${escHtml(sendWhy)}">Send to GitHub</button>
+          ${walled || nothingToSend || mainByPr ? 'disabled' : ''} title="${escHtml(sendWhy)}">Send to GitHub</button>
         <button class="btn btn-sm" data-act="fetch" data-w="${q}"
           ${walled || g.dirty || !g.behind ? 'disabled' : ''} title="${escHtml(fetchWhy)}">Take from GitHub</button>
         <button class="btn btn-sm" data-act="lines" data-w="${q}"
@@ -402,14 +408,14 @@ const Flows = {
       if (b.current) tags.push('you are here');
       if (b.main) tags.push('the main line');
       tags.push(b.sent ? 'on GitHub' : 'only on this machine');
-      // LAND (his ruling 2026-09-30, B16): a button he presses himself, like
-      // Save and Send. Offered for a line that is not the main line, when
-      // the main line is the one you stand on; the door refuses the rest by
-      // name (fast-forward only, over saved work).
+      // LAND (his ruling 2026-09-30, B16): a button he presses himself, like Save and Send. Offered for a line that is
+      // not the main line, when the main line is the one you stand on; the door refuses the rest by name (fast-forward
+      // only, over saved work). GREYED WITH THE DOOR'S SENTENCE where main is on GitHub (2026-10-09, I1's seventh step):
+      // the door's list carries `why_not_land` there, as GitHub takes a change to that main only through a pull request.
       const onMain = (d.branches || []).some(x => x.current && x.main);
-      const land = (!b.main && onMain)
-        ? `<button class="btn btn-sm" data-line="land" data-w="${escHtml(w)}" data-n="${escHtml(b.name)}" title="Land this line onto the main line, fast-forward only">Land onto main</button>`
-        : '';
+      const land = !(!b.main && onMain) ? ''
+        : d.why_not_land ? `<button class="btn btn-sm" disabled title="${escHtml(d.why_not_land)}">Land onto main</button>`
+        : `<button class="btn btn-sm" data-line="land" data-w="${escHtml(w)}" data-n="${escHtml(b.name)}" title="Land this line onto the main line, fast-forward only">Land onto main</button>`;
       const act = b.current ? ''
         : `<button class="btn btn-sm" data-line="switch" data-w="${escHtml(w)}" data-n="${escHtml(b.name)}">Move here</button>`
         + land
@@ -421,7 +427,7 @@ const Flows = {
     }).join('');
 
     box.innerHTML = `<div class="card-title mt-16">Lines of work</div>`
-      + `<table>${rows}</table>`
+      + `<table>${rows}</table>` + (d.why_not_land ? `<div class="muted mt-16">${escHtml(d.why_not_land)}</div>` : '')
       + `<div class="flex mt-16">`
       + `<input type="text" class="input mb-16" id="newline-${escHtml(w)}" placeholder="name a new line, e.g. fix/the-door" />`
       + `<button class="btn btn-sm" data-line="new" data-w="${escHtml(w)}">Start a new line</button></div>`
@@ -712,9 +718,9 @@ const Flows = {
   // the main line -- from the button below and nowhere else. AND MERGES ONE ON GITHUB (2026-10-09, his card: "Merge on
   // GitHub when green"; his word, superseding the founding law that kept merge out: "we have to be able to merge ...
   // supersede that one"): each row's Merge on GitHub is live only while that pull request's checks have all passed,
-  // and greyed with the reason otherwise. Land onto main, then Send, still lands a line without one. Every refusal is
-  // the door's (the main line, unsaved work, a line GitHub does not have as it stands, a pull request not green or not
-  // clean, the wall), shown in its own words.
+  // and greyed with the reason otherwise. A main GitHub has takes a change no other way: since I1's seventh step the
+  // door refuses Land onto main and a Send of that main by name. Every refusal is the door's (the main line, unsaved
+  // work, a line GitHub does not have as it stands, a pull request not green or not clean, the wall), in its own words.
   async pulls(w) {
     const box = document.getElementById('pulls-' + w);
     if (!box) return;
@@ -873,14 +879,14 @@ const Flows = {
       <button class="btn btn-sm ${g.dirty ? 'btn-primary' : ''}" id="git-commit"
         ${g.dirty && Run.engineOpen ? '' : 'disabled'}>Commit</button>
       <button class="btn btn-sm" id="git-push"
-        ${g.remote_allowed && g.ahead && Run.engineOpen ? '' : 'disabled'}>Push</button>`;
+        ${g.remote_allowed && g.ahead && !g.why_not_send && Run.engineOpen ? '' : 'disabled'}>Push</button>`;
     const commit = bar.querySelector('#git-commit');
     const push = bar.querySelector('#git-push');
     if (!commit || !push) return;
     commit.title = !Run.engineOpen ? 'no engine is open — boot one on the front page'
       : g.dirty ? 'send the commit through the council' : 'nothing to commit';
     commit.onclick = () => this.commit();
-    push.title = !g.remote_allowed
+    push.title = g.why_not_send ? g.why_not_send : !g.remote_allowed
       ? 'sending is walled by MANJUEL_GIT_REMOTE (the estate, not your credentials)'
       : !Run.engineOpen ? 'no engine is open — boot one on the front page'
       : (g.ahead ? 'send ' + g.ahead + ' save(s) to the remote' : 'nothing to send');
