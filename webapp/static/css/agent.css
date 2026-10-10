@@ -439,6 +439,11 @@ body.is-agent .crumb { display: none; }
 .ag-vc .btn:hover { background: var(--ag-n800); }
 .ag-vc .btn-danger { border-color: rgba(244,63,94,.5); color: var(--ag-rose); }
 .ag-vc .btn:disabled { opacity: .4; cursor: default; }
+/* A PULL REQUEST IS A BLOCK THAT WRAPS (2026-10-10, his word: "fix that text so it wraps to the inspector window and doesnt
+   set a button way off to the side"). Its lines break where they must, its link anywhere in it, and Merge on GitHub sits
+   under them, so nothing runs past the panel's edge. */
+.ag-vc .pr-row { padding: 8px 0; border-bottom: 1px solid var(--ag-n800); overflow-wrap: anywhere; }
+.ag-vc .pr-row .btn { margin-top: 6px; }
 
 /* THE WATCHBOARD'S WIRE, IN THE RUN TAB (2026-10-07). The tab hands its box to the Watchboard's own paintWire, so the rows
    are app.css's .wb-ev, .wb-kind and .wb-dim, with the tokens pointed at this page's palette; the box scrolls on its own. */

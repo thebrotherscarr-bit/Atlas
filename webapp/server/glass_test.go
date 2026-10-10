@@ -269,6 +269,30 @@ func TestVersionControlListsAndOpensPullRequests(t *testing.T) {
 	}
 }
 
+// A PULL REQUEST WRAPS IN THE INSPECTOR (2026-10-10, his word: "that merge button and text doesn't stay in the inspector
+// tab properly, fix that text so it wraps to the inspector window and doesnt set a button way off to the side"). The panel
+// drew each pull request as a table row of six cells, three held from wrapping beside a link with no place to break, so in
+// the Inspector's narrow pane the row ran past the edge and Merge on GitHub sat off to the side, behind a sideways scroll.
+// Each pull request is a block of lines now -- its number and title, its line and its checks, its link -- with the button
+// under them, and the panel's rule lets every line break where it must.
+func TestAPullRequestWrapsInTheInspector(t *testing.T) {
+	pulls := funcOf(page(t, "js/flows.js"), "  async pulls(")
+	if pulls == "" {
+		t.Fatal("the GitHub object has no pulls(); this stroke is reading the wrong thing")
+	}
+	for _, bad := range []string{"<table", "<tr>", "<td", "nowrap"} {
+		if strings.Contains(pulls, bad) {
+			t.Fatalf("the pull requests are drawn with %s, so a row cannot wrap and Merge on GitHub runs past the panel's edge", bad)
+		}
+	}
+	if !strings.Contains(pulls, `<div class="pr-row">`) || !strings.Contains(pulls, "<div>${merge}</div></div>") {
+		t.Fatal("a pull request is not a block of its own with Merge on GitHub under its lines")
+	}
+	if !regexp.MustCompile(`\.ag-vc \.pr-row \{[^}]*overflow-wrap: anywhere`).MatchString(page(t, "css/agent.css")) {
+		t.Fatal("the panel's rule does not let a pull request's lines break where they must, so a long link still pushes past the edge")
+	}
+}
+
 // A LINE OF WORK THAT HAS NEVER BEEN SENT CAN BE SENT, AND IS SAID TO BE NEVER SENT (2026-10-09, the core's WHAT'S
 // LEFT I1, third step: "Send to GitHub on a line of work that has never been sent, and the GitHub tab's words for it").
 // Ahead and behind are counted against an upstream, and a line that has never been sent has none: the page greyed its

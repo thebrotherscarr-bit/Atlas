@@ -597,17 +597,18 @@ const Flows = {
       const merge = p.checks === 'passed'
         ? `<button class="btn btn-sm" data-pull="merge" data-w="${q}" data-n="${n}" title="Merge #${n} on GitHub as a merge commit, then bring the new main line down here">Merge on GitHub</button>`
         : `<button class="btn btn-sm" disabled title="${escHtml(notYet[p.checks] || 'Its checks have not all passed')}">Merge on GitHub</button>`;
-      return `<tr><td style="padding-right:12px;white-space:nowrap"><b>#${n}</b></td>`
-        + `<td style="padding-right:12px">${escHtml(p.title || '')}</td>`
-        + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(p.line || '')} into ${escHtml(p.into || '')}</td>`
-        + `<td class="muted" style="padding-right:12px;white-space:nowrap">${escHtml(word[p.checks] || p.checks || '')}</td>`
-        + `<td class="muted" style="padding-right:12px">${escHtml(p.url || '')}</td>`
-        + `<td>${merge}</td></tr>`;
+      // A BLOCK THAT WRAPS, NOT A TABLE ROW (2026-10-10, his word: "fix that text so it wraps to the inspector window and
+      // doesnt set a button way off to the side"): six cells, three held from wrapping beside a link with no place to
+      // break, ran past the Inspector's edge and left Merge on GitHub off to the side. Its lines, then the button under them.
+      return `<div class="pr-row"><div><b>#${n}</b> ${escHtml(p.title || '')}</div>`
+        + `<div class="muted">${escHtml(p.line || '')} into ${escHtml(p.into || '')} · ${escHtml(word[p.checks] || p.checks || '')}</div>`
+        + `<div class="muted">${escHtml(p.url || '')}</div>`
+        + `<div>${merge}</div></div>`;
     }).join('');
     const kept = this.pullSaid[w] ? `<pre>${escHtml(this.pullSaid[w])}</pre>` : '';
     box.innerHTML = `<div class="card-title mt-16">Pull requests</div>`
       + (!d ? `<pre>${escHtml(said)}</pre>`
-        : rows ? `<table>${rows}</table>` : `<div class="empty-text">No pull request is open here.</div>`)
+        : rows || `<div class="empty-text">No pull request is open here.</div>`)
       + `<div class="flex mt-16"><button class="btn btn-sm" data-pull="open" data-w="${q}"`
       + ` title="Open a pull request from the line of work you are on into the main line">Open a pull request</button></div>`
       + `<div class="muted">A pull request lands nothing by itself. Once every check on it has passed, Merge on GitHub `
