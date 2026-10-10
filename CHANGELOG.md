@@ -12,6 +12,8 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.2.5] — 2026-10-10 09:27
+
 ### A main on GitHub takes a pull request and nothing else: Land onto main and the Send of main refused by the door and greyed on the GitHub tab, where origin has the main line (2026-10-09; the core's WHAT'S LEFT I1, seventh step; his cards: "Mend Land onto main" and "Main is on GitHub")
 
 Since the core's fifth step GitHub takes a change to main only through a pull request whose checks have passed, in both repositories and from him too, and the GitHub tab still offered Land onto main and then Send -- its own note said "Land onto main, then Send, still lands a line without one" -- a landing here that no send could carry, ending in GitHub's refusal. The marks' refusal offered the same road ("Send the main line first, then the mark"). On his card ("Main is on GitHub") the door decides it from what this machine already knows, with no network and whether or not the wall is open: origin has the world's main line.
