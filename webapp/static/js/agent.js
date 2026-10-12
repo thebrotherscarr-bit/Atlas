@@ -160,7 +160,7 @@ const Agent = {
   async render(el) {
     this.el = el;
     document.body.classList.add('is-agent');
-    if (!this.bound) { Run.on((w) => this.onRun(w)); this.bound = true; this.loadHist(); }
+    if (!this.bound) { Run.on((w) => this.onRun(w)); API.onCall((rec, phase) => this.onDoorCall(rec, phase)); this.bound = true; this.loadHist(); }
     // THE FRONT PAGE LANDS ON AGENT (2026-10-10, D17's last part; his word: "the front page should always land on Agent as
     // default, then go from there", and on his card, "Agent, named tab beside"). Every time the page is drawn the terminal
     // comes up on its Agent tab, whichever tab was used last; an address that opens an Inspector tab still opens it beside.
@@ -542,7 +542,7 @@ const Agent = {
   },
 
   textOf(en) {
-    if (en.kind === 'local') return en.text || '';
+    if (en.kind === 'local' || en.kind === 'door') return en.text || '';
     if (en.kind === 'shell') return (en.ans && en.ans.output) || '';
     if (en.kind === 'aider') return en.note || (en.ans && (en.ans.diff || en.ans.said)) || '';
     const t = en.cn && en.cn.turn;
@@ -559,6 +559,7 @@ const Agent = {
     const id = en.id;
     if (en.kind === 'shell') return this.shellEntryHtml(en);
     if (en.kind === 'aider') return this.aiderEntryHtml(en);
+    if (en.kind === 'door') return this.doorEntryHtml(en);
     if (en.kind === 'local') {
       const bad = en.status === 'ERROR';
       return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText('agent')}</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
@@ -1739,10 +1740,11 @@ const Agent = {
   paintRun() {
     const box = $ag('ag-run');
     if (!box) return;
-    box.innerHTML = this.runHtml();
+    box.innerHTML = this.runHtml() + this.doorCallsHtml();
     Chat.paintFloor($ag('ag-floor'), $ag('ag-floor-n'));
     Chat.paintTools($ag('ag-calls'), $ag('ag-calls-n'));
     Chat.paintWire($ag('ag-wire'), $ag('ag-wire-n'));
+    this.paintDoorCalls();
   },
 
   runHtml() {
@@ -1765,6 +1767,92 @@ const Agent = {
       this.card('The wire <span class="ag-wire-h"><span id="ag-wire-n"></span><button type="button" class="ag-btn" data-act="wire-raw" title="raw shows every frame whole; folded shows a line per event, the tokens counted">' + (Chat.raw ? 'folded' : 'raw') + '</button></span>',
         '<div class="ag-wire" id="ag-wire"></div>',
         'every event of the turn, in order, drawn by the Watchboard\'s own wire' + (t.thinned ? ' - this turn came back from storage without its record' : ''));
+  },
+
+  // ---- Door calls: every call this page made, in sight ---------------------------------------------------
+
+  // THE DOOR CALLS, IN THE RUN TAB (2026-10-12; his rule that nothing runs headless, in the background or silently without his
+  // express consent, and on his cards "Live calls panel + long runs" and "In the Run tab"). api.js keeps every call the page
+  // makes as it leaves and as it comes back; this lists them, newest first, under the last turn: what was called and with what,
+  // when, running with its clock or ok or refused with its time, and its first words. A tab's own reads in a row are folded
+  // into one line with a count, so the dock's and the bar's polls do not bury the rest.
+  doorCallsHtml() {
+    return this.card('Door calls <span class="ag-wire-h"><span id="ag-door-n"></span></span>', '<div class="ag-calls" id="ag-door"></div>',
+      'every call this page made, newest first: a tab drawing itself, a button, the page\'s own script; kept for this page only, the glass\'s own trace record keeps the rest');
+  },
+
+  doorLabel(c) {
+    return c.tool || (c.method + ' ' + String(c.path || '').replace(/\?.*$/, ''));
+  },
+
+  doorArgs(c) {
+    const a = c.args;
+    if (!a || typeof a !== 'object') return '';
+    return Object.keys(a).slice(0, 4).map(k => {
+      const v = String(typeof a[k] === 'string' ? a[k] : JSON.stringify(a[k]));
+      return k + ': ' + (v.length > 40 ? v.slice(0, 40) + '...' : v);
+    }).join(', ');
+  },
+
+  paintDoorCalls() {
+    const box = $ag('ag-door');
+    if (!box) return;
+    const n = $ag('ag-door-n');
+    const kept = API.calls.length, made = API._cseq;
+    if (n) n.textContent = !kept ? '' : made > kept ? 'the newest ' + kept + ' of ' + made + ' since this page opened' : kept + ' since this page opened';
+    const rows = [];
+    for (const c of API.calls.slice().reverse()) {
+      const label = this.doorLabel(c);
+      const last = rows[rows.length - 1];
+      if (c.bg && last && last.c.bg && last.label === label && c.ok !== null && last.c.ok !== null) { last.n++; continue; }
+      rows.push({ c, label, n: 1 });
+    }
+    if (!rows.length) { box.innerHTML = '<p>No call yet.</p>'; return; }
+    const now = Date.now();
+    box.innerHTML = '<table><thead><tr><th>when</th><th>call</th><th>state</th><th>said</th></tr></thead><tbody>' + rows.slice(0, 120).map(r => {
+      const c = r.c;
+      const state = c.ok === null ? 'running ' + Math.floor((now - c.t0) / 1000) + 's' : (c.ok ? 'ok ' : 'refused ') + c.ms + 'ms';
+      const args = this.doorArgs(c);
+      return `<tr><td>${escHtml(new Date(c.t0).toLocaleTimeString())}</td>` +
+        `<td>${escHtml(r.label)}${r.n > 1 ? ' &times;' + r.n : ''}${c.bg ? ' <span class="ag-chip">a tab\'s own read</span>' : ''}${args ? '<div class="ag-src">' + escHtml(args) + '</div>' : ''}</td>` +
+        `<td${c.ok === false ? ' style="color:var(--ag-rose)"' : ''}>${escHtml(state)}</td>` +
+        `<td>${escHtml(String(c.said || '').replace(/\s+/g, ' ').trim().slice(0, 120))}</td></tr>`;
+    }).join('') + '</tbody></table>';
+  },
+
+  // THE LONG ONES ARE IN THE TERMINAL TOO, wherever they were started from: the suites, the live check, and a flow fired,
+  // carried on or fired again. Each is drawn running as it goes out and with its first words and its time when it comes back,
+  // so a run can no longer happen with nothing on the glass ("Where are they running? I don't see anything on the glass?",
+  // 2026-10-12). When the suites or the live check end, the Audit Ledger is drawn again if it is open, which reads the proof
+  // again: it had sat on a stamp read while the run was going ("null/null"). While any call runs, the list's clock moves once
+  // a second; with none running, nothing ticks.
+  onDoorCall(rec, phase) {
+    const long = ['suite_run', 'standup_run', 'flow_run', 'flow_resume', 'flow_replay'].includes(rec.tool) ||
+      /^\/flows\/(run|resume|replay)$/.test(rec.path);
+    if (long && phase === 'start') {
+      const args = this.doorArgs(rec);
+      this.entries.push({ id: ++this._seq, kind: 'door', call: rec.id, command: this.doorLabel(rec) + (args ? ' {' + args + '}' : ''),
+        status: 'RUNNING', t0: rec.t0, ms: null, text: '' });
+      this.paintOut();
+    }
+    if (long && phase === 'end') {
+      const en = this.entries.find(e => e.kind === 'door' && e.call === rec.id);
+      if (en) { en.status = rec.ok ? 'SUCCESS' : 'ERROR'; en.ms = rec.ms; en.text = rec.said; this.paintOut(); }
+      if ((rec.tool === 'suite_run' || rec.tool === 'standup_run') && this.open && this.tab === 'ledger') this.paintPane();
+    }
+    this.paintDoorCalls();
+    const running = API.calls.some(c => c.ok === null);
+    if (running && !this._doorTick) this._doorTick = setInterval(() => this.paintDoorCalls(), 1000);
+    if (!running && this._doorTick) { clearInterval(this._doorTick); this._doorTick = null; }
+  },
+
+  doorEntryHtml(en) {
+    const id = en.id;
+    const bad = en.status === 'ERROR';
+    const chip = en.status === 'RUNNING' ? 'running since ' + new Date(en.t0).toLocaleTimeString() : bad ? 'refused' : 'done';
+    return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p door">door&gt;</span><span class="ag-cmd">${escHtml(en.command)}</span></div>
+      <div class="ag-meta"><span class="ag-chip${bad ? ' bad' : ''}">${escHtml(chip)}</span>${en.ms != null ? '<span>' + en.ms + 'ms</span>' : ''}<button type="button" class="ag-copy" data-act="copy" data-id="${id}" title="Copy the output" aria-label="Copy the output">${AG_ICON.copy}</button></div></div>
+      ${en.text ? `<pre class="ag-pre${bad ? ' bad' : ''}" id="ag-o-${id}">${escHtml(en.text)}</pre>` : ''}</div>`;
   },
 
   // ---- Audit Ledger -----------------------------------------------------------

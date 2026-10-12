@@ -1750,3 +1750,45 @@ func TestWhatWaitsForHisHandIsPinnedAtTheFootOfTheTerminal(t *testing.T) {
 		t.Fatal("the dock is not hidden while nothing waits")
 	}
 }
+
+// EVERY CALL THE GLASS MAKES, IN SIGHT (2026-10-12). His rule: "Transparency is REQUIRED for the system. No tools, no edits,
+// no changes, no reads or writes or measurement or weighing, or ANYTHING that affects a single character within the system
+// or codebase is to be executed or ran or cycled without express consent for running 'headless' or 'background' or 'silent'
+// tasks." The suites had run through suite_run from the page's own script with nothing drawn on the glass while they ran.
+// Every call goes out through api.js's get() and post(), which keep it as it leaves and as it comes back and tell whoever
+// listens; the front page listens once, lists every call in the Run tab's Door calls, gives the long runs an entry in the
+// terminal, and draws the Audit Ledger again when the suites or the live check end. A road to the glass that skips the
+// two, or a listener that stops listening, goes red here.
+func TestEveryCallTheGlassMakesIsInSight(t *testing.T) {
+	api := page(t, "js/api.js")
+	src := page(t, "js/agent.js")
+	for _, sig := range []string{"  async get(", "  async post("} {
+		f := funcOf(api, sig)
+		if !strings.Contains(f, "this._call(") || strings.Count(f, "this._end(rec") != 2 {
+			t.Fatalf("%s does not keep its call as it leaves and as it comes back, refused or not", strings.TrimSpace(sig))
+		}
+	}
+	if strings.Count(api, "fetch(") != 2 {
+		t.Fatal("api.js reaches the glass by a road other than get() and post(), which keep every call")
+	}
+	if strings.Count(src, "API.onCall(") != 1 || !strings.Contains(funcOf(src, "  async render("), "API.onCall((rec, phase) => this.onDoorCall(rec, phase))") {
+		t.Fatal("the front page does not listen for the calls, or listens more than once")
+	}
+	on := funcOf(src, "  onDoorCall(")
+	for _, want := range []string{"'suite_run'", "'standup_run'", "'flow_run'", "'flow_resume'", "'flow_replay'", "kind: 'door'", "this.paintDoorCalls()", "this.paintPane()"} {
+		if !strings.Contains(on, want) {
+			t.Fatalf("a long run is not drawn in the terminal, or the ledger is not drawn again when it ends (wanted %s)", want)
+		}
+	}
+	run := funcOf(src, "  paintRun(")
+	if !strings.Contains(run, "this.doorCallsHtml()") || !strings.Contains(run, "this.paintDoorCalls()") ||
+		!strings.Contains(funcOf(src, "  paintDoorCalls("), "API.calls") {
+		t.Fatal("the Run tab does not carry the Door calls, drawn from the calls api.js keeps")
+	}
+	if !strings.Contains(funcOf(src, "  paintDoorCalls("), "API._cseq") {
+		t.Fatal("the count of Door calls says how many it keeps, not how many were made")
+	}
+	if !strings.Contains(funcOf(src, "  entryHtml("), "en.kind === 'door'") || !strings.Contains(funcOf(src, "  textOf("), "en.kind === 'door'") {
+		t.Fatal("the terminal cannot draw a long run's entry, or copy what it said")
+	}
+}
