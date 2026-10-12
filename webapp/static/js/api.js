@@ -21,20 +21,76 @@ const API = {
     return new Error(said || `HTTP ${r.status}`);
   },
 
+  // EVERY CALL THE GLASS MAKES, IN SIGHT (2026-10-12; his rule, in his words: "Transparency is REQUIRED for the system. No
+  // tools, no edits, no changes, no reads or writes or measurement or weighing, or ANYTHING that affects a single character
+  // within the system or codebase is to be executed or ran or cycled without express consent for running 'headless' or
+  // 'background' or 'silent' tasks."). The suites had run through suite_run from the page's own script with nothing drawn
+  // on the glass while they ran. Every call to the glass -- a tab drawing itself, a button, the page's own script -- goes
+  // out through get() or post() below, so each is kept here as it leaves and as it comes back, and whoever listens draws
+  // it: the Run tab's Door calls lists every one, and the terminal gives the long runs an entry of their own (agent.js,
+  // onDoorCall). Kept for this page only, newest last, the oldest let go past CALLS_KEEP; the glass keeps its own trace
+  // record of every call that is not a tab's own read (handlers.go, backgroundReads). A streamed turn is not a call here:
+  // it is drawn as the turn it is.
+  calls: [],
+  CALLS_KEEP: 300,
+  _cseq: 0,
+  _callSubs: [],
+  onCall(fn) { this._callSubs.push(fn); },
+  _call(method, path, body) {
+    const tool = path === '/tools/call' && body ? String(body.tool || '') : '';
+    const rec = { id: ++this._cseq, method, path, tool, args: tool ? (body.args || {}) : (body || null),
+                  bg: !!(body && body.background), t0: Date.now(), ms: null, ok: null, said: '' };
+    this.calls.push(rec);
+    if (this.calls.length > this.CALLS_KEEP) this.calls.splice(0, this.calls.length - this.CALLS_KEEP);
+    this._tell(rec, 'start');
+    return rec;
+  },
+  // A TOOL'S REFUSAL IS ITS OWN, not the glass's: /tools/call answers 200 with the door's envelope in `output`, so the
+  // envelope is read for its error or isError the way App.tool reads it, and its first words are what the list shows.
+  _end(rec, ok, said, out) {
+    if (ok && rec.tool && out && typeof out.output === 'string') {
+      try {
+        const env = JSON.parse(out.output);
+        const c = env.result && env.result.content;
+        said = (env.error && env.error.message) || (c && c[0] ? c[0].text : '') || '';
+        ok = !env.error && !(env.result && env.result.isError);
+      } catch { said = out.output; ok = !/^mcp (read )?error/.test(out.output); }
+    }
+    rec.ms = Date.now() - rec.t0;
+    rec.ok = ok;
+    rec.said = String(said || '').slice(0, 400);
+    this._tell(rec, 'end');
+  },
+  _tell(rec, phase) {
+    for (const fn of this._callSubs.slice()) {
+      try { fn(rec, phase); } catch { /* a listener's own problem, never the call's */ }
+    }
+  },
+
   async get(path) {
-    const r = await fetch(this.base + path);
-    if (!r.ok) throw await this.fail(r);
-    return r.json();
+    const rec = this._call('GET', path, null);
+    try {
+      const r = await fetch(this.base + path);
+      if (!r.ok) throw await this.fail(r);
+      const out = await r.json();
+      this._end(rec, true, '', out);
+      return out;
+    } catch (e) { this._end(rec, false, e.message || 'refused'); throw e; }
   },
 
   async post(path, body) {
-    const r = await fetch(this.base + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) throw await this.fail(r);
-    return r.json();
+    const rec = this._call('POST', path, body);
+    try {
+      const r = await fetch(this.base + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw await this.fail(r);
+      const out = await r.json();
+      this._end(rec, true, '', out);
+      return out;
+    } catch (e) { this._end(rec, false, e.message || 'refused'); throw e; }
   },
 
   health()        { return this.get('/health'); },
