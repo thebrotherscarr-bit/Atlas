@@ -1792,3 +1792,31 @@ func TestEveryCallTheGlassMakesIsInSight(t *testing.T) {
 		t.Fatal("the terminal cannot draw a long run's entry, or copy what it said")
 	}
 }
+
+// THE CARDS ARE COLORED BY WHAT THEY ARE FOR (2026-10-12, his word: "the current amber cards for big reads or approvals
+// for memories, etc. Then a green card for moving up to the router or switching seats, and a red card for things like code
+// edits, file writes ... Simplicity is key here."). The council's question takes the color its needs_answer carries --
+// green or red as a class, amber the card as it was -- and a line that asks first and a call the door parked are red:
+// each runs a command or changes a file.
+func TestTheCardsAreColoredByWhatTheyAreFor(t *testing.T) {
+	council := page(t, "js/council.js")
+	src := page(t, "js/agent.js")
+	css := page(t, "css/agent.css")
+	if !strings.Contains(council, "t.waitingColor = d.color") {
+		t.Fatal("the council's question does not keep the color its needs_answer carries")
+	}
+	gate := funcOf(src, "  gateHtml(")
+	if !strings.Contains(gate, "waitingColor") || !strings.Contains(gate, "green") || !strings.Contains(gate, "red") {
+		t.Fatal("the council's card is not drawn in the color its question carries")
+	}
+	for _, sig := range []string{"  shellCardHtml(", "  holdCardHtml("} {
+		if !strings.Contains(funcOf(src, sig), `class="ag-gate red"`) {
+			t.Fatalf("%s: a card that runs a command or changes a file is not red", strings.TrimSpace(sig))
+		}
+	}
+	for _, rule := range []string{".ag-gate.green", ".ag-gate.red"} {
+		if !strings.Contains(css, rule) {
+			t.Fatalf("agent.css draws no %s", rule)
+		}
+	}
+}

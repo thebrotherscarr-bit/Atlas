@@ -247,3 +247,50 @@ func TestTheDoorCallsThePagesWhatTheGlassCallsThem(t *testing.T) {
 		}
 	}
 }
+
+// THE SEATS' DECLARATIONS AND THE SKILLS ARE HIS TO SET, ON HIS CARD (2026-10-12, his card: "Open it when no sitting is
+// open"). The wall the seats and Aider keep (aiderNeverWritten) refused his own edit too, so a skill's phrases or a seat's list
+// could not be set from his glass at all. file_edit now parks an edit to agents/ or skills/ for his Approve like any other --
+// the higher review his red card is for -- and refuses it while a sitting is open as it refuses everything; pipelines.md and
+// the rest of the wall stay shut, and the wall itself, the core's list restated and Aider's to keep, is unchanged.
+func TestAnEditSetsTheSeatsAndTheSkillsOnHisCard(t *testing.T) {
+	reg, tr, tn := shellWorld(t, map[string]string{
+		"skills/when.md":    "- **Says:** what ran today\n",
+		"agents/steward.md": "- **May Call:** ground_read\n",
+		"pipelines.md":      "1. Steward\n",
+	})
+	held := map[string]string{}
+	for rel, change := range map[string][2]string{
+		"skills/when.md":    {"what ran today", "what ran today, what ran between"},
+		"agents/steward.md": {"ground_read", "ground_read, inspect"},
+	} {
+		a := editCall(t, reg, tr, map[string]any{"filepath": rel, "old": change[0], "new": change[1]})
+		if a.State != "held" || a.Hold == "" {
+			t.Fatalf("%s: his edit was not parked for his card: %v", rel, a)
+		}
+		held[rel] = a.Hold
+		if aiderNeverWritten(rel) == "" {
+			t.Fatalf("%s: the wall the seats and Aider keep was opened too; only his own edit may set it", rel)
+		}
+	}
+	if w := editApprove(t, reg, tr, held["skills/when.md"]); w.State != "written" {
+		t.Fatalf("his Approve did not set the skill: %v", w)
+	}
+	if got := readText(t, tn.Home, "skills/when.md"); got != "- **Says:** what ran today, what ran between\n" {
+		t.Fatalf("the skill was not set as his card showed: %q", got)
+	}
+	p := editCall(t, reg, tr, map[string]any{"filepath": "pipelines.md", "old": "Steward", "new": "Router"})
+	if p.State != "refused" || !strings.Contains(strings.Join(p.Why, " "), "pipelines.md") {
+		t.Fatalf("pipelines.md was not kept shut: %v", p)
+	}
+
+	sitting := `{"n": 7, "started": "2026-10-07T09:00:00", "ended": ""}` + "\n"
+	reg2, tr2, _ := shellWorld(t, map[string]string{
+		"skills/when.md":          "- **Says:** what ran today\n",
+		"sessions/sessions.jsonl": sitting,
+	})
+	s := editCall(t, reg2, tr2, map[string]any{"filepath": "skills/when.md", "old": "what ran today", "new": "what ran now"})
+	if s.State != "refused" || !strings.Contains(strings.Join(s.Why, " "), "SITTING LAW 5") {
+		t.Fatalf("a skill was not refused while a sitting is open: %v", s)
+	}
+}
