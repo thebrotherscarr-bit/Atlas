@@ -7,8 +7,9 @@ package tools
 // as shell_run does, with the change set out line by line for his card (pinned at the foot of the
 // front page's terminal), and it writes only when hold_answer replays it on his Approve and the
 // file still gives exactly the change he was shown. It keeps what the seats and Aider keep
-// (aiderNeverWritten), refuses a secret, client material or a path outside the world (shellRefusals
-// and the door's jail), and edits nothing while a sitting is open (SITTING LAW 5).
+// (aiderNeverWritten) -- save the seats' declarations and the skills, which are his to set (fileEditSets) --
+// refuses a secret, client material or a path outside the world (shellRefusals and the door's jail), and edits
+// nothing while a sitting is open (SITTING LAW 5).
 
 import (
 	"encoding/json"
@@ -34,7 +35,7 @@ func fileEditMay(t tenant.Tenant, rel string) []string {
 	if rs := shellRefusals(rel, t.Home); len(rs) != 0 {
 		return rs
 	}
-	if s := aiderNeverWritten(rel); s != "" {
+	if s := aiderNeverWritten(rel); s != "" && !fileEditSets(rel) {
 		return []string{s}
 	}
 	if e, open := engines.Get(t.Home); open {
@@ -44,6 +45,16 @@ func fileEditMay(t tenant.Tenant, rel string) []string {
 		return []string{fmt.Sprintf("%q has an open sitting (%d, opened %s): nothing in this ground is edited while the operator's sitting is open (SITTING LAW 5): close it first", t.Name, int(n), started)}
 	}
 	return nil
+}
+
+// fileEditSets is whether his own edit may set rel although the wall the seats and Aider keep refuses it. The seats'
+// declarations (agents/) and the estate's tools (skills/) are his to set, so his edit may set them -- on his Approve card,
+// the higher review his red card is for, and never while a sitting is open, which the checks after the wall still refuse
+// (2026-10-12, his card: "Open it when no sitting is open"). pipelines.md and the rest of the wall stay shut, and the wall
+// itself is unchanged: it is the core's list restated, and Aider keeps it.
+func fileEditSets(rel string) bool {
+	parts := strings.Split(strings.ToLower(rel), "/")
+	return len(parts) > 1 && (parts[0] == "agents" || parts[0] == "skills")
 }
 
 // fileEditLoad is the file at rel, read whole, or why it cannot be edited.
@@ -252,6 +263,6 @@ func fileEditTool() Tool {
 		ServiceOnly: true,
 		Args:        []string{"filepath", "old", "new", "project?"},
 		Fn:          toolFileEdit,
-		Description: "the operator's own exact edit of one text file in this world: the path, the exact old text and the new text are plain fields; the old text must appear exactly once; the file keeps its own line endings; the first call writes nothing and parks itself with the change line by line, and it writes only when he approves that card and the file still gives exactly that change. Refused for a path outside the world, a secret, client material, what a model never writes, and while a sitting is open. His glass alone may call it",
+		Description: "the operator's own exact edit of one text file in this world: the path, the exact old text and the new text are plain fields; the old text must appear exactly once; the file keeps its own line endings; the first call writes nothing and parks itself with the change line by line, and it writes only when he approves that card and the file still gives exactly that change. Refused for a path outside the world, a secret, client material, what a model never writes (save the seats' declarations and the skills, which are his to set), and while a sitting is open. His glass alone may call it",
 	}
 }

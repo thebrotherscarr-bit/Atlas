@@ -655,7 +655,10 @@ const Agent = {
   gateHtml() {
     const asking = this.asking();
     if (!asking || Run.running) return '';
-    return `<div class="ag-gate"><b>The council is asking</b><div class="ag-gate-q">${escHtml(asking)}</div>
+    // ITS COLOR IS WHAT IT IS FOR (2026-10-12, his word: "Simplicity is key here"): green or red as its needs_answer
+    // said, amber the card as it was. Only those two words become a class.
+    const color = { green: ' green', red: ' red' }[(Run.turn && Run.turn.waitingColor) || ''] || '';
+    return `<div class="ag-gate${color}"><b>The council is asking</b><div class="ag-gate-q">${escHtml(asking)}</div>
       <form id="ag-gate-form"><input type="text" autocomplete="off" placeholder="Your answer - nothing is assumed on your behalf" /><button class="ag-btn go" type="submit">Answer</button></form></div>`;
   },
 
@@ -714,7 +717,7 @@ const Agent = {
     const a = en.ans || {};
     const kind = en.shell === 'python' ? 'python' : en.shell === 'pwsh' ? 'pwsh' : 'bash';
     const off = en.deciding ? ' disabled' : '';
-    return '<div class="ag-gate"><b>This asks first</b>' +
+    return '<div class="ag-gate red"><b>This asks first</b>' +
       '<div class="ag-line-l"><span class="ag-p ' + kind + '">' + (en.prompt || this.promptText(kind)) + '</span><span class="ag-cmd">' + escHtml(en.command) + '</span></div>' +
       '<div class="ag-gate-q">' + escHtml((a.why || []).map(w => '- ' + w).join('\n')) + '</div>' +
       '<div class="ag-btns"><button type="button" class="ag-btn go" data-act="shell-yes" data-id="' + en.id + '"' + off + '>' + (en.deciding ? 'Running...' : 'Approve - run it') + '</button>' +
@@ -732,7 +735,7 @@ const Agent = {
       : escHtml(JSON.stringify(a, null, 1));
     const busy = this._answering.has(h.id);
     const off = busy ? ' disabled' : '';
-    return '<div class="ag-gate"><b>' + escHtml(h.tool) + ' asks first</b>' +
+    return '<div class="ag-gate red"><b>' + escHtml(h.tool) + ' asks first</b>' +
       '<span class="ag-src">asked by ' + escHtml(h.caller || '') + ' &middot; ' + escHtml(h.project || '') + ' &middot; ' + escHtml(h.when || '') + '</span>' +
       '<pre class="ag-gate-call">' + call + '</pre>' +
       '<div class="ag-btns"><button type="button" class="ag-btn go" data-act="hold-yes" data-id="' + escHtml(h.id) + '"' + off + '>' + (busy ? 'Running...' : 'Approve - run it') + '</button>' +

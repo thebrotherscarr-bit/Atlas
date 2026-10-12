@@ -411,6 +411,8 @@ const Run = {
 
       case 'needs_answer':
         t.waiting = d.prompt || '';
+        // the card's color rides with the question (2026-10-12): amber, green or red
+        t.waitingColor = d.color || 'amber';
         t.verdict = 'waiting';
         break;
 

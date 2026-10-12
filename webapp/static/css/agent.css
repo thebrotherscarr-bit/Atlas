@@ -237,6 +237,12 @@ body.is-agent .crumb { display: none; }
   background: rgba(251,191,36,.06); display: flex; flex-direction: column; gap: 8px;
 }
 .ag-gate b { color: var(--ag-amber); font-weight: 600; }
+/* its color is what it is for (2026-10-12, his word: "Simplicity is key here"): amber for reads and approvals, as
+   above; green for moving up to the Router or waking a seat; red for a command that runs or a file that changes */
+.ag-gate.green { border-color: rgba(52,211,153,.55); background: rgba(52,211,153,.06); }
+.ag-gate.green b { color: var(--ag-green); }
+.ag-gate.red { border-color: rgba(253,164,175,.6); background: rgba(253,164,175,.07); }
+.ag-gate.red b { color: var(--ag-rose); }
 .ag-gate-q { color: var(--ag-n200); white-space: pre-wrap; font-family: var(--font-prose); font-size: 13px; }
 .ag-gate form { display: flex; gap: 8px; }
 .ag-gate input {
