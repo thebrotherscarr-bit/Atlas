@@ -16,9 +16,10 @@
 //
 // Both read THIS object, so the two pages can never disagree about what ran.
 //
-// PROTOCOL 1's nineteen, verbatim from manjuel/serve.py's EVENTS. This line read
-// "seventeen" until 2026-09-14; `heard` and `command` joined on 2026-09-09:
-//   opened text run report seat token tool tool_result needs_answer
+// PROTOCOL 1's twenty, verbatim from manjuel/serve.py's EVENTS. This line read
+// "seventeen" until 2026-09-14; `heard` and `command` joined on 2026-09-09, and
+// `think` on 2026-10-14 (WHAT'S LEFT C70: a seat's thought, as it arrives):
+//   opened text run report seat token think tool tool_result needs_answer
 //   delivery refused aborted cancelled unreachable error note heard command
 //   closed
 //
@@ -351,6 +352,33 @@ const Run = {
 
   // ---- reducing the wire into a turn --------------------------------------
 
+  // The seat a token or a thought belongs to: the newest seat of that name, or
+  // the newest seat when the event names none.
+  seatOf(t, name) {
+    let s = t.seats.length ? t.seats[t.seats.length - 1] : null;
+    if (name) {
+      for (let i = t.seats.length - 1; i >= 0; i--) {
+        if (t.seats[i].seat === name) { s = t.seats[i]; break; }
+      }
+    }
+    return s;
+  },
+
+  // A SEAT'S THOUGHT, READ ONE WAY FOR EVERY SURFACE (2026-10-14, WHAT'S LEFT
+  // C70): its words so far, how long it thought -- from its seat to its first
+  // word, the next seat or the turn's end -- and whether it is thinking still:
+  // the newest seat of a turn still running, not yet spoken. The terminal and
+  // the Run tab's floor both draw from this, so they cannot disagree about
+  // whose thought it is or when it folded.
+  thoughtOf(t, i) {
+    const s = t && t.seats && t.seats[i];
+    if (!s || !s.thought) return null;
+    const next = t.seats[i + 1];
+    const end = s.spoke || (next && next.at) || t.ended || Date.now();
+    return { text: s.thought, secs: Math.max(0, Math.round((end - s.at) / 1000)),
+             live: !s.spoke && !next && !t.ended };
+  },
+
   // EVERY event is kept, whether or not this build knows what to do with it.
   // The record of a run is the events; the fields below are a reading of them,
   // never a replacement for them.
@@ -360,6 +388,9 @@ const Run = {
     // `text` is the console copy of everything else — keeping it would double
     // every line of the run.
     if (kind !== 'text') t.events.push(Object.assign({ _kind: kind }, d));
+    // What came last, so a surface can tell a thought's fragment (which moves
+    // only the live line) from an event that moves the turn (C70).
+    t.lastKind = kind;
 
     switch (kind) {
       case 'run':
@@ -375,14 +406,22 @@ const Run = {
       case 'token': {
         // Tokens belong to the seat that is speaking, so it stays visible WHICH
         // seat produced which words.
-        let s = t.seats.length ? t.seats[t.seats.length - 1] : null;
-        if (d.seat) {
-          for (let i = t.seats.length - 1; i >= 0; i--) {
-            if (t.seats[i].seat === d.seat) { s = t.seats[i]; break; }
-          }
+        const s = this.seatOf(t, d.seat);
+        if (s) {
+          s.text += (d.text || '');
+          if (!s.spoke) s.spoke = Date.now();
         }
-        if (s) s.text += (d.text || '');
         t.answer += (d.text || '');
+        break;
+      }
+
+      case 'think': {
+        // A SEAT'S THOUGHT, LIVE (2026-10-14, WHAT'S LEFT C70; his words: "the
+        // thinking models show their CoT as they go"). Each fragment belongs to
+        // the seat that is thinking and is kept on it, beside its words -- never
+        // in the answer, which is the seats' words alone.
+        const s = this.seatOf(t, d.seat);
+        if (s) s.thought = (s.thought || '') + (d.text || '');
         break;
       }
 

@@ -295,6 +295,10 @@ const Agent = {
       else if (act === 'aider-said') {
         const en = this.entries.find(x => String(x.id) === b.dataset.id);
         if (en) { en.showSaid = !en.showSaid; this.paintOut(false); }
+      } else if (act === 'thought') {
+        // A seat's folded thought opens and shuts in place (thoughtsHtml).
+        const en = this.entries.find(x => String(x.id) === b.dataset.id);
+        if (en) { en.thoughts = en.thoughts || {}; en.thoughts[b.dataset.i] = !en.thoughts[b.dataset.i]; this.paintOut(false); }
       }
     });
     // WHAT WAITS FOR HIS HAND IS ANSWERED HERE AND NOWHERE ELSE (RULE 6): in the dock pinned at the foot of the terminal
@@ -602,7 +606,7 @@ const Agent = {
     const body = this.textOf(en);
     return `<div class="ag-e" id="ag-e-${id}"><div class="ag-line"><div class="ag-line-l"><span class="ag-p agent">${this.promptText('agent')}</span><span class="ag-cmd">${en.command === '' && en.isAnswer ? '(blank answer)' : escHtml(en.command)}</span></div>
       <div class="ag-meta">${chips.join('')}<button type="button" class="ag-copy" data-act="copy" data-id="${id}" title="Copy the output" aria-label="Copy the output">${AG_ICON.copy}</button></div></div>
-      ${body ? `<pre class="ag-pre${failed ? ' bad' : deep ? ' deep' : ''}" id="ag-o-${id}">${escHtml(body)}</pre>` : ''}${lines.join('')}${foot}</div>`;
+      ${this.thoughtsHtml(en)}${body ? `<pre class="ag-pre${failed ? ' bad' : deep ? ' deep' : ''}" id="ag-o-${id}">${escHtml(body)}</pre>` : ''}${lines.join('')}${foot}</div>`;
   },
 
   // A line typed in a shell tab, as the door answered it. The page decides nothing: it draws the
@@ -664,7 +668,42 @@ const Agent = {
 
   liveHtml() {
     if (!Run.running) return '';
-    return `<div class="ag-live"><span class="pulse">&#9679;</span><span>${escHtml(Run.nowLine())} &middot; ${escHtml(Run.elapsed())}</span><button type="button" data-act="cancel">cancel</button></div>`;
+    return `<div class="ag-live"><span class="pulse">&#9679;</span><span>${escHtml(Run.nowLine())} &middot; ${escHtml(Run.elapsed())}</span><button type="button" data-act="cancel">cancel</button></div>` +
+      this.liveThoughtHtml();
+  },
+
+  // THE THOUGHT OF THE SEAT THINKING RIGHT NOW, AS IT ARRIVES (2026-10-14, WHAT'S LEFT C70; his words: "so i can actually
+  // see the turns within the terminal, rather than just blank output", and on his card, "live, then fold it down"). Dimmed
+  // under the live line, so it never reads as the answer, and only its newest part: a thought runs to thousands of
+  // characters, and the whole of it is one click away in the entry once the seat has spoken (thoughtsHtml).
+  THOUGHT_TAIL: 1200,
+  liveThoughtHtml() {
+    const t = Run.turn;
+    if (!t || !(t.seats || []).length) return '';
+    const th = Run.thoughtOf(t, t.seats.length - 1);
+    if (!th || !th.live) return '';
+    const text = th.text.length > this.THOUGHT_TAIL ? '...' + th.text.slice(-this.THOUGHT_TAIL) : th.text;
+    return `<pre class="ag-pre dim">${escHtml(text)}</pre>`;
+  },
+
+  // EACH SEAT'S THOUGHT, FOLDED TO ONE LINE ONCE IT HAS SPOKEN (C70): "<seat> thought N s" in the turn's entry, over its
+  // words, and a click opens it there, dimmed. It is the seat's own deliberation, never the answer; the transcript keeps
+  // it whole.
+  thoughtsHtml(en) {
+    const t = en.cn && en.cn.turn;
+    if (!t || !(t.seats || []).length) return '';
+    const open = en.thoughts || {};
+    return t.seats.map((s, i) => {
+      const th = Run.thoughtOf(t, i);
+      if (!th || th.live) return '';
+      return `<div class="ag-src"><button type="button" class="ag-link" data-act="thought" data-id="${en.id}" data-i="${i}">${open[i] ? '&#9662;' : '&#9656;'} ${escHtml(s.seat || 'seat')} thought ${th.secs} s</button></div>` +
+        (open[i] ? `<pre class="ag-pre dim">${escHtml(th.text.trim())}</pre>` : '');
+    }).join('');
+  },
+
+  // How many seats' thoughts are folded into the live entry: the entry is drawn again when the number moves (paintLive).
+  foldsOf(t) {
+    return t ? (t.seats || []).filter((s, i) => { const th = Run.thoughtOf(t, i); return !!th && !th.live; }).length : 0;
   },
 
   // The terminal is drawn whole on most events, and what waits for his hand is drawn with it, in the dock under it.
@@ -761,13 +800,18 @@ const Agent = {
   stick() { const box = $ag('ag-out'); if (box) box.scrollTop = box.scrollHeight; },
 
   // One token must not redraw the screen: only the live entry's words and the
-  // live line move.
+  // live line move. Nor must a thought (2026-10-14, WHAT'S LEFT C70): a thinking
+  // seat sends hundreds of fragments, and each moves only the live line; the
+  // whole terminal is drawn again when the entry itself has moved -- its first
+  // words, or a seat's thought folding into it.
   paintLive() {
     const en = this.live();
     if (!en) return;
+    const t = en.cn && en.cn.turn;
     const pre = $ag('ag-o-' + en.id);
-    if (!pre) { this.paintOut(); return; }
-    pre.textContent = this.textOf(en);
+    const folds = this.foldsOf(t);
+    if ((!pre && !(t && t.lastKind === 'think')) || en._folds !== folds) { en._folds = folds; this.paintOut(); return; }
+    if (pre) pre.textContent = this.textOf(en);
     const live = $ag('ag-live');
     if (live) live.innerHTML = this.liveHtml();
     const box = $ag('ag-out');

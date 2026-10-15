@@ -1820,3 +1820,59 @@ func TestTheCardsAreColoredByWhatTheyAreFor(t *testing.T) {
 		}
 	}
 }
+
+// A SEAT'S THOUGHT, LIVE AND THEN FOLDED (2026-10-14, WHAT'S LEFT C70; his words: "I would like the streaming of the
+// processes instead of just chunks of text being dumped ... so i can actually see the turns within the terminal", and on
+// his card: "live, then fold it down"). The door hands the glass each fragment of a seat's thought as a think event. The
+// turn keeps it on its seat and never in the answer; the terminal draws the thinking seat's thought live and dimmed under
+// the live line, and folds it into the entry as "<seat> thought N s" once the seat speaks, a click opening it; the Run
+// tab's floor does the same from the same reading (Run.thoughtOf), and its wire counts the fragments as it counts the
+// tokens. A fragment moves only the live line: the terminal is drawn again when the entry itself has moved.
+func TestAThoughtIsDrawnLiveAndFolded(t *testing.T) {
+	council := page(t, "js/council.js")
+	src := page(t, "js/agent.js")
+	chat := page(t, "js/chat.js")
+	if !strings.Contains(council, "PROTOCOL 1's twenty") || !strings.Contains(council, "seat token think tool") {
+		t.Fatal("council.js's list of the wire's events does not name think")
+	}
+	absorb := funcOf(council, "  absorb(")
+	i := strings.Index(absorb, "case 'think':")
+	if i < 0 {
+		t.Fatal("the turn drops a seat's thought: absorb has no case for think")
+	}
+	think := absorb[i:]
+	if j := strings.Index(think[1:], "case '"); j >= 0 {
+		think = think[:j+1]
+	}
+	if !strings.Contains(think, "this.seatOf(t, d.seat)") || !strings.Contains(think, "s.thought") || strings.Contains(think, "t.answer") {
+		t.Fatal("a thought is kept somewhere other than the seat that thought it, or reaches the answer")
+	}
+	if !strings.Contains(absorb, "if (!s.spoke) s.spoke = Date.now();") || !strings.Contains(absorb, "t.lastKind = kind;") {
+		t.Fatal("the turn cannot tell when a seat stopped thinking and spoke, or what came last")
+	}
+	if of := funcOf(council, "  thoughtOf("); !strings.Contains(of, "live:") || !strings.Contains(of, "s.spoke") || !strings.Contains(of, "secs:") {
+		t.Fatal("Run.thoughtOf does not say whether a seat is thinking still, and for how long it thought")
+	}
+	if !strings.Contains(funcOf(src, "  liveHtml("), "this.liveThoughtHtml()") ||
+		!strings.Contains(funcOf(src, "  liveThoughtHtml("), "ag-pre dim") || !strings.Contains(funcOf(src, "  liveThoughtHtml("), "th.live") {
+		t.Fatal("the terminal does not draw the thinking seat's thought live, dimmed, under the live line")
+	}
+	folded := funcOf(src, "  thoughtsHtml(")
+	if !strings.Contains(funcOf(src, "  entryHtml("), "this.thoughtsHtml(en)") || !strings.Contains(folded, "thought ${th.secs} s") ||
+		!strings.Contains(folded, `data-act="thought"`) || !strings.Contains(folded, "ag-pre dim") {
+		t.Fatal("a seat's thought does not fold into its entry as one line, thought N s, that opens it dimmed")
+	}
+	if !strings.Contains(funcOf(src, "  wire("), "act === 'thought'") {
+		t.Fatal("a folded thought cannot be opened: the terminal's click handler does not know it")
+	}
+	if live := funcOf(src, "  paintLive("); !strings.Contains(live, "t.lastKind === 'think'") || !strings.Contains(live, "this.foldsOf(t)") {
+		t.Fatal("a thought's every fragment would redraw the whole terminal, or a thought would never fold into its entry")
+	}
+	floor := funcOf(chat, "  paintFloor(")
+	if !strings.Contains(floor, "Run.thoughtOf(t, i)") || !strings.Contains(floor, "thought ${th.secs} s") || !strings.Contains(floor, "data-think") {
+		t.Fatal("the Run tab's floor does not draw a seat's thought live and then folded")
+	}
+	if !strings.Contains(funcOf(chat, "  paintWire("), "d._kind === 'think'") {
+		t.Fatal("the folded wire lists a thought's every fragment instead of counting them")
+	}
+}

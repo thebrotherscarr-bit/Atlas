@@ -89,6 +89,8 @@ const Chat = {
     if (!box) return;
     const t = Run.turn;
     const seats = (t && t.seats) || [];
+    // A seat's folded thought is opened by hand, and a new turn starts every one shut again (C70).
+    if (this._mt !== t) { this._mt = t; this.mused = {}; }
     if (n) n.textContent = seats.length ? seats.length + ' took the floor' : '';
     if (!seats.length) {
       box.innerHTML = `<div class="empty-text">No seat has spoken yet.</div>`;
@@ -97,21 +99,36 @@ const Chat = {
     box.innerHTML = seats.map((s, i) => {
       const shut = this.shut[i] === true;
       const words = (s.text || '').trim();
+      // A SEAT'S THOUGHT ON THE FLOOR (2026-10-14, WHAT'S LEFT C70; on his card, "live, then fold it down"): drawn live and
+      // dimmed while the seat thinks, then folded to one line, "thought N s", that opens it -- read off Run.thoughtOf, as
+      // the terminal reads it, so the two cannot disagree.
+      const th = Run.thoughtOf(t, i);
+      const thought = !th ? '' : th.live
+        ? `<div class="wb-words muted">${escHtml(th.text.trim())}</div>`
+        : `<div><button type="button" class="ag-link" data-think="${i}">${this.mused[i] ? '&#9662;' : '&#9656;'} thought ${th.secs} s</button></div>` +
+          (this.mused[i] ? `<div class="wb-words muted">${escHtml(th.text.trim())}</div>` : '');
       return `<div class="wb-seat${shut ? ' shut' : ''}">
         <button class="wb-seat-head" type="button" data-seat="${i}">
           <span class="wb-seat-name">${escHtml(s.seat || 'seat')}</span>
           <span class="wb-seat-model">${escHtml(s.model || '')}</span>
-          <span class="wb-seat-n">${words.length ? words.length + ' chars' : 'silent so far'}</span>
+          <span class="wb-seat-n">${words.length ? words.length + ' chars' : th && th.live ? 'thinking' : 'silent so far'}</span>
         </button>
-        ${shut ? '' : `<div class="wb-words">${words
+        ${shut ? '' : thought + (words || !th ? `<div class="wb-words">${words
           ? escHtml(words)
-          : '<span class="muted">nothing on the wire from this seat yet</span>'}</div>`}
+          : '<span class="muted">nothing on the wire from this seat yet</span>'}</div>` : '')}
       </div>`;
     }).join('');
     box.querySelectorAll('[data-seat]').forEach(b => {
       b.onclick = () => {
         const i = +b.dataset.seat;
         this.shut[i] = !this.shut[i];
+        this.paintFloor(box, n);
+      };
+    });
+    box.querySelectorAll('[data-think]').forEach(b => {
+      b.onclick = () => {
+        const i = +b.dataset.think;
+        this.mused[i] = !this.mused[i];
         this.paintFloor(box, n);
       };
     });
@@ -172,16 +189,20 @@ const Chat = {
         `<div class="wb-ev"><span class="wb-kind">${escHtml(String(d._kind))}</span>` +
         `<code>${escHtml(JSON.stringify(d))}</code></div>`).join('');
     } else {
-      let frames = 0, chars = 0;
+      // A run of tokens, or of a seat's thought (C70), is counted as one line when folded.
+      let kind = '', frames = 0, chars = 0;
       const out = [];
       const flush = () => {
         if (!frames) return;
-        out.push(`<div class="wb-ev wb-dim"><span class="wb-kind">token</span>` +
+        out.push(`<div class="wb-ev wb-dim"><span class="wb-kind">${kind}</span>` +
           `<code>${frames} frames · ${chars} chars · shown whole on the floor</code></div>`);
         frames = 0; chars = 0;
       };
       for (const d of evs) {
-        if (d._kind === 'token') { frames++; chars += (d.text || '').length; continue; }
+        if (d._kind === 'token' || d._kind === 'think') {
+          if (d._kind !== kind) { flush(); kind = d._kind; }
+          frames++; chars += (d.text || '').length; continue;
+        }
         flush();
         out.push(`<div class="wb-ev"><span class="wb-kind">${escHtml(String(d._kind))}</span>` +
           `<code>${escHtml(this.oneLine(d))}</code></div>`);
