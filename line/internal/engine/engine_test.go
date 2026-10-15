@@ -339,10 +339,60 @@ func TestStubEngineProcess(t *testing.T) {
 				say(map[string]any{"event": "delivery", "text": string(b)})
 				continue
 			}
+			if row["text"] == "think" {
+				// A thinking seat's turn (2026-10-14, C70): more thought than a
+				// run keeps, then a tool's event, then the delivery.
+				for i := 0; i < KeptEvents+50; i++ {
+					say(map[string]any{"event": "think", "seat": "Router", "text": "hm "})
+				}
+				say(map[string]any{"event": "tool", "action": "ground_list"})
+				say(map[string]any{"event": "delivery", "text": "done"})
+				continue
+			}
 			say(map[string]any{"event": "delivery", "text": row["text"]})
 		}
 	}
 	os.Exit(0)
+}
+
+// THE THOUGHT CROSSES THE DOOR LIVE AND IS NEVER KEPT (2026-10-14, WHAT'S LEFT
+// C70). The engine sends each fragment of a seat's thought as a `think` event,
+// hundreds in a thinking seat's turn. The glass is handed every one as it is
+// read (the sink), and the run remembers none -- the tokens' own rule -- so
+// thoughts never fill the KeptEvents a run keeps and push a tool's event out.
+func TestAThoughtCrossesLiveAndIsNeverKept(t *testing.T) {
+	e, err := Open("w", t.TempDir(), stubEngine(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = e.Close() })
+	seen := 0
+	res, err := e.Run("think", "", "", Head{}, func(ev Event) {
+		if ev.Kind() == "think" {
+			seen++
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seen != KeptEvents+50 {
+		t.Fatalf("the glass was handed %d thoughts of %d; every one goes to it live", seen, KeptEvents+50)
+	}
+	tool := false
+	for _, ev := range res.Events {
+		switch ev.Kind() {
+		case "think":
+			t.Fatal("a thought was kept in what the run remembers")
+		case "tool":
+			tool = true
+		}
+	}
+	if !tool || res.Dropped != 0 {
+		t.Fatalf("the tool's event was pushed out by thoughts (kept %v, dropped %d)", tool, res.Dropped)
+	}
+	if res.Final.Kind() != "delivery" {
+		t.Fatalf("the turn did not end in its delivery: %v", res.Final)
+	}
 }
 
 // stubEngine is the command that runs TestStubEngineProcess as a child.

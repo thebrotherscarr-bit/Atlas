@@ -522,6 +522,13 @@ func (e *Engine) pump(sink func(Event)) (Result, error) {
 			continue
 		case "text":
 			continue
+		case "think":
+			// A SEAT'S THOUGHT (2026-10-14, WHAT'S LEFT C70): each fragment, as the
+			// engine reads it, a `think` event -- hundreds in a thinking seat's turn.
+			// The sink above has handed it to the glass; a run remembers what it did,
+			// not how it mused, so a thought is never kept and never crowds out the
+			// events that are.
+			continue
 		}
 		if len(r.Events) < KeptEvents {
 			r.Events = append(r.Events, ev)
