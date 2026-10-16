@@ -2,6 +2,13 @@
 
 *One sitting. Operator holds gate. Append-only witnesses.*
 
+> **A one-sitting plan of 2026-09-08 (sitting 79), kept as written (LAW 1).** Its
+> agent docs and skills were made then (`agents/docs/`, `skills/`); its counts and
+> commands are of that day.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## Status snapshot (2026-09-08, sitting 79)

@@ -51,6 +51,16 @@ on 2026-09-09 — the single reach outside the ground, at his word.*
 lands in `Desktop\Research`** (his word, 2026-09-09, and §9 ruling 3).
 Nothing in `Archive\atlas` is written by a hand (ESTATE LAW 2).*
 
+> **Noted 2026-10-16 (the core's documentation pass); everything here is kept as
+> written (LAW 1).** Two of the plans the table above reconciles were rewritten that
+> day on the operator's word: the core's `SYSTEM_DESIGN.md` is now the recorder and
+> the harness built on it (the core's WHAT'S LEFT H31), and atlas's `LAUNCH_PLAN.md`
+> is that harness's plan; neither carries what it did on 2026-09-08. The glass this
+> spec defines became one front page from the operator's own design (WHAT'S LEFT
+> H14, H16) and is Aurora, kept as it is (2026-10-13). Its counts (62 tools, 37
+> skills) are of 2026-09-09; the door serves 95 tools today (`TOOL_PERMISSIONS.md`).
+> Whether this file still governs atlas, and how, is his to say.
+
 ---
 
 ## 0. The two systems, in one paragraph each

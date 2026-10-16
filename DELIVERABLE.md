@@ -5,6 +5,14 @@
 **Covenant:** 1512741580b7239b
 **License:** MIT
 
+> **A snapshot of 0.1.5 (2026-09-12), kept as written (LAW 1).** Atlas stands at
+> v0.2.5 since 2026-10-10: the door serves 95 tools (`docs/TOOL_PERMISSIONS.md`),
+> the glass is one front page with its Inspector (the core's RUNBOOK, "Running it
+> from the dashboard"), and a release is cut by the release flow in the Workflows
+> tab, not by `release.ps1`. This file is rewritten at the deliverable's own pass
+> (the core's WHAT'S LEFT I5); until then, read it as the record of 0.1.5.
+> (2026-10-16, the core's documentation pass.)
+
 ---
 
 ## Proven

@@ -1,3 +1,6 @@
+# Stamped 0.1.0+f1 and kept as written (LAW 1); not brought to the door as it is.
+# The door's tools today are listed in TOOL_PERMISSIONS.md (generated, held current
+# by a test). (2026-10-16, the core's documentation pass.)
 openapi: "3.1.0"
 info:
   title: Atlas MCP HTTP API

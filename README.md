@@ -2,7 +2,7 @@
 
 A polyglot agent provenance system with cryptographic chain integrity, structural governance, and a modern observability webapp.
 
-**Version:** 0.1.8  
+**Version:** in `VERSION` (v0.2.5 at the last cut, 2026-10-10)  
 **Covenant:** 1512741580b7239b  
 **License:** MIT
 
@@ -19,7 +19,7 @@ One exception, since 2026-09-16 and on the operator's ruling: the Dashboard's ow
 | `can_approve` is always `false` | Structural grammar — approval lives in the operator's hand alone |
 | Append-only | Fold, never delete — every change leaves a witness |
 | Chain integrity | SHA-256 hashing links traces to their inputs/outputs |
-| Forbidden verbs | Absent by construction — never written, never parsed |
+| Forbidden verbs | No agent approves, and none commits, pushes or merges alone: the door's git tools run from the operator's glass or wait on his card (a merge on GitHub allowed on his word, 2026-10-09) |
 | Multi-tenancy | MCP carries ALL projects; every call names its ground |
 | Zero external deps | No crates.io, no npm, no pip, no Go modules beyond stdlib |
 
@@ -30,8 +30,8 @@ atlas/
 ├── core/           Rust crate: store, prov-hash, ground-prove, atlas-api
 ├── store/          Rust crate: sqlite persistence
 ├── apps/atlas/     Rust CLI binary
-├── line/           Go workspace: atlas-mcp, atlas-tui, atlas-town, atlas-door
-├── webapp/         Go + vanilla JS: observability GUI (port 8091)
+├── line/           Go workspace: atlas-mcp, atlas-tui, atlas-town, atlas-door, atlas-vc
+├── webapp/         Go + vanilla JS: the glass, the front page (port 8091)
 ├── tools/          Python: verifier scripts (stdlib-only)
 ├── specs/          Specification documents
 ├── agents/         .us agent declarations (40 seats)
@@ -45,11 +45,12 @@ atlas/
 | Binary | Language | Description |
 |---|---|---|
 | `atlas` | Rust | CLI: version, ground-init, ground-prove |
-| `atlas-mcp` | Go | MCP server: 82 tools + HTTP + GUI on :8090 |
+| `atlas-mcp` | Go | The door: MCP and HTTP on :8090; its tools in `docs/TOOL_PERMISSIONS.md` |
 | `atlas-tui` | Go | Terminal UI: dashboard, traces, agents, chain view |
 | `atlas-town` | Go | Town square: multi-agent coordination |
 | `atlas-door` | Go | Door: per-module MCP gateway |
-| `atlas-webapp` | Go | Observability webapp on :8091 |
+| `atlas-vc` | Go | `.us` declarations as W3C verifiable credentials (`specs/SPEC_VC.md`) |
+| `atlas-webapp` | Go | The glass: the front page on :8091 -- one terminal, its Inspector, every card |
 
 ## Quick Start
 
@@ -101,25 +102,26 @@ cd webapp ; go run .
 ### Prove
 
 ```powershell
-cargo test --workspace
-cd line ; go test ./... ; cd ..
-go run ./cmd/atlas-mcp --prove
-.venv\Scripts\python.exe tools\cut_canon_vectors.py --verify
-.venv\Scripts\python.exe tools\cut_chain_verdicts.py --verify
-.venv\Scripts\python.exe tools\cut_us_vectors.py --verify
-.venv\Scripts\python.exe tools\fold_agents.py --verify
+python tests\prove.py            # THE BALL: every leg atlas has, one verdict (AGENTS.md)
+python tests\prove.py --live     # + the legs needing :8090 and Ollama
 ```
 
-## Webapp Features
+The legs still run on their own (`cargo test --workspace`, `go test ./...` in
+`line` and `webapp`, `go run ./cmd/atlas-mcp --prove` in `line`, and any cutter
+in `tools\` with `--verify`); `tests/PROVING.md` is the map.
 
-- **Dashboard** — real-time stats, recent traces, agent roster
-- **Agent Registry** — browse all 40 enrolled seats with full .us declarations
-- **Trace Log** — chronological tool call history with SHA-256 hashes
-- **Tool Surface** — invoke any MCP tool with JSON args
-- **Evaluations** — score and pass/fail traces against criteria
-- **Messages** — Discord/Slack/WhatsApp adapter framework
-- **Settings** — MCP connection, eval thresholds, provenance config
-- **SSE** — real-time event stream for live updates
+## The glass
+
+- **The front page** — one terminal with five tabs (Agent, Bash, Python,
+  PowerShell, Aider) and an Inspector beside it: Run, What's left, Aider Pair,
+  GitHub, Audit Ledger, Workflows, Registry & Docs, Laws, Settings
+- **Cards** — every write that waits for the operator is a card pinned at the
+  foot of the terminal, in every tab
+- **Live** — each seat's tokens and its thought as they arrive (SSE)
+- **Locked** — a PIN, this computer only (127.0.0.1)
+
+The Trace Log, Messages and the Playground still draw at their own addresses;
+nothing on the front page reaches them (the core's WHAT'S LEFT D19).
 
 ## Agent System
 
@@ -142,12 +144,13 @@ Every agent carries:
 
 | Spec | Location | Status |
 |---|---|---|
-| SPEC.md | `specs/SPEC.md` | Current |
-| SPEC_STORE.md | `specs/SPEC_STORE.md` | Current |
 | SPEC_US.md | `specs/SPEC_US.md` | Current |
 | SPEC_COMMANDS.md | `specs/SPEC_COMMANDS.md` | Current |
-| SPEC_TUI.md | `specs/SPEC_TUI.md` | Current |
-| THE_ROAD.md | `THE_ROAD.md` | Active roadmap |
+| LAUNCH_PLAN.md | `LAUNCH_PLAN.md` | The road (2026-10-16) |
+| THE_ROAD.md | `THE_ROAD.md` | The stone road, finished |
+
+`specs/SPEC.md`, `SPEC_STORE.md` and `SPEC_TUI.md`, named here until 2026-10-16,
+are not in `specs/`; `docs/README.md` lists what is.
 
 ## The Laws
 
@@ -162,7 +165,7 @@ Every agent carries:
 
 ## Documentation
 
-See `docs/README.md` for the full index (54+ documents).
+See `docs/README.md` for the full index.
 
 ## Contributing
 

@@ -1059,3 +1059,15 @@ honest + zero refusal writes · no source-ground writes. VERSION
 unchanged `0.1.1+f1`.
 
 Next stone on ruling: N6 SaaS lineup (full multi-user auth).
+
+---
+
+## 2026-10-16 — the log stops here, by the record (written at the core's documentation pass)
+
+Nothing was appended after 2026-09-09, and N6, named above as the next stone, has
+no block here. The work since -- the door's holds and the glass's lock, the front
+page with its shell tabs, Aider's wall, the flow engine's loops, GitHub through the
+glass, and the cuts to v0.2.5 -- is witnessed in `CHANGELOG.md` and in the core's
+DAYBOOK and HANDOFF, as THE_ROAD said on 2026-09-17. The road now is
+`LAUNCH_PLAN.md`. Everything above stays as written; this log is append-only
+(LAW 1).

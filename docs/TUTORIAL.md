@@ -2,6 +2,12 @@
 
 *Five exercises, in order, each teaching one discipline of this build.*
 
+> **Written 2026-09-07 and kept as written (LAW 1); not brought to the system as it
+> is.** Its commands, counts and expected outputs are of that week.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## Exercise 1 — Verify the Chain

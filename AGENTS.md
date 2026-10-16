@@ -1,7 +1,10 @@
 # AGENTS — atlas sessions
 
-**Preflight:** Read `THE_ROAD.md` (what's NEXT) → `SEAT_LOG.md` tail (what
-the last seat landed) → work ONE stone → leave your toll.
+**Preflight:** Read the core's `CLAUDE.md` and `law/` (the rules every hand
+keeps) → its `WHATS_LEFT.md`, the Now line first (what is open, and where we
+are working today) → `LAUNCH_PLAN.md` (the road) → work ONE piece → its
+CHANGELOG entry. (Until 2026-10-16 this read THE_ROAD and SEAT_LOG's tail;
+SEAT_LOG stopped on 2026-09-09.)
 
 ---
 
@@ -11,7 +14,7 @@ the last seat landed) → work ONE stone → leave your toll.
 |---|---|---|
 | Rust stable | `~\.cargo\bin` (**off PATH** — prepend it) | spine: `core\`, `store\`, `apps\atlas` |
 | Go 1.26+ | PATH | THE LINE: `line\` (atlas-mcp) |
-| Python 3.14 | `.venv\Scripts\python.exe` | stdlib-only tools in `tools\` |
+| Python 3.10+ | `python` (no venv: `tests/prove.py` uses `sys.executable`) | stdlib-only tools in `tools\` |
 
 **Zero external dependencies is standing law**: no crates.io, no npm, no
 pip packages, no Go modules beyond stdlib. Hand-roll or refuse.
@@ -39,11 +42,11 @@ it prints the exact path that would answer it. Only `FAIL` exits red.
 The legs also still run on their own:
 
 ```powershell
-cargo test --workspace                                # 56 strokes
+cargo test --workspace                                # each prints its own tally
 cd line ; go build ./... ; go test ./... ; cd ..
-cd line ; go run ./cmd/atlas-mcp --prove ; cd ..      # 125 strokes exit 0
+cd line ; go run ./cmd/atlas-mcp --prove ; cd ..      # its battery, exit 0
 python tools\<any_cutter>.py --verify
-cargo run -q -p atlas -- --version                    # 0.1.8
+cargo run -q -p atlas -- --version                    # the number in VERSION
 ```
 
 A stone is DONE only when its ACCEPTANCE row passes AND
@@ -65,7 +68,7 @@ A stone is DONE only when its ACCEPTANCE row passes AND
 
 ## The household
 
-37 enrolled seats (`agents\*.us`, folded via `tools\fold_agents.py`) —
+40 enrolled seats (`agents\*.us`, folded via `tools\fold_agents.py`) —
 Twelve Tribes under manjuel, council personas, lineage actors, gate,
 seven doctrine seats. manjuel holds the charge as the operator's serf;
 the operator is the approval. Undeclared actors get refused context by

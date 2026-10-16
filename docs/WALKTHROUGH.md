@@ -3,6 +3,14 @@
 *For the reader who wants to understand what Atlas is, why it is shaped
 this way, and how every piece connects. Read once; keep as reference.*
 
+> **Written 2026-09-07, when atlas stood beside the grounds it reconciled, outside
+> this ground; kept as written (LAW 1).** Its laws and stones stand as the record of
+> that build. Its Law 2 predates the door's git tools and the merge on GitHub the
+> operator allowed (2026-10-09).
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## 1. The Problem Atlas Solves

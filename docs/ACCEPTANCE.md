@@ -2,6 +2,13 @@
 
 **Version:** 0.1.8
 
+> **Stamped 0.1.8 and kept as written (LAW 1); not brought to the system as it is.**
+> It is the pipeline and workflow sheet of that version. Acceptance now lives in the
+> core's SPEC, section 4, and in the check `../LAUNCH_PLAN.md` names for each piece.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## Pipeline Acceptance

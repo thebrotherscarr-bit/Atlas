@@ -5,7 +5,7 @@
 If you discover a security vulnerability in ATLAS, please report it responsibly:
 
 1. **Do NOT** open a public GitHub Issue
-2. Email the maintainer directly (see package.json or Cargo.toml for contact)
+2. Reach the maintainer privately, through the repository owner's GitHub profile
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -31,7 +31,7 @@ ATLAS is a governance and provenance system. Security-relevant areas:
 
 ## Scope Limitations
 
-ATLAS is alpha software (0.1.x). It is not designed for:
+ATLAS is alpha software (0.x; the number is in `VERSION`). It is not designed for:
 - Production workloads requiring SOC 2 compliance
 - Environments with untrusted network access
 - Systems requiring authentication/authorization beyond operator gate
