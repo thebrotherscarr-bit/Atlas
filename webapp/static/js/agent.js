@@ -316,6 +316,9 @@ const Agent = {
       } else if (act === 'hold-yes' || act === 'hold-no') {
         const h = this.holds.find(x => x.id === b.dataset.id);
         if (h) this.holdAnswer(h, act === 'hold-yes' ? 'approve' : 'deny');
+      } else if (act === 'gate-yes' || act === 'gate-no') {
+        // The council's yes-or-no, answered by a press (gateHtml): exactly what typing y or n in its field would send.
+        this.answer(act === 'gate-yes' ? 'y' : 'n');
       }
     });
     dock.addEventListener('submit', (e) => {
@@ -662,6 +665,12 @@ const Agent = {
     // ITS COLOR IS WHAT IT IS FOR (2026-10-12, his word: "Simplicity is key here"): green or red as its needs_answer
     // said, amber the card as it was. Only those two words become a class.
     const color = { green: ' green', red: ' red' }[(Run.turn && Run.turn.waitingColor) || ''] || '';
+    // A YES-OR-NO IS TWO BUTTONS (2026-10-16, his word: "I DONT HAVE TO TYPE ANYTHING"): a question that ends "[y/n]" -- the
+    // driver's, before a write -- is answered by a press, Approve as "y" and Deny as "n" (wire()); any other keeps its field.
+    if (/\[y\/n\]\s*$/i.test(asking)) {
+      return `<div class="ag-gate${color}"><b>The council is asking</b><div class="ag-gate-q">${escHtml(asking)}</div>
+      <div class="ag-btns"><button type="button" class="ag-btn go" data-act="gate-yes">Approve - run it</button><button type="button" class="ag-btn no" data-act="gate-no">Deny</button></div></div>`;
+    }
     return `<div class="ag-gate${color}"><b>The council is asking</b><div class="ag-gate-q">${escHtml(asking)}</div>
       <form id="ag-gate-form"><input type="text" autocomplete="off" placeholder="Your answer - nothing is assumed on your behalf" /><button class="ag-btn go" type="submit">Answer</button></form></div>`;
   },
