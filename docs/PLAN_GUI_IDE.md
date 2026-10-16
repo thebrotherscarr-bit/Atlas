@@ -3,6 +3,14 @@
 *How the operator interacts with Atlas: a browser-based control plane,
 CLI enhancements, and IDE integration. Written 2026-09-07.*
 
+> **Kept as written (LAW 1).** The GUI it plans was built another way: `atlas-webapp`,
+> the glass on :8091, rebuilt as one front page from the operator's own design (the
+> core's WHAT'S LEFT H14, H16), named Aurora and kept as it is (2026-10-13). Its IDE
+> plugins were never built.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## 1. Design Principles

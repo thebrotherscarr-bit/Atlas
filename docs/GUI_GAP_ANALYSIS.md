@@ -2,6 +2,14 @@
 
 *What the GUI has, what the market expects, what's missing. Simple.*
 
+> **Written before the glass of October, kept as written (LAW 1).** Its six pages and
+> its gaps are of that time; much of its build path was done since -- the front
+> page with its Inspector (the core's WHAT'S LEFT H14, H16), every call in the Run
+> tab, a Call on every tool in Registry & Docs, and the evals on the Audit Ledger.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## What Atlas IS

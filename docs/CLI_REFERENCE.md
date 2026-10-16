@@ -2,6 +2,14 @@
 
 *The complete command reference for all Atlas binaries.*
 
+> **Written at 0.1.0+f1 and kept as written (LAW 1); not brought to the system as it
+> is.** Its version strings, stroke counts and tool list are of that time (the door
+> serves 95 tools on 2026-10-16, `TOOL_PERMISSIONS.md`), and its forbidden tools
+> predate the door's git tools and the merge on GitHub (2026-10-09).
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## atlas (Rust Core)

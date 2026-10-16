@@ -7,6 +7,13 @@ witness. All proves run hermetic (CHARTER §6).*
 Legend: **GOAL** what the stone is for · **PROVEN MODE** exact commands ·
 **REVIEW GATE** what the operator sees before the next stone opens.
 
+> **Closed 2026-09-08, kept as written (LAW 1).** Every stone below is complete
+> and cut over (THE_ROAD). Nothing built since has a row here -- the front page,
+> the holds, the shell tabs, Aider's wall, the flow engine's loops. Acceptance now
+> lives in the core's SPEC, section 4, line by line, and in the check
+> `LAUNCH_PLAN.md` names for each piece. (2026-10-16, the core's documentation
+> pass.)
+
 ---
 
 ## P0 — Groundwork

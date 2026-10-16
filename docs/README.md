@@ -30,6 +30,18 @@
 | [COMPLIANCE.md](COMPLIANCE.md) | EU AI Act, SOC 2, ISO 42001 mapping |
 | [TOOL_PERMISSIONS.md](TOOL_PERMISSIONS.md) | Every tool the door offers: what it declares, who may call it (generated, held current by a test) |
 
+## Also in this folder
+
+| Document | Purpose |
+|---|---|
+| [SPEC_CONTROL_CENTER.md](SPEC_CONTROL_CENTER.md) | The glass's spec (its PRD) of 2026-09-08 |
+| [WORKFLOWS.md](WORKFLOWS.md) | Six agent workflows (stamped 0.1.8) |
+| [PIPELINES.md](PIPELINES.md) | Six CI/CD pipelines, a design (stamped 0.1.8; CI runs `prove.yml`) |
+| [OLLAMA_PROVER.md](OLLAMA_PROVER.md) | The Ollama prover (stamped 0.1.8) |
+| [ACCEPTANCE.md](ACCEPTANCE.md) | Pipeline acceptance criteria (stamped 0.1.8) |
+| [OPENAPI.yaml](OPENAPI.yaml) | The door's HTTP API (stamped 0.1.0+f1) |
+| [GUI_GAP_ANALYSIS.md](GUI_GAP_ANALYSIS.md) | The GUI against the market: what it has, what is expected, what is missing |
+
 ## Specifications
 
 | Document | Purpose |
@@ -44,6 +56,7 @@
 | [specs/SPEC_US_MESH.md](../specs/SPEC_US_MESH.md) | Mesh protocol spec |
 | [specs/SPEC_VC.md](../specs/SPEC_VC.md) | W3C VC adapter spec |
 | [specs/SPEC_US_SCHEMA.json](../specs/SPEC_US_SCHEMA.json) | JSON Schema for .us |
+| [specs/SPEC_MCP.json](../specs/SPEC_MCP.json) | The door's MCP spec, as JSON |
 
 ## Agent Documentation
 
@@ -75,6 +88,7 @@
 | [ADR/003-can-approve-false.md](ADR/003-can-approve-false.md) | Why structural refusal |
 | [ADR/004-socket-free-kernels.md](ADR/004-socket-free-kernels.md) | Why zero network in C++ |
 | [ADR/005-golden-master-parity.md](ADR/005-golden-master-parity.md) | Why golden-master testing |
+| [ADR/006-the-door-is-a-product.md](ADR/006-the-door-is-a-product.md) | Why the door is a product: `atlas-mcp` as a standalone MCP server |
 
 ## Rollback Notes
 
@@ -93,10 +107,11 @@
 
 | Document | Purpose |
 |---|---|
-| [../STATE_OF_BUILD.md](../STATE_OF_BUILD.md) | Append-only progress log |
+| [../LAUNCH_PLAN.md](../LAUNCH_PLAN.md) | The road: the harness built on the recorder, its order and its two weeks (2026-10-16) |
+| [../STATE_OF_BUILD.md](../STATE_OF_BUILD.md) | Append-only progress log (the stones, to 2026-09-09) |
 | [../SEAT_LOG.md](../SEAT_LOG.md) | Append-only activity log |
-| [../ACCEPTANCE.md](../ACCEPTANCE.md) | Testable acceptance criteria |
-| [../THE_ROAD.md](../THE_ROAD.md) | Current stone roadmap |
+| [../ACCEPTANCE.md](../ACCEPTANCE.md) | Testable acceptance criteria (the stones, closed 2026-09-08) |
+| [../THE_ROAD.md](../THE_ROAD.md) | The stone road, finished; it points at LAUNCH_PLAN |
 | [../CHANGELOG.md](../CHANGELOG.md) | Version history |
 
 ## Root Documents
@@ -108,14 +123,12 @@
 | [../THE_CATALOG.md](../THE_CATALOG.md) | Module inventory |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guide |
 | [../SECURITY.md](../SECURITY.md) | Security policy |
-| [../CLAUDE.md](../CLAUDE.md) | AI assistant guidance |
+| the core's `CLAUDE.md` | The operator's rules for any hand -- in the core repository, not this one |
 
 ## SDKs
 
-| Document | Purpose |
-|---|---|
-| [../sdk/python/README.md](../sdk/python/README.md) | Python SDK reference |
-| [../sdk/npm/README.md](../sdk/npm/README.md) | npm package reference |
+None in this repository. The two links that stood here (`../sdk/python`, `../sdk/npm`)
+named folders atlas does not hold (found 2026-10-16).
 
 ## Testing
 
@@ -125,4 +138,4 @@
 
 ---
 
-*54 documentation files + 40 agent docs + 3 skill docs. All verified 2026-09-08.*
+*Listed against the folder on 2026-10-16 (the core's documentation pass); the 2026-09-08 count it replaced is in git.*

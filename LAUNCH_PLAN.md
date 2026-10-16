@@ -1,230 +1,132 @@
-# LAUNCH_PLAN — the appliance, the business, the week
+# LAUNCH_PLAN — the harness, built on the recorder
 
-*Written 2026-09-08, end of day, at the operator's word: "check everything,
-seatlogs, handoffs, etc. write me up a plan. set it in the
-research/worlds/atlas … write me up a full launch plan." Placed in
-`worlds\atlas\` — the world he named for atlas's pull, read-only by
-position, never an index root, source only.*
-
-*What was read whole today: Manjuel's `CLAUDE.md`, every file in `law/`,
-`SPEC.md`, `SEAT_LOG.md` (every toll), `HANDOFF.md` (every block),
-`memory.md`, DAYBOOK's last entry, CHANGELOG's Unreleased, TASKS' open
-lines, `README`, `QUICKSTART`, `rack.md`, `agents.md`, `pipelines.md`,
-`DESIGN.md`, `REFUSALS.md`, `BUILDPATH.md`, every module in `manjuel/`;
-atlas's `CLAUDE.md`, `AGENTS.md`, `CHARTER.md`, `THE_ROAD.md`,
-`DELIVERABLE.md`, `CHANGELOG.md`, `HANDOFF.md`, the tails of `SEAT_LOG.md`
-and `STATE_OF_BUILD.md`, `SPEC_COMMANDS`, the GUI gap analysis and the GUI
-plan, `atlas-tui/main.go`, `webapp/db/db.go`; all of `worlds\TBC` outside
-the vendored repos. NOT read whole: Manjuel's `DAYBOOK.md`, `CHANGELOG.md`
-and `TASKS.md` beyond the parts named; atlas's `SEAT_LOG.md` and
-`STATE_OF_BUILD.md` beyond their tails; `worlds\manjuel`, `worlds\sewder`.
-Nothing asserted below rests on the unread parts.*
+*Rewritten 2026-10-16 on the operator's word: "Rewrite the system design and launch_plan. Supersede spec 8.2, on my word";
+and of what it is for: "This is the plan, we are doing the harness. we built the recorder, its perfect, now we build the
+harness on top of it." The plan it replaces (2026-09-08) stands in git at atlas `5648290`. What the harness is: the core's
+SYSTEM_DESIGN.md. What is open, item by item: the core's WHATS_LEFT.md -- H31 is the item, and its Now line says where we
+are working today.*
 
 ---
 
-## 0. Where it stands tonight — verified against the disk
+## 0. Where it stands, 2026-10-16 — read off the disk
 
 | thing | state | proof |
 |---|---|---|
-| Manjuel engine | 0.1.6 built, unsealed; **1,854 strokes / 60 smoke on the mirror**; `manjuel/serve.py` (the headless door) landed 14:30 | `CHANGELOG.md` Unreleased; `sessions/hands.jsonl` H…142045 |
-| Manjuel's own stamp | **`tests/last_run.json` says 1697** — the mirror runs never stamp the ground; the boot report reads back a number 157 behind | `tests/last_run.json` 08:18; `run_history.jsonl` |
-| version strings | `manjuel/__init__.py` and `pyproject.toml` still **0.1.4** while 0.1.5 and 0.1.6 are built | both files |
-| sittings | 98, closed; **12 numbering gaps now** (98 opened the twelfth; `SPEC.md:177` says 11); 5 unmarked duplicates (22, 26, 40, 42, 57), 5 `(re-tolled)` | `SEAT_LOG.md` |
-| hands ledger | 9 hands today; **one orphan open: `H20260908-130404`** (his own, never closed) → the release gate refuses until it is closed by `--id` | `sessions/hands.jsonl` |
-| HANDOFF.md | newest block 2026-09-08 (L673); **`START AT` pointer (L17) still says 2026-09-07**; module count says 26 (disk: 27 + `__init__`); "Archive/atlas … untouched" is no longer true | `HANDOFF.md` |
-| the record after 12:55 | `serve.py`, `SPEC_CONTROL_CENTER.md`, `SYSTEM_DESIGN.md`, the TBC scrub, TBC's move to `worlds/`, the 1,854 run — **in `hands.jsonl` and CHANGELOG only**; not in SEAT_LOG, HANDOFF, DAYBOOK or memory | the three files' mtimes |
-| memory.md | 11 entries; 4–6 are one rule three times (the s63 dedup fault, kept under LAW 1); 7 is empty; 11 is the defective `index_ground` entry HANDOFF names | `memory.md` |
-| index | **known clean**: 863 docs / 4,572 chunks, rebuilt 08:18 in 294 s; HANDOFF's "not known clean" is stale | `logs/2026-09-08_081850_index_ground_rebuild.md` |
-| atlas | `0.1.1+f1`, all stones P0–G witnessed; git is his hand; `.gitattributes` still missing there (fixtures show as modified on any clone); `atlas-tui` shells to `curl`; `webapp/db` is a second truth | `Archive\atlas` |
-| the business | `worlds\TBC`: four billed visits ($575), estimate TBC-1005 ($1,185) outstanding, templates in three generations with ten contradictions, an estimate CLI already in the seam's shape, a hub prototype with its truth in a browser tab; names scrubbed (B), **second pass owed** | `worlds\TBC`, `SYSTEM_DESIGN.md` App. A |
-| the specs | `SPEC_CONTROL_CENTER.md` (the glass, H-stones), `SYSTEM_DESIGN.md` (the appliance, T1–T8) at the Research root | root |
-| his profile | Me + 1; iPhone photos/voice, texts, Gmail, Zelle/Venmo, Instagram/Facebook; all eight headaches; **whole backend by 2026-09-15** | his answers, 2026-09-08 |
+| the recorder | whole and green: strokes 3942 of 3942 and smoke 72 of 72 (2026-10-14, 19:00 and 18:54) | the core's `tests/last_run.json`; core commit `49dd3e6` |
+| the repositories | core main at `7f69ab1`, atlas main at `5648290`; main protected in both since 2026-10-09 (a line of work, a pull request, green checks, his merge) | git log; GitHub |
+| the stack | the door on :8090 (build `b4b5d8ba`), the glass on :8091 (`fe726e95`), Ollama on :11434 | the running processes |
+| the last sitting | 382, closed 2026-10-14 19:06 | the core's `sessions/sessions.jsonl` |
+| the rack | 11 models on one 16 GB RX 6800 XT; the driver's model, `qwen3.5:9b`, is 6.6 GB | the core's `rack.md` |
+| the loop's law | LAW_003 THE LOOP (his word, 2026-09-17; sealed, link 5 of the chain): a loop is lawful with a declared ceiling, a stop a machine checks and every pass in the record, and the gate stands at the end | the core's `law/chain.jsonl` |
+| the driver | not built; H31 is written and its step (2) planned on his answers of 2026-10-16 | WHATS_LEFT H31 |
+| in its way | C71: Steward's call to the door gives up at 295 s while a strokes run takes about 313 s; and the door's `aider_run` answers his glass alone | WHATS_LEFT C71; H31 step (2)(e) |
+| the documents | behind what was built since early October; the documentation pass (I4) is pulled forward to now | the pass's findings, under F |
 
 ---
 
-## 1. Definition of LAUNCHED
+## 1. LAUNCHED, this time
 
-Three sentences, each provable:
+One sentence, provable: **he types a job and its check in the Agent tab, and Steward carries it to a green check through
+the engine's skills and the door's tools -- every write on his card, every pass in the record -- and the report is written
+from the record.**
 
-1. **The backend is whole**: every world opens its own sitting with its
-   own record; the estate's five pieces and the business's T1–T5 + T8 are
-   mirror-proved, CHANGELOG'd, and the standup runs live 10/10 inside
-   `worlds\TBC`. *(Target: Mon 2026-09-15.)*
-2. **A job runs through the record**: photos from the phone land hashed
-   and GPS-free in the drop; a visit is filed by his hand; the invoice is
-   numbered by the one counter; nothing was typed into a browser tab.
-   *(Target: the first visit after the 15th.)*
-3. **The campaign is live**: released material only, drafts refused by
-   the Guardian where they name what wasn't released, posted by his hand.
-   *(Target: the week of 2026-09-22, after the glass pages or from the
-   REPL — his call.)*
+Proved by three real jobs, live on his glass (H31 step (3)):
 
-The glass (T6) and the LAN gate (T7) are the front end and come after 1.
-They are the second week, not the first.
+1. **C71** -- a strokes run asked through Steward comes back with its tally. *(R1: the set-up mends C71 first.)*
+2. **A save and send of a finished line** -- its check: the line's pull request stands on GitHub with its checks green; the
+   merge stays his press.
+3. **HANDOFF's finding (bb)** -- the boot's gate finds the day's HANDOFF block; its check: a stroke shown red first, green
+   after.
+
+Then v0.2.6 is cut by his release flow (I2), and SPEC's first line gains what H31 says it never had: it finishes jobs.
 
 ---
 
-## 2. Before any piece — the record's honesty (his hand, 15 minutes)
+## 2. Week one, 2026-10-16 to 10-22: the documents, the set-up, the loop
 
-These are not builds; they are the lines a hand cannot land without his
-word, and the release gate will refuse the first tag until the first one
-is done.
+Each piece on his word, planned on What's left's Now line before it runs; each step in the glass's tabs with every write on
+his card (RULE 14); each proof on his glass (RULE 13).
 
-1. ~~close the orphan hand from 13:04~~ — **MOOT.** The hands ledger was
-   removed 2026-09-09 at the operator's word ("we didnt have it 3 days
-   ago"); `seatlog`'s CLI went with it, so there is no line to close.
-   `sessions/hands.jsonl` stays on disk, unwritten (LAW 1).
-2. `python tests\test_manjuel.py` and `python tests\smoke_cli.py` **on
-   his terminal** — the ground's stamp is 157 strokes stale; the mirror is
-   the hand's check, his terminal is the proof.
-3. `HANDOFF.md:17` `START AT` → `2026-09-08`; one block for the afternoon
-   (the door, the specs, the scrub, TBC to worlds) — or order a hand to
-   write it with the sitting closed.
-4. `SPEC.md:177` "11 gaps" → 12 (sitting 97 was never tolled).
-5. `manjuel/__init__.py` + `pyproject.toml` → `0.1.6` when he tags;
-   `tests\release.py --check v0.1.5` first, as DAYBOOK's next-session line
-   says.
-6. In `Archive\atlas`: `.gitattributes` with `* -text` before anyone
-   clones it.
+| # | piece | its check | waits on |
+|---|---|---|---|
+| 1 | **The documentation pass** (I4, pulled forward): SYSTEM_DESIGN.md, this file and SPEC 8.2 first; then every root document of both repositories read whole, its findings written under F before any mend, each mend on his card | every count and claim a document makes matches the disk; What's left's page stroke green | -- |
+| 2 | **The set-up: C71** (H31 (2)(a)): a strokes run asked through the door comes back with its tally, because the suites are the check for code | the strokes asked through `suite_run` in the Agent tab return their tally inside the turn | R1, R2 |
+| 3 | **The door change** (H31 (2)(e)): `aider_run` callable by the driver, every run parked for his card | a door test shown red first: the driver's call parks; his glass's call runs as it does today | his word, given: "the door change, i siad it, we do it" |
+| 4 | **The loop**, in the engine (H31 (2)(b) to (d) and (f)): a job is a task that names its check; the tools are read, write, measure and locate, with Aider for code; LAW_003's three bounds; the report from the record | strokes, each shown red first: a job with no check refused by name; a job with no ceiling refused; the stop reads the check's own evidence, never the seat's words; every pass in the transcript, the failed ones included | R3, R4 |
+
+A change to `manjuel/` is delivered with "restart required"; a change to the door or the glass is a built binary he places
+on his card. Each piece names what would go red if it came unplugged (RULE 11).
 
 ---
 
-## 3. Rulings owed — each one line, none blocking the first piece
+## 3. Week two, 2026-10-23 to 10-29: the three jobs, then the cut
+
+| # | piece | its check |
+|---|---|---|
+| 5 | **The three jobs**, live on his glass, one at a time (H31 step (3)) | each job's own check, as section 1 names it |
+| 6 | **The numbers**: each job's passes, minutes, tool calls, cards and model loads, read off the record | written on H31 and in the CHANGELOG |
+| 7 | **Another model, only if the numbers ask** (R5): Nemotron 3.5 Bolt on the job the 9B failed | the same job's check, in the same record |
+| 8 | **Folding on the numbers**: D18, H23 and H25 close with H31; any other layer the driver's runs show is not needed (the routing, the relay of seats) is put to him, then folded, never deleted (LAW 1) | the suites green after each fold |
+| 9 | **The cut**: v0.2.6, by his release flow | the release gate; GitHub's checks |
+
+If week one runs long, week two starts later; the order does not change.
+
+---
+
+## 4. Rulings owed -- each put to him on a card when its piece comes up
 
 | # | ruling | gates |
 |---|---|---|
-| R1 | the second-pass scrub of `worlds\TBC` (third-party names in the two non-competes; the business name in two base64 payloads; a live UUID + PIN; a P.O. box; initials; the Windows user path) — **go** | T1 |
-| R2 | `worlds\marketing` — that name, that place | the campaign |
-| R3 | the drop share's name and path (`\\box\drop\<world>`) | T4 |
-| R4 | the TBC world's seats (door on llama3.2, Router, Guardian, Clerk on phi4-mini) — or his names | T1 |
-| R5 | the ten template contradictions (`SYSTEM_DESIGN.md` App. A): Tier 2 identity · Tier 3 scope · materials rule (the $1,000 A.R.S. cap) · retainer · grandfather · notice/venue · "no property management" vs the old packets · the two non-competes · numbering · one persona per world | T8 |
-| R6 | LAN posture: bind the glass to the LAN with one operator secret (a departure from loopback-only) | T7 |
-| R7 | the weekly cadence phrase and day (he skipped it; proposed "weekly check-in", Monday) | — |
-| R8 | the Business context block (shown 2026-09-08) → `remember that:` in the REPL, his hand | — |
+| R1 | **The first proof job.** H31 makes C71 both the set-up and the first of the three jobs; once the set-up mends it, it cannot also prove the driver. Either the driver takes a different first job (the hand's suggestion: C73, a real fault in the engine's check of numbers, which a stroke can hold), or C71 is left for the driver and, until then, its check for code is the strokes' own stamp (`tests/last_run.json`) | piece 2 |
+| R2 | **C71's lever**: the skill's bound (`MANJUEL_SKILL_TIMEOUT`, 300 s) raised past the strokes' ~313 s, or a strokes run that answers at once and is read off its stamp | piece 2 |
+| R3 | **How a job is typed** in the Agent tab: the words for the goal and for its check | piece 4 |
+| R4 | **The first ceiling**: passes, minutes and tool calls per job; generous, tuned once it works | piece 4 |
+| R5 | **Bolt, only on a measured failure.** Its official build (24 GB) is made for llama.cpp and is larger than the card; no Ollama build was found on 2026-10-16; a 4 GB build is reported for 2026-10-23. A second runtime beside Ollama is his ruling | piece 7 |
+| R6 | **The cut**: his release flow and its three gates | piece 9 |
 
 ---
 
-## 4. Week one — the backend, two pieces a day
-
-Every piece: read what it touches whole → build on a mirror (no `.git`,
-no `logs/`, no `index/`) → strokes green → one CHANGELOG entry →
-"restart required" when `manjuel/` moved → stop. He says **go** per
-piece, or **run the list** once and reads each entry before the next.
-
-| day | piece A | piece B | needs |
-|---|---|---|---|
-| **Tue 9** | **`--ground <path>`** on `manjuel.py` (REPL and `--headless`); `cli.ROOT` stops being the package's parent; a temp world opens its own sitting and writes only its own record | **R1** — the second-pass scrub, inside `worlds\TBC` | §2.1–2; R1 |
-| **Wed 10** | **T1** `worlds\TBC` becomes a world: `agents/`, `skills/` (the `tbc_estimate` verbs wrapped; `intake`, `visit`, `invoice`, `packet`), `pipelines.md`, `ROUTES.md`, `law/` copied + sealed, `index_roots.txt` = itself; stroke: the origin's roots resolve nothing under it | **T2** the counter is the only issuer (`AUTO` only; hand-numbered documents imported with a ledger line; uniqueness stroked) | R4 |
-| **Thu 11** | **T3** the client ledger `clients\<id>\ledger.jsonl` + the fold (open items, next due, balance); the four visits and two estimates imported as the first hashed lines; the fold reproduces `seat_log.md`'s NEXT from the lines alone | **T5** access codes → `clients\<id>\access.env`; the packet prints "on file"; stroke: no export, index or transcript carries a code | — |
-| **Fri 12** | **T4** the drop: SMB share per world, `drop_ingest` (hash via `atlas` when pulled, sha256 in the meantime), EXIF/XMP stripped on arrival, whisper.cpp transcript → draft `visit` → `needs_answer`; filed only by his hand | *(carry-over slack — Friday is one piece on purpose)* | R3 |
-| **Sat 13** | **`worlds\marketing`** forked from the origin's declarations, `law/` sealed, roots = itself | **`release`** — one skill, the only path across; stroke: no marketing read/write path resolves into any other world, by name and by property | R2 |
-| **Sun 14** | **the marketing seats + `campaign` pipeline**: copywriter on the smallest model that can write a caption (SITTING LAW 3), Proofreader, Guardian (addresses, names, prices, anything not in a release line), Delivery; released set → drafts → posting calendar; refused drafts stay in the delivery | **the door drives a world**: the 60-case smoke through `--headless --ground worlds\TBC` on the mirror | — |
-| **Mon 15** | **T8** the rulings applied to the templates — one canonical document per kind under `worlds\TBC`, the drift folded, not erased | **the prove**: full strokes + smoke on his terminal; standup live inside `worlds\TBC` 10/10; `tests\release.py --check`; **backend LAUNCHED** | R5 |
-
-Dependencies are strict in two places only: nothing before `--ground`;
-the campaign needs `release`. Everything else can shuffle. Two a day holds
-only if he is there twice a day to say the word; one a day slips the
-15th to the 19th — say so on Wednesday, not Sunday.
-
----
-
-## 5. Week two — the front end, then the first job through it
-
-| day | piece | note |
-|---|---|---|
-| Tue 16 | **H0** pull `atlas` (Rust spine) and THE LINE into Research at the places he names; Research's `.gitattributes` covers them; `atlas-tui` off `curl` (`net/http`); `webapp/db` retired | first pulls from the artifact; each a place he names |
-| Wed 17 | **H2** THE LINE carries worlds: `env_*`, `run_*` (over `serve.py`'s wire), `route_*`; tenant = world | `atlas-mcp --prove` on temp grounds |
-| Thu 18 | **T6a** the glass's estate pages: Environments, Run, Record, Alerts, Law | `SPEC_CONTROL_CENTER.md` P0-5/7/9 |
-| Fri 19 | **T6b** the glass's TBC pages: clients · visits · photos · estimates · invoices · contracts · calendar · logbook — the hub's eight panels over THE LINE, reading the record, writing through `run_*` and `needs_answer` only | retires `localStorage['tbc_hub_v2']` |
-| Sat 20 | **T7** the LAN gate: LAN interface, one operator secret, self-signed TLS; the phone reaches the glass | R6 first |
-| Sun 21 | **the first job through the record** — his next scheduled visit: drop → file → checklist → invoice, no terminal | LAUNCHED §1.2 |
-
-## 6. Week three — the campaign, the money, the calendar
-
-- **Mon 22 – Wed 24**: the campaign — released material from the first
-  job(s), drafts, his posts. LAUNCHED §1.3.
-- **`worlds\books`**: Zelle/Venmo statement CSV in; the fold answers "how
-  much did I make"; taxes are a report, not a service.
-- **`worlds\clients`** (texts and Gmail): inbound as drops (screenshots,
-  `.eml`); outbound as `mailto:`/copy with the body filled — drafted,
-  never sent (RULE 4; the gate).
-- **calendar**: visits due from the tier cadence in each client's fold;
-  an `.ics` export he subscribes to on the phone — a file, not a service.
-- **chain 0.1.7 → 0.1.8** on its own path (the citation check's harder
-  half, the door's prose faults, parity on the tiers; workflows; the gate
-  in CI; SPEC §4 with no OPEN line).
-- **H3–H7** on atlas's path (traces/waterfall, TUI, evals/compare/replay,
-  the engine port behind golden-master parity, chain retired by fold note).
-
----
-
-## 7. The daily rhythm (the operator's, written down once)
-
-**Morning** — `python manjuel.py` (or the door, `--headless`);
-`/brief`; the standup once the pieces of the day are in; the pieces, two,
-each with its word; **close every sitting** (the toll, attended when he
-sat). **Monday** — "weekly check-in": the fold of every
-client (open items, next due, balance), the estate's last prove, the tags
-owed. **Never** — `git status` from a sandbox; an edit while a sitting is
-open; a folder unasked; a name in the record.
-
----
-
-## 8. Inputs — what comes in, as files, at no cost
-
-| source | in | out |
-|---|---|---|
-| iPhone photos / voice memos | the drop share (T4) — hashed, GPS-stripped, transcribed, drafted, filed by hand | — |
-| texts / iMessage | screenshots or pasted text into the drop | copy-to-clipboard drafts |
-| Gmail | `.eml` / pasted mail into the drop | `mailto:` with the body filled |
-| Zelle / Venmo | statement CSV → `worlds\books` | the invoice's memo text |
-| Instagram / Facebook | — | the campaign's drafts + calendar; he posts |
-| the calendar | the fold of tier cadences | an `.ics` file he subscribes to |
-
-Nothing reaches Apple, Google, Meta or a bank from the box. That is the
-product, not a limitation.
-
----
-
-## 9. Risks, and what to do the day each one shows
+## 5. Risks, and the move the day each one shows
 
 | risk | signal | move |
 |---|---|---|
-| pace | a day ends with one piece | say so; the 15th → 19th; the order does not change |
-| the hand keeps going | a piece lands with a second one attached | refuse it; RULE 10; the CHANGELOG says what was named |
-| the record goes stale | HANDOFF's pointer, the stamp, the versions (§2) | §2 first; a release gate that refuses is doing its job |
-| VRAM | the court past 600 s again | the seat bound holds; SITTING LAW 3 — smaller, measured |
-| client material leaks | any token in a transcript, index or delivery | the release verb and the Guardian are the only doors; a stroke per world proves the origin never indexes it |
-| the templates | a client signs the wrong generation | R5 on the 15th; one canonical document per kind |
-| the brother | two hands on one world | one writer per world by construction; a second seat is a second world or a second box |
+| the 9B loses the thread on a long chain | the record shows the same call again and again, a call with made-up arguments, or the ceiling reached | read it off the three jobs first; another model only on those numbers (SITTING LAW 3, R5) |
+| cards pile up | a job waits on him longer than it works | count the cards per job in the record and put the count to him; LAW_003 asks for the gate only at the landing, so whether each edit on a line of work keeps its own card is his ruling, never a standing yes (RULE 2) |
+| the driver's model and Aider's coder share one card | model loads take a job's minutes | measure first; one model at a time, `rack_unload` between |
+| a check weaker than its job | the check passes and the thing asked about is still there | each check names the thing itself and is shown red before the job runs (Nigel's rule: a change is kept only when the check passes and the thing asked about is gone) |
+| a long tool outruns its bound | another C71 | each bound read against the tool's measured time when the job is written (LAW 7) |
+| the hand keeps going | a piece lands with a second one attached | RULE 10: one piece, then stop |
+| the documents go stale again | a count or a claim no longer matches the disk | each piece writes its document lines in the same pass |
 
 ---
 
-## 10. Read in this order (for any hand, any morning)
+## 6. The road after the launch
 
-`CLAUDE.md` → `law/` (all) → `DAYBOOK.md` last entry → `HANDOFF.md`
-newest block → `CHANGELOG.md` Unreleased → `TASKS.md` open lines →
-`SPEC.md` → **this file** → `SYSTEM_DESIGN.md` → `SPEC_CONTROL_CENTER.md`
-→ `worlds\TBC\agents.md` and `seat_log.md` for the business → atlas's
-`CLAUDE.md`, `THE_ROAD.md`, `SPEC_SEAM.md` when a pull is named.
+Each on his word, in What's left's order:
+
+- **H30**, the honesty gate on every answer: the report and the record never part.
+- **H20**, a context cache: the window a long chain needs (with C70's step (2)).
+- **H2 to H4**, memory that comes back, notices and consolidates: the driver starts from what was decided before.
+- **I3 to I6**: v0.2.7 (both repositories keep what earlier versions promised), v0.2.8 (what is left of the documentation
+  pass), v0.2.9 (packaging and the deliverable), v0.3.0 (a full release, packaged and ready to deploy).
+- **The cage**: Microsoft's MXC or NVIDIA's OpenShell under the door's shell and Aider -- his call.
+- **H8**, a seat on a hosted route, only on a measured need; **H10**, a job that runs without a sitting he opened -- later,
+  and his.
 
 ---
 
-## 11. For the record — lines that belong in the ledgers, by his hand or at his word
+## 7. The daily rhythm
 
-- **HANDOFF.md** — a `## HANDOFF FOR 2026-09-08 (afternoon)` block: the
-  headless door; `SPEC_CONTROL_CENTER.md` and `SYSTEM_DESIGN.md` at the
-  root; the TBC scrub (B) and its move to `worlds\`; `worlds\atlas` and
-  this plan; the orphan hand; the stale stamp. `START AT` → 2026-09-08.
-- **DAYBOOK.md** — Session 6's "At close" and "Next session": the six
-  hands, the pieces named for Tuesday, the 15th.
-- **TASKS.md** — his list; nothing added by a hand. If he wants the week
-  tracked there, §4's rows are the lines.
-- **memory.md** — R8, the Business context, via `remember that:`.
-- **SEAT_LOG.md** — nothing; no sitting sat this afternoon.
+**Morning**: the What's left tab first -- its Now line says where we are working today, and the day's plan is written there,
+on his card, before a step runs. **Each step**: one line before it, in the glass's tabs, every write on his card, the result
+checked where he can see it. **Each piece**: its CHANGELOG entry and the document lines it changed; "restart required" when
+`manjuel/` moved; what would go red if it came unplugged. **Each save**: his word in chat, for that save -- a line of work, a
+pull request, green checks, and the merge his press on GitHub. **Never**: `git status` or `git diff` from the hand's own
+shell; an edit while a sitting is open; a folder unasked; the hand's name on his work; a send without his word; the
+engine's `do the git cycle` on a line that has an upstream (it would send with no card).
 
-*Hand `H20260908-174703` opened for this review and closed with this
-file and one CHANGELOG line. The three surveys behind it — Manjuel
-record, the atlas record's tails, the TBC world — are in the day's chat
-and folded here; nothing in `worlds\` was written except this file, at his
-word.*
+---
+
+## 8. Read first
+
+`CLAUDE.md`'s list, every time (RULE 0); then What's left's Now line; then the core's SYSTEM_DESIGN.md and this file.

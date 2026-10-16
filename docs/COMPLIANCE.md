@@ -2,6 +2,14 @@
 
 *How Atlas capabilities map to regulatory requirements.*
 
+> **Written 2026-09-07 and kept as written (LAW 1); not brought to the system as it
+> is.** Its readiness table is that day's own assessment, not an audit. The Python
+> SDK it names is not in this repository, and its forbidden verbs predate the door's
+> git tools and the merge on GitHub (2026-10-09).
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## 1. EU AI Act (Regulation (EU) 2024/1689)

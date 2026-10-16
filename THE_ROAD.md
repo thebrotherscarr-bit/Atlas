@@ -45,6 +45,17 @@ The snapshot above is 2026-09-08's and stays as written. What moved after it:
 | Unreleased | what landed after 0.1.6 — CHANGELOG.md, [Unreleased]. The next number is the operator's. |
 | Witnesses | step 5 below names SEAT_LOG.md and STATE_OF_BUILD.md; both were last written 2026-09-09. The work since is witnessed in CHANGELOG.md and in the core's DAYBOOK and HANDOFF, not here. |
 
+## Since 2026-09-17 (written 2026-10-16, the core's documentation pass)
+
+The stones above are finished, and this file no longer carries the road. The
+door serves 95 tools on 2026-10-16 (`docs/TOOL_PERMISSIONS.md`, generated and
+held current by a test). The marks run to v0.2.5 (2026-10-10); the core's
+BUILDPATH carries the ladder of both repositories. Since 2026-10-09 every
+change reaches main through a pull request whose checks have passed. The road
+now is the harness built on the recorder: `LAUNCH_PLAN.md` (rewritten
+2026-10-16) for its order and its two weeks, and the core's `WHATS_LEFT.md`,
+H31 first, for what is open.
+
 ## PARKED (named, not forgotten)
 
 - `atl --refresh` enrollment verb idea (updates propagate) — needs ruling

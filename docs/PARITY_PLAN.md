@@ -3,6 +3,14 @@
 *Every seam, every parity point, every prove. This is the complete map
 of what must hold for Atlas to ship with confidence.*
 
+> **Written at 0.1.0+f1 and kept as written (LAW 1).** Its map of the cross-language
+> seams stands as the record; its counts and its seven-stage CI are of that time.
+> CI runs `prove.yml` and `release.yml` (PIPELINES.md, its last section), and the
+> door's chain check runs Python since 2026-10-01 (the core's WHAT'S LEFT B14).
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## 1. The Parity Thesis

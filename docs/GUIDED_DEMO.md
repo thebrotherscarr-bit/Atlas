@@ -4,6 +4,12 @@
 actual. Run top to bottom in PowerShell. Nothing touches estate\ or
 secondbrain\ — reads only, and today not even those.*
 
+> **A tour run 2026-08-24, at 0.1.0+p0, before atlas was pulled into this ground;
+> kept as written (LAW 1).** Its paths and outputs are of that day.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## Act 1 — Prove the ground

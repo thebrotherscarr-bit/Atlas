@@ -5,6 +5,25 @@ system.*
 
 ---
 
+## 0. Since this was written (2026-10-16, the core's documentation pass)
+
+This architecture is of 2026-09-07 and stands below as written. What moved since:
+
+- **The glass.** `atlas-webapp` is the operator's front page on 127.0.0.1:8091: one
+  terminal (Agent, Bash, Python, PowerShell, Aider) and an Inspector beside it,
+  opened with a PIN. Every write the door holds waits there as a card.
+- **The door.** `atlas-mcp` serves 95 tools over MCP and HTTP on 127.0.0.1:8090
+  (`TOOL_PERMISSIONS.md`), raises the core's engine for a world, and holds every
+  writing call from anything but the glass for the operator's card.
+- **Principle 1.** The door's chain verdict runs Python since 2026-10-01
+  (`tools/chain_verify.py`; the core's WHAT'S LEFT B14). The Rust core stays the
+  engine of `atlas-door` and ships in every release.
+- **Forbidden verbs (4b).** The door carries `git_commit`, `git_push` and a merge
+  on GitHub (`git_pr`, on the operator's word of 2026-10-09). None approves, and
+  none acts for anything but the glass without the operator's card.
+- **The harness** built on all of it is the core's `SYSTEM_DESIGN.md` (WHAT'S LEFT
+  H31).
+
 ## 1. Design Principles
 
 1. **Rule of One Computer.** Every hash, signature, and seal is computed in
@@ -220,7 +239,13 @@ the truth. SQLite is re-derivable from the journals at any time.
 | Binary | Language | Purpose | Port |
 |---|---|---|---|
 | `atlas` | Rust | Provenance core CLI | — |
-| `atlas-mcp` | Go | MCP server (stdio) | — |
+| `atlas-mcp` | Go | The door: MCP (stdio) and HTTP, the operator's holds | :8090 |
+| `atlas-webapp` | Go | The glass: the front page, opened with a PIN | :8091 |
+| `atlas-tui` | Go | Terminal UI | — |
 | `atlas-town` | Go | Town beat/flow/story | — |
 | `atlas-door` | Go | HTTP door, search, badge | :8080 |
+| `atlas-vc` | Go | `.us` declarations as W3C verifiable credentials | — |
 | `atl` | TypeScript | Agent CLI, faces, skills, gm | — |
+
+(`atlas-mcp` was listed here on stdio alone, and `atlas-webapp`, `atlas-tui` and
+`atlas-vc` not at all, until 2026-10-16.)

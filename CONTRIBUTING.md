@@ -16,7 +16,7 @@
 
 - Rust stable (`~\.cargo\bin`)
 - Go 1.26+
-- Python 3.14
+- Python 3.10 or newer, for the provers (README, "Prerequisites")
 
 ### Build
 
@@ -36,9 +36,10 @@ python tests\prove.py --check    # fast: skips cargo
 python tests\prove.py --live     # + the legs needing :8090 and Ollama
 ```
 
-THE BALL runs all eight provers atlas has: the Rust spine, both Go modules,
+THE BALL runs all nine legs atlas has: the Rust spine, both Go modules,
 the two shipped batteries inside the binaries, twenty-eight golden
-verifiers, the six workflows and the E2E suite. It answers PASS, FAIL, or
+verifiers, the six workflows, the E2E suite, and the GitHub workflows that
+run it (2026-10-09). It answers PASS, FAIL, or
 **ABSENT** — a leg whose dependency this ground does not hold, printed with
 the path that would answer it, never counted as a pass. Only FAIL exits red.
 
@@ -104,10 +105,10 @@ atlas agent enroll --dry --dir agents
 
 ## Architecture Decisions
 
-Significant changes require an HLD or LLD in `estate/Agents/Plan/`:
-
-- **HLD** — High-Level Design (architecture, rationale)
-- **LLD** — Low-Level Design (implementation details)
+A significant change is planned first, in plain words, on the core's
+`WHATS_LEFT.md` under its own numbered line, and put to the operator before it
+is built; the decisions recorded so far are the ADRs in `docs/ADR/`. (Until
+2026-10-16 this sent an HLD or an LLD to a folder outside the ground.)
 
 Format: story first, observed/inferred marked, foundation-priority clause.
 

@@ -91,3 +91,16 @@ is folded, not deleted: the overwritten state is fully preserved in that spec
 and witnessed here and in `SEAT_LOG.md`. No blame is assigned by this seat;
 if the operator made the change by his own hand, he may rule this addendum
 amended accordingly.
+
+---
+
+## ADDENDUM — 2026-10-16: where atlas stands since
+
+§1 and §5 are kept as they were written; this is the founding record. Since
+then atlas was pulled into the ground: it lives at `atlas/` inside
+`Desktop\Research`, its own repository since 2026-09-10 (the core's RUNBOOK,
+"Starting the system"). Its version is plain semver in `VERSION`, the stone
+tag struck 2026-09-10 (THE_ROAD); the last cut is v0.2.5 (2026-10-10). And
+since 2026-10-09 its main line takes a change only through a pull request
+whose checks have passed, merged by the operator's click (the core's WHAT'S
+LEFT I1).

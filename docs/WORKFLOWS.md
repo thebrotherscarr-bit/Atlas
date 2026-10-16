@@ -3,6 +3,15 @@
 **Version:** 0.1.8
 **Ollama Backend:** 127.0.0.1:11434
 
+> **Stamped 0.1.8 and kept as written (LAW 1); not brought to the system as it is.**
+> These six are the e2e prover's scripts over the door's tools
+> (`tests/e2e/ollama_prover.py --workflows`). The flows the glass fires today are
+> another thing: the Workflows tab's flows, kept in the core's `flows/` and run by
+> the door's flow engine.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## Workflow 1: SCOUT (Read-Only Survey)

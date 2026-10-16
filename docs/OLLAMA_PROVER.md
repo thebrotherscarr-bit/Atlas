@@ -3,6 +3,13 @@
 **Version:** 0.1.8
 **Ollama Backend:** 127.0.0.1:11434
 
+> **Stamped 0.1.8 and kept as written (LAW 1); not brought to the system as it is.**
+> It describes `tests/e2e/ollama_prover.py`, its 84 scenarios and 38 workflow steps,
+> as they stood at that version.
+> For atlas as it stands: `../README.md`, `ARCHITECTURE.md` (its section 0),
+> `QUICKSTART.md`, and the core's `RUNBOOK.md`. (2026-10-16, the core's
+> documentation pass.)
+
 ---
 
 ## Purpose
