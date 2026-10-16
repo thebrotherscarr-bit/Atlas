@@ -12,6 +12,10 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The glass: a [y/n] question in the Agent tab carries Approve and Deny (2026-10-16; the core's WHAT'S LEFT H31, Steward drives; his words: "the agent should just wait for the approval before ruling, and then should say what happened")
+
+`webapp/static/js/agent.js`: when the engine asks a question that ends in `[y/n]` -- the core's driver asks one before every write, push and merge -- the card in the dock carries two buttons, "Approve - run it" and "Deny", which answer `y` and `n` for him; any other question keeps its line to type in. Built and placed on his card (the old build kept beside it as `atlas-webapp.old-1016a.exe`), and proved live in the core's sitting 393, where his Approve ran the write and the driver went on to its check.
+
 ### The documentation pass, atlas's part: LAUNCH_PLAN.md rewritten as the plan of the harness built on the recorder, the living documents brought to atlas as it stands, and the historical ones dated (2026-10-16; the core's WHAT'S LEFT I4 pulled forward, its F19 to F31; his words: "Rewrite the system design and launch_plan. Supersede spec 8.2, on my word." and "This is the plan, we are doing the harness. we built the recorder, its perfect, now we build the harness on top of it."; his card: "Living docs now, notes on the rest")
 
 His word of the morning, 2026-10-16: "I also want to make sure all the docs are in line with what we are doing as well so a documentation pass would make a ton of sense at this point." The core's half is in the core's CHANGELOG ("core: the documentation pass"); this is atlas's. No code moved: no build, no restart.
