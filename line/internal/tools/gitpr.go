@@ -218,6 +218,10 @@ func prWaitOf(args map[string]any) (int, string) {
 // the line it opened and no number to hand, so it names the line, and the number gh answers for that line is the one
 // merged. A line whose pull request GitHub has merged already is said so and main still comes down, so a release that
 // stopped between its merges can be fired again; a number already merged is still refused, as the button's press was.
+// SINCE 2026-10-19 (the core's WHAT'S LEFT C122; his card: "Resume or by hand") a re-fire past the release's save is
+// refused at the bump, before a merge is asked again: the core's tests/cut.py asks first that each repository stand on
+// its release line, level with GitHub's main. A run held at a gate is carried on with Resume; one that stopped past the
+// save is finished by hand.
 func prMerge(t tenant.Tenant, args map[string]any) (string, error) {
 	n, line := prNumber(args), ""
 	if n == 0 {
