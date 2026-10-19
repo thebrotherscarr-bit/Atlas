@@ -12,6 +12,10 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The door: gitpr.go's promise of a re-fire between the merges annotated (2026-10-19; the core's WHAT'S LEFT C122, the road to v0.2.6's step (2); his card: "Resume or by hand")
+
+`line/internal/tools/gitpr.go`, a comment only. Since the core's tests/cut.py asks at the bump that each repository stand on its release line, level with GitHub's main, a release that stopped past its save is refused at the bump before a merge is asked again, so the comment's "can be fired again" no longer holds through the flow: a run held at a gate is carried on with Resume, and one that stopped past the save is finished by hand. No code moved; nothing to rebuild.
+
 ### The glass: a [y/n] question in the Agent tab carries Approve and Deny (2026-10-16; the core's WHAT'S LEFT H31, Steward drives; his words: "the agent should just wait for the approval before ruling, and then should say what happened")
 
 `webapp/static/js/agent.js`: when the engine asks a question that ends in `[y/n]` -- the core's driver asks one before every write, push and merge -- the card in the dock carries two buttons, "Approve - run it" and "Deny", which answer `y` and `n` for him; any other question keeps its line to type in. Built and placed on his card (the old build kept beside it as `atlas-webapp.old-1016a.exe`), and proved live in the core's sitting 393, where his Approve ran the write and the driver went on to its check.
