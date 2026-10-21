@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"mime"
 	"os"
+	"time"
 )
 
 // THE FONTS ARE NAMED HERE OR THEY DO NOT SHIP. This directive lists each
@@ -34,6 +35,16 @@ func main() {
 	port := "8091"
 	if p := os.Getenv("ATLAS_WEB_PORT"); p != "" {
 		port = p
+	}
+
+	// THE DESKTOP APP (desktop.go): the wire, Ollama and the door first; a glass
+	// already serving gets a window onto it and nothing else.
+	desktop := desktopMode()
+	if desktop && desktopPrepare(port) {
+		if err := openWindow(port); err != nil {
+			desktopLog("%v", err)
+		}
+		return
 	}
 
 	database, err := db.Open("data/webapp.db")
@@ -89,6 +100,23 @@ func main() {
 	}
 	fmt.Printf("atlas-webapp listening on 127.0.0.1:%s -- this PC only, "+
 		"opened with a PIN, %s\n", port, wire)
+	if desktop {
+		// The glass serves behind its own window and ends when the window closes.
+		go func() {
+			if err := srv.ListenAndServe(); err != nil {
+				desktopLog("server: %v", err)
+				os.Exit(1)
+			}
+		}()
+		if !waitFor(port, 15*time.Second) {
+			desktopLog("the glass did not start on %s", port)
+			os.Exit(1)
+		}
+		if err := openWindow(port); err != nil {
+			desktopLog("%v", err)
+		}
+		return
+	}
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "server: %v\n", err)
 		os.Exit(1)
