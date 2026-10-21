@@ -12,7 +12,7 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
-## [v0.2.6] — 2026-10-21 15:38
+## [v0.2.6] — 2026-10-21 15:38 (tag on 19dcc85)
 
 ### The secret card: a key typed into a masked field, never seen by the model (2026-10-21; his words: "steward should be able to walk me through setting it up as well as being able to wire it in himself", and "diff the full feature list ... build them all")
 
