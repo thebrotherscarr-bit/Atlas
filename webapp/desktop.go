@@ -30,7 +30,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -68,12 +67,6 @@ func waitFor(port string, d time.Duration) bool {
 		time.Sleep(250 * time.Millisecond)
 	}
 	return false
-}
-
-// hidden starts a process with no console window, detached from this one.
-func hidden(cmd *exec.Cmd) *exec.Cmd {
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW
-	return cmd
 }
 
 // desktopLog is where the app says what it did, beside the glass's own logs:
