@@ -36,9 +36,21 @@ const API = {
   _cseq: 0,
   _callSubs: [],
   onCall(fn) { this._callSubs.push(fn); },
+  // A KEY IS NEVER KEPT HERE EITHER (2026-10-21, the secret card; RULE 7): the arguments a call keeps for the Door calls
+  // list and the terminal's entries are a copy with every secret argument withheld. The request itself carries the key
+  // whole to the glass, which hands it to the door; the glass's trace withholds it too (handlers.go, secretArgs).
+  SECRET_ARGS: { secret_set: ['value'] },
+  WITHHELD: '[withheld: a secret]',
+  shownArgs(tool, args) {
+    const hide = this.SECRET_ARGS[tool];
+    if (!hide || !args) return args;
+    const out = Object.assign({}, args);
+    for (const k of hide) { if (k in out) out[k] = this.WITHHELD; }
+    return out;
+  },
   _call(method, path, body) {
     const tool = path === '/tools/call' && body ? String(body.tool || '') : '';
-    const rec = { id: ++this._cseq, method, path, tool, args: tool ? (body.args || {}) : (body || null),
+    const rec = { id: ++this._cseq, method, path, tool, args: tool ? this.shownArgs(tool, body.args || {}) : (body || null),
                   bg: !!(body && body.background), t0: Date.now(), ms: null, ok: null, said: '' };
     this.calls.push(rec);
     if (this.calls.length > this.CALLS_KEEP) this.calls.splice(0, this.calls.length - this.CALLS_KEEP);

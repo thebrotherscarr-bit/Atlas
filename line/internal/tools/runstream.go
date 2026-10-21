@@ -73,7 +73,10 @@ type EngineFacts struct {
 	Sitting string `json:"sitting"`
 	Session string `json:"session"`
 	Pending string `json:"pending"`
-	Started string `json:"started,omitempty"`
+	// PendingSecret is the .env variable the question asks a key for (the needs_answer's `secret`), so a glass opened
+	// or reloaded while it waits still paints the masked field and never a plain one (secret.go). Empty for any other.
+	PendingSecret string `json:"pending_secret,omitempty"`
+	Started       string `json:"started,omitempty"`
 	// Stale means manjuel/*.py changed after this process was spawned, so it
 	// is running code the disk no longer holds. NOT set for a changed skill or
 	// pipeline: those hot-reload at the next turn (CLAUDE.md), and an alarm
@@ -113,6 +116,7 @@ func Facts(t tenant.Tenant) EngineFacts {
 	f.Sitting, f.Session = o.Str("sitting"), o.Str("session")
 	if p := e.Pending(); p != nil {
 		f.Pending = p.Str("prompt")
+		f.PendingSecret = p.Str("secret")
 	}
 	if !e.Started.IsZero() {
 		f.Started = e.Started.Format(time.RFC3339)

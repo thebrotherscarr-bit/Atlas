@@ -38,6 +38,7 @@ const Run = {
   world: '',
   sitting: '',
   pending: '',
+  pendingSecret: '',
   unreachable: false,
 
   // THE EVENTS THAT END A TURN -- serve.py's TERMINAL, spelled the same. `error`
@@ -82,6 +83,9 @@ const Run = {
       this.sitting = r.sitting || '';
       this.session = r.session || '';
       this.pending = r.pending || '';
+      // A question that asks for a key names its .env variable; a glass opened or reloaded while it waits still paints
+      // the masked field for it, never a plain one (agent.js, secretHtml).
+      this.pendingSecret = r.pending_secret || '';
       // The engine holds whatever manjuel/*.py said when it was spawned.
       // ONLY code counts: seats, skills and pipelines hot-reload at the
       // next turn, and an alarm over a doc edit would teach him to ignore
@@ -107,6 +111,7 @@ const Run = {
       this.lastRun = '';
       this.stale = false;
       this.pending = '';
+      this.pendingSecret = '';
       this.unreachable = true;
     }
     this.emit('state');
@@ -452,6 +457,9 @@ const Run = {
         t.waiting = d.prompt || '';
         // the card's color rides with the question (2026-10-12): amber, green or red
         t.waitingColor = d.color || 'amber';
+        // THE SECRET CARD (2026-10-21): a question naming `secret` asks for a key, the .env variable it goes into. The key
+        // itself never comes this way: the glass writes it through the door's secret_set and answers only `set`.
+        t.waitingSecret = typeof d.secret === 'string' ? d.secret : '';
         t.verdict = 'waiting';
         break;
 
