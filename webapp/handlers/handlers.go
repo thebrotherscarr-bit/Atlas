@@ -274,6 +274,33 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 var backgroundReads = map[string]bool{"muster": true, "rack_list": true, "proofs": true,
 	"projects": true, "hold_list": true, "aider_status": true}
 
+// A KEY IS NEVER KEPT (2026-10-21, the secret card; RULE 7). secret_set carries a key from the masked field on his card
+// to the door, which writes it into the world's .env. The call goes to the door whole, but every trace of it -- the
+// ledger's input, the hash beside it, the trace_added every open tab is told -- names the argument and never its value.
+// The door declares the same argument secret (line/internal/tools/secret.go, Tool.Secrets).
+var secretArgs = map[string][]string{"secret_set": {"value"}}
+
+// SecretWithheld is what a secret argument reads as in a trace.
+const SecretWithheld = "[withheld: a secret]"
+
+// traceArgs is a call's arguments as a trace may keep them: a copy, with every secret argument withheld.
+func traceArgs(tool string, args map[string]any) map[string]any {
+	hide := secretArgs[tool]
+	if len(hide) == 0 {
+		return args
+	}
+	out := make(map[string]any, len(args))
+	for k, v := range args {
+		out[k] = v
+	}
+	for _, k := range hide {
+		if _, ok := out[k]; ok {
+			out[k] = SecretWithheld
+		}
+	}
+	return out
+}
+
 func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Tool       string         `json:"tool"`
@@ -350,12 +377,14 @@ func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	}
 	duration := time.Since(start).Milliseconds()
 
-	hash := sha256.Sum256([]byte(req.Tool + fmt.Sprintf("%v", req.Args) + output))
+	// The trace keeps the call as it may be SHOWN: a key handed to the door is sent whole and kept nowhere (secretArgs).
+	shown := traceArgs(req.Tool, req.Args)
+	hash := sha256.Sum256([]byte(req.Tool + fmt.Sprintf("%v", shown) + output))
 	trace := db.Trace{
 		ID:         fmt.Sprintf("t-%d", time.Now().UnixNano()),
 		AgentID:    req.AgentID,
 		Tool:       req.Tool,
-		Input:      fmt.Sprintf("%v", req.Args),
+		Input:      fmt.Sprintf("%v", shown),
 		Output:     output,
 		Hash:       fmt.Sprintf("%x", hash),
 		Status:     "ok",

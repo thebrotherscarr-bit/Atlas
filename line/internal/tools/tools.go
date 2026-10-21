@@ -705,6 +705,10 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 
 	r.add(fileEditTool())
 
+	// THE SECRET CARD (2026-10-21): a key Steward asks for goes from the masked field on his card straight into the
+	// world's .env, and never through the engine, a model or a log (secret.go). His glass alone may call it.
+	r.add(secretSetTool())
+
 	// THE LAWS, THROUGH THE GLASS (2026-10-05, his word: "set it as a law all the agents read ... THROUGH THE SYSTEM", then "a LAWS page ... Add it."). A
 	// reader for how far each law is sealed and what the chain says of itself, and two writers that are his hand and nobody's else: set a law (an entry
 	// appended to the ledger, below the seal, as a draft) and seal the ledger (law.py, the one tool the chain is appended through). Neither runs while a

@@ -319,12 +319,22 @@ const Agent = {
       } else if (act === 'gate-yes' || act === 'gate-no') {
         // The council's yes-or-no, answered by a press (gateHtml): exactly what typing y or n in its field would send.
         this.answer(act === 'gate-yes' ? 'y' : 'n');
+      } else if (act === 'secret-skip') {
+        // The secret card's Skip (secretHtml): the council is told `skip`, and the field is emptied.
+        this.secretSkip();
       }
     });
     dock.addEventListener('submit', (e) => {
       if (e.target.id !== 'ag-gate-form') return;
       e.preventDefault();
       this.answer(e.target.querySelector('input').value);
+    });
+    // THE SECRET CARD'S SAVE (secretHtml) is its own form and its own listener: what is pasted there goes to the door's
+    // secret_set and never to answer(), which would hand it to the council.
+    dock.addEventListener('submit', (e) => {
+      if (e.target.id !== 'ag-secret-form') return;
+      e.preventDefault();
+      this.secretSave(e.target);
     });
     $ag('ag-title').addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
@@ -665,6 +675,9 @@ const Agent = {
     // ITS COLOR IS WHAT IT IS FOR (2026-10-12, his word: "Simplicity is key here"): green or red as its needs_answer
     // said, amber the card as it was. Only those two words become a class.
     const color = { green: ' green', red: ' red' }[(Run.turn && Run.turn.waitingColor) || ''] || '';
+    // A QUESTION THAT ASKS FOR A KEY IS THE SECRET CARD, before any other shape: never a field that answers the council.
+    const secret = this.askingSecret();
+    if (secret) return this.secretHtml(asking, secret, color);
     // A YES-OR-NO IS TWO BUTTONS (2026-10-16, his word: "I DONT HAVE TO TYPE ANYTHING"): a question that ends "[y/n]" -- the
     // driver's, before a write -- is answered by a press, Approve as "y" and Deny as "n" (wire()); any other keeps its field.
     if (/\[y\/n\]\s*$/i.test(asking)) {
@@ -737,6 +750,7 @@ const Agent = {
   paintDock() {
     const box = $ag('ag-dock');
     if (!box) return;
+    if (!this.askingSecret()) this._secretErr = '';
     const shells = this.entries.filter(en => en.kind === 'shell' && en.state === 'held');
     const mine = new Set(shells.map(en => en.ans && en.ans.hold));
     const held = this.holds.filter(h => !mine.has(h.id) && !this._answering.has(h.id));
@@ -749,9 +763,19 @@ const Agent = {
     const old = box.querySelector('#ag-gate-form input');
     const typed = old ? old.value : '';
     const hadFocus = !!old && document.activeElement === old;
+    // The secret card's masked field keeps what is in it across a redraw, from the old field to the new one and nowhere
+    // else: never into this page's memory, a store or the history.
+    const oldKey = box.querySelector('#ag-secret-form input');
+    const keyHad = !!oldKey && document.activeElement === oldKey;
+    const key = oldKey ? oldKey.value : '';
     box.innerHTML = html;
     box.hidden = !html;
     if (near) this.stick();
+    const ki = box.querySelector('#ag-secret-form input');
+    if (ki) {
+      if (key) ki.value = key;
+      if (!this._secretSeen || keyHad) { ki.focus(); this._secretSeen = true; }
+    } else this._secretSeen = false;
     const gi = box.querySelector('#ag-gate-form input');
     if (!gi) { this._gateSeen = false; return; }
     if (typed) gi.value = typed;
@@ -805,6 +829,56 @@ const Agent = {
   // The council has stopped to ask. Until he answers, the engine takes nothing
   // else: an objective sent now would queue behind the question and hang.
   asking() { return (Run.turn && Run.turn.waiting) || Run.pending || ''; },
+
+  // THE SECRET CARD (2026-10-21; RULE 7, keys are silent). Steward asks for a key -- a bot token, an API key -- with a
+  // needs_answer that names the .env variable it goes into (`secret`). The card is the question with a MASKED field, Save
+  // and Skip. Save hands what is pasted straight to the door's secret_set, which writes NAME=value into this world's .env
+  // and answers with the name and the length only; then the council is answered with the word `set`. Skip answers
+  // `skip`. Either way the field is emptied. The key never reaches the council, a model, the transcript, the wire's
+  // events, this page's memory (Agent.entries, Chat.thread, the history), a store or the glass's trace (api.js and
+  // handlers.go withhold it). A name that is not a .env variable gets no field at all: only Skip.
+  SECRET_NAME: /^[A-Z][A-Z0-9_]{1,63}$/,
+  askingSecret() {
+    const t = Run.turn;
+    if (t && t.waiting) return t.waitingSecret || '';
+    return Run.pending ? (Run.pendingSecret || '') : '';
+  },
+  secretHtml(asking, name, color) {
+    const head = `<div class="ag-gate${color}"><b>The council asks for a key: ${escHtml(name)}</b><div class="ag-gate-q">${escHtml(asking)}</div>`;
+    if (!this.SECRET_NAME.test(name)) {
+      return head + `<div class="ag-notrun"><b>NO FIELD FOR IT</b><br>${escHtml(name)} is not a .env variable (A-Z, 0-9 and _, a letter first), so there is nowhere safe to put the key. Skip, and nothing is sent but the word skip.</div>
+      <div class="ag-btns"><button type="button" class="ag-btn no" data-act="secret-skip">Skip</button></div></div>`;
+    }
+    const off = this._secretBusy ? ' disabled' : '';
+    const err = this._secretErr ? `<div class="ag-notrun"><b>NOT SAVED</b><br>${escHtml(this._secretErr)}</div>` : '';
+    return head + `<form id="ag-secret-form" data-secret="${escHtml(name)}" autocomplete="off"><input type="password" autocomplete="off" spellcheck="false" aria-label="The key for ${escHtml(name)}" placeholder="Paste the key - it goes straight to .env, never to the council"${off} /><button class="ag-btn go" type="submit"${off}>${this._secretBusy ? 'Saving...' : 'Save'}</button><button type="button" class="ag-btn no" data-act="secret-skip"${off}>Skip</button></form>${err}
+      <span class="ag-src">Save writes ${escHtml(name)} into this world's .env through the door, and the council is told only "set"; Skip tells it "skip". The key is never shown, kept or sent to a model.</span></div>`;
+  },
+  async secretSave(form) {
+    const input = form.querySelector('input');
+    const name = form.dataset.secret || '';
+    const value = input ? input.value.trim() : '';
+    if (input) input.value = '';
+    if (this._secretBusy || !this.SECRET_NAME.test(name) || name !== this.askingSecret() || Run.running) return;
+    if (!value) { this._secretErr = 'Nothing was pasted. Paste the key, or Skip.'; this.paintDock(); return; }
+    this._secretBusy = true;
+    this._secretErr = '';
+    this.paintDock();
+    let said = '';
+    try { said = await App.tool('secret_set', { name, value }); }
+    catch (e) { this._secretErr = e.message || 'refused'; }
+    this._secretBusy = false;
+    if (this._secretErr) { this.paintDock(); return; }
+    this.say('secret ' + name, said);
+    this.answer('set');
+  },
+  secretSkip() {
+    const input = document.querySelector('#ag-secret-form input');
+    if (input) input.value = '';
+    if (this._secretBusy) return;
+    this._secretErr = '';
+    this.answer('skip');
+  },
 
   stick() { const box = $ag('ag-out'); if (box) box.scrollTop = box.scrollHeight; },
 
@@ -998,6 +1072,11 @@ const Agent = {
     const raw = (rawIn != null ? rawIn : (input ? input.value : '')).trim();
     if (!raw) return;
     if (input) { input.value = ''; $ag('ag-go').disabled = true; }
+    // A KEY PASTED IN THE WRONG PLACE IS NOT KEPT (the secret card): while the council asks for a key, a line for the
+    // council typed here is neither saved to the history, shown, nor sent -- it may be the key itself.
+    if (this.askingSecret() && raw[0] !== '/' && !this.prefixMode(raw) && !this.isAider() && !this.isShell()) {
+      return this.say('(what was typed is not shown)', 'The council is asking for a key in the card pinned at the foot of the window: paste it there, where it goes straight to .env. What you typed here was not kept, not shown and not sent.', 'ERROR');
+    }
     this.hist = [raw].concat(this.hist.filter(h => h !== raw));
     this.hi = -1;
     this.saveHist();

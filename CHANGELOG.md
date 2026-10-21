@@ -12,6 +12,26 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The secret card: a key typed into a masked field, never seen by the model (2026-10-21; his words: "steward should be able to walk me through setting it up as well as being able to wire it in himself", and "diff the full feature list ... build them all")
+
+When the engine asks a question that carries `secret` (the .env variable's name; serve.py's `ask_secret`), the glass's Agent tab paints the secret card in place of the [y/n] shape or the plain field: the prompt, a password field with no autocomplete and no spellcheck, and Save and Skip. Save clears the field, calls the door's new `secret_set` (`line/internal/tools/secret.go`), and answers the engine `set`; Skip answers `skip`. While the card is up, a line typed in the main prompt is neither kept, shown nor sent.
+
+`secret_set` is ServiceOnly and declares `value` a secret. It refuses any caller but the glass, and refuses a replayed hold. It checks the name (`^[A-Z][A-Z0-9_]{1,63}$`) and the value (no newline, CR or NUL, at most 4096 characters). It replaces a live `NAME=` line of the tenant's `.env` in place, or appends one, keeping the file's own line ending and BOM. It answers only `secret NAME set in .env (N chars)`, and records the same words in state/holds.jsonl.
+
+The value appears in no answer, no error, no trace (the glass's trace input and its broadcast show `[withheld: a secret]`), no Door calls list, and no file under state/. `pending_secret` on /run/state keeps the card through a reload. docs/TOOL_PERMISSIONS.md is regenerated: 96 tools, 8 service-only.
+
+Two strokes were widened, openly:
+- `TestTheFrontPageFakesNothing` allows exactly one password field, the secret card's.
+- `TestEveryToolTheFrontPageAsksForIsCarriedByTheDoor` reads every .go file of the tools package.
+
+What goes red if it comes unplugged:
+- `secret_test.go` (five strokes);
+- `TestASecretReachesTheDoorAndNoTrace`;
+- `TestTheSecretCardKeepsTheKeyOutOfEverything`;
+- the tool-carried stroke and the permission record.
+
+Rebuilding and placing the door and the glass (and atlas-desktop.exe) is his card, and both need a restart.
+
 ### The glass as a desktop app: `atlas-desktop.exe` (2026-10-21; his word: "compile this thing and turn it into a desktop app like ollama desktop or codex or hermes desktop or the new chatgpt app")
 
 `webapp/desktop.go` (new) and two hooks in `webapp/main.go`. The same glass, built a second time as a windowless program (`go build -ldflags "-H windowsgui" -o atlas-desktop.exe .` in webapp/); named so, or started with `--desktop`, it reads the service wire from the ground's .env into its own environment (never printed, never on a command line), starts Ollama and the door when they do not answer (the door with RUNBOOK's own line, from atlas/line, its output to mcp.log and mcp.err.log), serves the glass or uses the one already on its port, and opens it in a window of its own -- Microsoft Edge's app mode, already on every Windows 11 machine, so nothing is downloaded or installed: no address bar, no tabs, its own taskbar entry. Closing the window ends it; the door and Ollama keep running, as Ollama's own app leaves its server. The window's profile and the app's log live under webapp/data/ (gitignored). The lock is the glass's own PIN page, unchanged. Built and vetted; placing the binary beside atlas-webapp.exe is his card. What goes red if it comes unplugged: `go build` and `go vet` of webapp/, and `desktop_test.go`. Its one Windows-only piece -- starting the door and Ollama with no console window -- is in `desktop_windows.go`, with a plain twin in `desktop_other.go`, so the glass still builds off Windows (CI's Linux leg caught the first cut).

@@ -1065,9 +1065,17 @@ func TestTheFrontPageFakesNothing(t *testing.T) {
 	if strings.Contains(src, "Math.random") {
 		t.Fatal("the front page draws a figure from a random number")
 	}
-	// One lock: the PIN. No second sign-in, no token the page invents for itself.
+	// One lock: the PIN. No second sign-in, no token the page invents for itself. The one masked field the page may
+	// carry is the secret card's, which takes a key for .env and signs nobody in (2026-10-21; held whole by
+	// TestTheSecretCardKeepsTheKeyOutOfEverything): it is read out of the page before the page is asked, and must be
+	// the only one.
+	card := funcOf(src, "  secretHtml(")
+	if strings.Count(src, `type="password"`) != 1 || !strings.Contains(card, `type="password"`) {
+		t.Fatal(`the front page carries a masked field other than the secret card's (type="password"); the lock is the PIN`)
+	}
+	unsigned := strings.Replace(src, card, "", 1)
 	for _, bad := range []string{`type="password"`, `/api/login`, `agentos_token`} {
-		if strings.Contains(src, bad) {
+		if strings.Contains(unsigned, bad) {
 			t.Fatalf("the front page carries its own sign-in (%s); the lock is the PIN", bad)
 		}
 	}
@@ -1468,6 +1476,17 @@ func TestEveryToolTheFrontPageAsksForIsCarriedByTheDoor(t *testing.T) {
 	reg, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "tools.go"))
 	if err != nil {
 		t.Fatalf("the door's tool table is not beside the glass: %v", err)
+	}
+	// A tool declared in a file of its own and registered with one line in the table (file_edit, git_pr, secret_set)
+	// is carried too: every declaration in the package is read, not the table's file alone.
+	others, _ := filepath.Glob(filepath.Join("..", "..", "line", "internal", "tools", "*.go"))
+	for _, f := range others {
+		if strings.HasSuffix(f, "_test.go") || filepath.Base(f) == "tools.go" {
+			continue
+		}
+		if b, err := os.ReadFile(f); err == nil {
+			reg = append(reg, b...)
+		}
 	}
 	carried := map[string]bool{}
 	for _, m := range regexp.MustCompile(`Name:\s+"([a-z_]+)"`).FindAllStringSubmatch(string(reg), -1) {
@@ -1874,5 +1893,82 @@ func TestAThoughtIsDrawnLiveAndFolded(t *testing.T) {
 	}
 	if !strings.Contains(funcOf(chat, "  paintWire("), "d._kind === 'think'") {
 		t.Fatal("the folded wire lists a thought's every fragment instead of counting them")
+	}
+}
+
+// THE SECRET CARD (2026-10-21; RULE 7, keys are silent). A needs_answer that names `secret` is painted as a MASKED field
+// with Save and Skip, before any other shape of question, so a key is never typed into the field that answers the
+// council. Save hands the key to the door's secret_set alone and answers the council with the word `set`; Skip with
+// `skip`; both empty the field. The key is kept nowhere on the page: not the history, not the entries, not a store, not
+// the Door calls record (api.js withholds the argument, as the glass's trace does). A line typed for the council while a
+// key is asked is not kept either. The door's own declaration and the glass's two withholdings name the same argument,
+// so renaming either goes red here.
+func TestTheSecretCardKeepsTheKeyOutOfEverything(t *testing.T) {
+	src := page(t, "js/agent.js")
+	council := page(t, "js/council.js")
+	api := page(t, "js/api.js")
+	fn := func(sig string) string {
+		body := funcOf(src, sig)
+		if body == "" {
+			t.Fatalf("the page has no %s", strings.TrimSpace(sig))
+		}
+		return body
+	}
+	if !strings.Contains(council, "t.waitingSecret = typeof d.secret === 'string' ? d.secret : ''") ||
+		!strings.Contains(council, "this.pendingSecret = r.pending_secret || ''") {
+		t.Fatal("the council's question does not keep the key's name its needs_answer carries, or loses it on a reload")
+	}
+	gate := fn("  gateHtml(")
+	s, yn, field := strings.Index(gate, "this.secretHtml("), strings.Index(gate, `[y\/n\]`), strings.Index(gate, "ag-gate-form")
+	if s < 0 || yn < s || field < s || !strings.Contains(gate, "this.askingSecret()") {
+		t.Fatal("a question asking for a key can be drawn as a plain field or a yes-or-no, which would hand the key to the council")
+	}
+	card := fn("  secretHtml(")
+	for _, want := range []string{`id="ag-secret-form"`, `type="password"`, `autocomplete="off"`, `data-act="secret-skip"`, `type="submit"`, "this.SECRET_NAME.test(name)"} {
+		if !strings.Contains(card, want) {
+			t.Fatalf("the secret card does not carry %s", want)
+		}
+	}
+	if strings.Contains(card, "ag-gate-form") || strings.Contains(card, `type="text"`) {
+		t.Fatal("the secret card carries a field that answers the council, or one that shows what is typed")
+	}
+	save := fn("  async secretSave(")
+	if strings.Count(src, "App.tool('secret_set'") != 1 || !strings.Contains(save, "App.tool('secret_set', { name, value })") ||
+		!strings.Contains(save, "this.answer('set')") || !strings.Contains(save, "input.value = ''") {
+		t.Fatal("the key does not go to the door's secret_set alone, the council is not told only `set`, or the field is not emptied")
+	}
+	for _, bad := range []string{"answer(value", "say(value", "+ value", "localStorage", "sessionStorage", "this.entries", "this.hist", "Chat.thread", "console."} {
+		if strings.Contains(save, bad) {
+			t.Fatalf("Save keeps or tells the key somewhere (%s)", bad)
+		}
+	}
+	if skip := fn("  secretSkip("); !strings.Contains(skip, "this.answer('skip')") || !strings.Contains(skip, "input.value = ''") || strings.Contains(skip, "App.tool(") {
+		t.Fatal("Skip does not answer `skip` with the field emptied, or reaches the door")
+	}
+	wire := fn("  wire(")
+	i := strings.Index(wire, "if (e.target.id !== 'ag-secret-form') return;")
+	if i < 0 || !strings.Contains(wire[i:min(len(wire), i+160)], "this.secretSave(e.target)") || strings.Contains(wire[i:min(len(wire), i+160)], "this.answer(") ||
+		!strings.Contains(wire, "act === 'secret-skip'") {
+		t.Fatal("the secret card's Save or Skip is not listened for, or Save is sent to the council")
+	}
+	if g := fn("  async go("); !strings.Contains(g, "this.askingSecret()") || strings.Index(g, "this.askingSecret()") > strings.Index(g, "this.hist = [raw]") {
+		t.Fatal("a line typed for the council while a key is asked is saved to the history before it is refused")
+	}
+	if !strings.Contains(api, "SECRET_ARGS: { secret_set: ['value'] }") || !strings.Contains(funcOf(api, "  _call("), "this.shownArgs(tool, body.args || {})") {
+		t.Fatal("the page's record of door calls keeps the key")
+	}
+	h, err := os.ReadFile(filepath.Join("..", "handlers", "handlers.go"))
+	if err != nil || !strings.Contains(string(h), `var secretArgs = map[string][]string{"secret_set": {"value"}}`) {
+		t.Fatalf("the glass's trace does not withhold the key (%v)", err)
+	}
+	door, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "secret.go"))
+	if err != nil || !strings.Contains(string(door), `Name:        "secret_set"`) || !strings.Contains(string(door), `Secrets:     []string{"value"}`) {
+		t.Fatalf("the door's secret_set is not where the glass's withholdings say, or does not declare its value secret (%v)", err)
+	}
+	// The key's name a reload reads (r.pending_secret) is the key the door's /run/state writes, from the question's own
+	// `secret`: renaming either side goes red here.
+	facts, err := os.ReadFile(filepath.Join("..", "..", "line", "internal", "tools", "runstream.go"))
+	if err != nil || !strings.Contains(string(facts), "`json:\"pending_secret,omitempty\"`") || !strings.Contains(string(facts), `f.PendingSecret = p.Str("secret")`) {
+		t.Fatalf("the door's /run/state does not say which key a waiting question asks for (%v)", err)
 	}
 }

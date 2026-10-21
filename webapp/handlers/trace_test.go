@@ -167,3 +167,52 @@ func TestOnlyTheFrontPagesOwnReadsCanBeLeftOut(t *testing.T) {
 		<-tab
 	}
 }
+
+// A KEY IS NEVER KEPT (2026-10-21, the secret card; RULE 7). secret_set reaches the door with its value whole -- the door
+// writes it into .env -- and the trace the ledger keeps, the hash beside it and the trace_added every open tab is told
+// carry the name and never the value. Any other tool's arguments are kept as they were.
+func TestASecretReachesTheDoorAndNoTrace(t *testing.T) {
+	const value = "s3cr3t-VALUE-the-ledger-must-never-hold"
+	h := newTestHandlers(t)
+	var got atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var rpc struct {
+			Params struct {
+				Arguments map[string]any `json:"arguments"`
+			} `json:"params"`
+		}
+		json.NewDecoder(r.Body).Decode(&rpc)
+		got.Store(rpc.Params.Arguments)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1,
+			"result": map[string]any{"content": []map[string]string{{"type": "text", "text": "secret DISCORD_BOT_TOKEN set in .env (39 chars)"}}}})
+	}))
+	t.Cleanup(srv.Close)
+	h.store.SetSetting("mcp_url", srv.URL)
+	tab := listen(h)
+
+	reply := ask(t, h, `{"tool":"secret_set","args":{"name":"DISCORD_BOT_TOKEN","value":"`+value+`"}}`)
+	if args, _ := got.Load().(map[string]any); args == nil || args["value"] != value || args["name"] != "DISCORD_BOT_TOKEN" {
+		t.Fatalf("the door was not handed the key whole: %v", got.Load())
+	}
+	if !kept(h, reply) {
+		t.Fatal("the call was not kept at all; it is kept, with its value withheld")
+	}
+	tr := h.store.Get(reply["trace_id"].(string))
+	if b, _ := json.Marshal(tr); strings.Contains(string(b), value) || !strings.Contains(tr.Input, "DISCORD_BOT_TOKEN") || !strings.Contains(tr.Input, SecretWithheld) {
+		t.Fatalf("the trace keeps the key, or does not say what was withheld: %s", b)
+	}
+	if b, _ := json.Marshal(reply); strings.Contains(string(b), value) {
+		t.Fatalf("the reply carries the key: %s", b)
+	}
+	if len(tab) != 1 {
+		t.Fatalf("%d events reached an open tab, not one", len(tab))
+	}
+	if b, _ := json.Marshal(<-tab); strings.Contains(string(b), value) {
+		t.Fatalf("an open tab was told the key: %s", b)
+	}
+	// Any other tool keeps its arguments as before.
+	if a := traceArgs("file_edit", map[string]any{"value": "kept"}); a["value"] != "kept" {
+		t.Fatalf("another tool's argument was withheld: %v", a)
+	}
+}
