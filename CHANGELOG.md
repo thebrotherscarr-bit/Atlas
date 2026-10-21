@@ -12,6 +12,8 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+## [v0.2.6] — 2026-10-21 15:38
+
 ### The secret card: a key typed into a masked field, never seen by the model (2026-10-21; his words: "steward should be able to walk me through setting it up as well as being able to wire it in himself", and "diff the full feature list ... build them all")
 
 When the engine asks a question that carries `secret` (the .env variable's name; serve.py's `ask_secret`), the glass's Agent tab paints the secret card in place of the [y/n] shape or the plain field: the prompt, a password field with no autocomplete and no spellcheck, and Save and Skip. Save clears the field, calls the door's new `secret_set` (`line/internal/tools/secret.go`), and answers the engine `set`; Skip answers `skip`. While the card is up, a line typed in the main prompt is neither kept, shown nor sent.
