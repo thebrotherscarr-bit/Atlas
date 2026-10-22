@@ -326,6 +326,12 @@ func TestWhatsLeftIsATabOfItsOwn(t *testing.T) {
 			"the page no longer reads its document through the door's records tool"},
 		{left, `faults.push(`,
 			"the page no longer names a line it cannot number"},
+		{left, `App.tool('notes', { action: 'list', tag: this.TAG, limit: 500, full: true })`,
+			"the page no longer reads his notes first (the reconcile's stage 2, 2026-10-23)"},
+		{left, `TAG: 'whats-left'`,
+			"the page no longer names the tag the core's /mirror sync gives the list"},
+		{left, `Read from his notes:`,
+			"the page no longer says that what it shows came from his notes"},
 	} {
 		if !strings.Contains(c.in, c.want) {
 			t.Fatalf("%s -- wanted %s", c.why, c.want)

@@ -753,6 +753,15 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 		Fn:          toolRecords,
 	})
 
+	// HIS NOTES, THROUGH THE DOOR (2026-10-23, the reconcile's stage 2, his word: "let's do A and then B"). SecondBrain holds
+	// what he knows; this is the one reader the glass and the seats share, through the notes kernel he declared (notes.go).
+	r.add(Tool{
+		Name: "notes", Writes: false,
+		Description: "his notes in SecondBrain, read through the notes kernel he declared (MANJUEL_MCP_NOTES_CMD): search them, list them by tag newest first, whole if asked (whats-left, handoff, daybook, changelog, doc, ledger, ruling ...), get one whole, or the briefing for a question. Nothing is written",
+		Args:        []string{"action?", "q?", "tag?", "id?", "limit?", "full?", "project?"},
+		Fn:          toolNotes,
+	})
+
 	r.add(Tool{
 		Name: "seats", Writes: false,
 		Description: "the world's own seat declarations and the pipelines they stand in, from agents/ and pipelines.md",
