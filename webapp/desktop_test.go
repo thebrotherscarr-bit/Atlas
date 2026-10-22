@@ -40,6 +40,36 @@ func TestAnsweringAndWaitFor(t *testing.T) {
 	}
 }
 
+// The window is his own Chrome first, where Claude in Chrome lives (2026-10-22, his
+// card: "Your own Chrome profile"), and Edge in a profile of its own only without one.
+func TestTheWindowIsHisChromeFirstThenEdge(t *testing.T) {
+	pf, local := t.TempDir(), t.TempDir()
+	t.Setenv("ProgramFiles", pf)
+	t.Setenv("ProgramFiles(x86)", "")
+	t.Setenv("LOCALAPPDATA", local)
+	put := func(root string, parts ...string) string {
+		p := filepath.Join(append([]string{root}, parts...)...)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	if p, _ := pickBrowser(); p != "" {
+		t.Fatalf("with no browser installed none is picked, got %q", p)
+	}
+	edge := put(pf, "Microsoft", "Edge", "Application", "msedge.exe")
+	if p, own := pickBrowser(); p != edge || own {
+		t.Fatalf("with Edge alone, Edge in a profile of its own: got %q, own %v", p, own)
+	}
+	chrome := put(local, "Google", "Chrome", "Application", "chrome.exe")
+	if p, own := pickBrowser(); p != chrome || !own {
+		t.Fatalf("with Chrome there, his own Chrome first: got %q, own %v", p, own)
+	}
+}
+
 func TestServiceFromDotenvTakesOnlyTheWire(t *testing.T) {
 	dir := t.TempDir()
 	body := "OTHER_KEY=not-taken\n# ATLAS_SERVICE=commented\nATLAS_SERVICE=\"wire-123\"\n"

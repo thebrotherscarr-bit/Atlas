@@ -41,7 +41,7 @@ func main() {
 	// already serving gets a window onto it and nothing else.
 	desktop := desktopMode()
 	if desktop && desktopPrepare(port) {
-		if err := openWindow(port); err != nil {
+		if _, err := openWindow(port); err != nil {
 			desktopLog("%v", err)
 		}
 		return
@@ -101,7 +101,8 @@ func main() {
 	fmt.Printf("atlas-webapp listening on 127.0.0.1:%s -- this PC only, "+
 		"opened with a PIN, %s\n", port, wire)
 	if desktop {
-		// The glass serves behind its own window and ends when the window closes.
+		// The glass serves behind its window. An Edge window of its own ends it when
+		// closed; his Chrome's window is not this process's, so the glass keeps serving.
 		go func() {
 			if err := srv.ListenAndServe(); err != nil {
 				desktopLog("server: %v", err)
@@ -112,8 +113,12 @@ func main() {
 			desktopLog("the glass did not start on %s", port)
 			os.Exit(1)
 		}
-		if err := openWindow(port); err != nil {
+		held, err := openWindow(port)
+		if err != nil {
 			desktopLog("%v", err)
+		}
+		if !held && err == nil {
+			select {}
 		}
 		return
 	}

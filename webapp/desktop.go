@@ -13,11 +13,15 @@ package main
 //     after-a-reboot is done by hand: the door from atlas/line with the RUNBOOK
 //     line, its output to mcp.log and mcp.err.log beside it, no console window;
 //   - serves the glass itself, or uses the one already running on its port;
-//   - opens it in a window of its own -- Microsoft Edge's app mode, which every
-//     Windows 11 machine carries, so nothing is downloaded and nothing new is
-//     installed (RULE 4): no address bar, no tabs, its own taskbar entry -- and
-//     ends when that window is closed. The door and Ollama keep running, as
-//     Ollama's own desktop app leaves its server running.
+//   - opens it in a window of its own: no address bar, no tabs, its own taskbar
+//     entry. Since 2026-10-22 (his words: "recompile it in chrome" and "from here
+//     on you only use the PWA"; his card: "Your own Chrome profile") that window
+//     is a Chrome app window in HIS everyday Chrome profile, where Claude in
+//     Chrome lives, so the hand drives the very window he sees. Chrome hands the
+//     window to the Chrome already running, so the glass does not end with it: it
+//     keeps serving, as the door and Ollama do. With no Chrome, Microsoft Edge's
+//     app mode (on every Windows 11 machine, nothing downloaded: RULE 4) opens it
+//     in a profile of its own, as before, and the app ends when that window closes.
 //
 // The lock is unchanged: the window opens on the same PIN page the glass shows a
 // browser.
@@ -153,14 +157,14 @@ func startDoor(ground string) {
 	desktopLog("the door started (pid %d): %v", cmd.Process.Pid, waitFor("8090", 20*time.Second))
 }
 
-// edge finds Microsoft Edge.
-func edge() string {
-	for _, root := range []string{os.Getenv("ProgramFiles(x86)"), os.Getenv("ProgramFiles"),
-		filepath.Join(os.Getenv("LOCALAPPDATA"))} {
+// installed finds a browser's program under the three places Windows installs one.
+func installed(parts ...string) string {
+	for _, root := range []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)"),
+		os.Getenv("LOCALAPPDATA")} {
 		if root == "" {
 			continue
 		}
-		p := filepath.Join(root, "Microsoft", "Edge", "Application", "msedge.exe")
+		p := filepath.Join(append([]string{root}, parts...)...)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
@@ -168,23 +172,42 @@ func edge() string {
 	return ""
 }
 
-// openWindow opens the glass in a window of its own and waits until it is
-// closed. Its own profile folder, under the glass's data/, is what makes the
-// window its own process (and keeps its cookies apart from his browser's).
-func openWindow(port string) error {
-	browser := edge()
-	if browser == "" {
-		return fmt.Errorf("Microsoft Edge was not found; open http://127.0.0.1:%s/ in a browser", port)
+// pickBrowser is the window's browser: his Chrome first, in his own profile
+// (own is true), else Edge in a profile of its own.
+func pickBrowser() (path string, own bool) {
+	if p := installed("Google", "Chrome", "Application", "chrome.exe"); p != "" {
+		return p, true
 	}
-	profile, _ := filepath.Abs(filepath.Join("data", "desktop-profile"))
-	cmd := exec.Command(browser, "--app=http://127.0.0.1:"+port+"/", "--user-data-dir="+profile,
-		"--window-size=1440,920", "--no-first-run", "--no-default-browser-check",
-		"--disable-features=Translate")
+	return installed("Microsoft", "Edge", "Application", "msedge.exe"), false
+}
+
+// openWindow opens the glass in a window of its own. held says whether this
+// start waited for the window and ended with it: Edge's window, in its own
+// profile folder under the glass's data/ (its own process, its cookies apart
+// from his browser's), is held; his Chrome's is not -- the launcher hands it to
+// the Chrome already running and returns -- so the glass keeps serving.
+func openWindow(port string) (held bool, err error) {
+	browser, own := pickBrowser()
+	if browser == "" {
+		return false, fmt.Errorf("neither Chrome nor Edge was found; open http://127.0.0.1:%s/ in a browser", port)
+	}
+	args := []string{"--app=http://127.0.0.1:" + port + "/", "--window-size=1440,920"}
+	if !own {
+		profile, _ := filepath.Abs(filepath.Join("data", "desktop-profile"))
+		args = append(args, "--user-data-dir="+profile, "--no-first-run", "--no-default-browser-check",
+			"--disable-features=Translate")
+	}
+	cmd := exec.Command(browser, args...)
 	if err := cmd.Start(); err != nil {
-		return err
+		return false, err
+	}
+	if own {
+		desktopLog("the window opened in his Chrome (%s); the glass keeps serving", browser)
+		go cmd.Wait()
+		return false, nil
 	}
 	desktopLog("the window opened (pid %d)", cmd.Process.Pid)
-	return cmd.Wait()
+	return true, cmd.Wait()
 }
 
 // desktopPrepare is everything before the glass serves: its own folder as the
