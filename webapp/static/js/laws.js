@@ -187,7 +187,15 @@ const Laws = {
           <span class="badge badge-${sealedFiles === files.length ? 'green' : 'yellow'}">${sealedFiles} of ${files.length} sealed</span></div>
         ${filesHtml}
       </div>
-      <div class="stat-note mt-16">Read from the door: <span class="brief-src">law_status</span> <span class="brief-src">records</span>${
+      <div class="card mt-16" data-sec>
+        <div class="card-header"><span class="card-title">Rulings in his notes · SecondBrain</span></div>
+        <div class="stat-note">Read only. The core's /mirror sync keeps his rulings in his notes, tagged <code>ruling</code>; a law is still set and sealed above, on the chain.</div>
+        <div class="laws-actions"><input id="laws-rq" class="input" placeholder="words to look for, or empty for all rulings">
+          <button type="button" class="btn" id="laws-rgo">Read</button></div>
+        <div id="laws-rulings"></div>
+        <div id="laws-ruling"></div>
+      </div>
+      <div class="stat-note mt-16">Read from the door: <span class="brief-src">law_status</span> <span class="brief-src">records</span> <span class="brief-src">notes</span>${
         ledger.sha256 ? ' · ledger sha256 ' + escHtml(String(ledger.sha256).slice(0, 16)) : ''}</div>
     </div>`;
 
@@ -212,6 +220,32 @@ const Laws = {
         }
       });
     });
+
+    // HIS RULINGS, FROM HIS NOTES (2026-10-23, the reconcile's stage 2, A2b). Read only: the door's `notes` tool, tag ruling;
+    // with words, a search; without, the list newest first. A row opens the note whole. Nothing here sets or seals a law.
+    const rulings = async () => {
+      const box = $('laws-rulings'), q = $('laws-rq').value.trim();
+      box.innerHTML = '<div class="stat-note">Reading his notes...</div>';
+      $('laws-ruling').innerHTML = '';
+      try {
+        const d = JSON.parse(await App.tool('notes', q ? { action: 'search', q, tag: 'ruling', limit: 100 } : { action: 'list', tag: 'ruling', limit: 200 }));
+        const rows = Array.isArray(d.result) ? d.result : [];
+        box.innerHTML = rows.length
+          ? '<ul>' + rows.map(n => `<li><a href="#" data-note="${escHtml(n.id)}">${escHtml(n.title || n.id)}</a></li>`).join('') + '</ul>'
+          : `<div class="stat-note">No ruling in his notes${q ? ' matches ' + escHtml(q) : ''}.</div>`;
+        box.querySelectorAll('a[data-note]').forEach(a => a.onclick = async (e) => {
+          e.preventDefault();
+          const one = $('laws-ruling');
+          one.innerHTML = '<div class="stat-note">Reading...</div>';
+          try {
+            const n = JSON.parse(await App.tool('notes', { action: 'get', id: a.dataset.note })).result || {};
+            one.innerHTML = `<div class="stat-note">${escHtml(n.title || n.id)} · ${escHtml((n.tags || []).join(', '))} · notes</div>${this.inline(n.body || '')}`;
+          } catch (er) { one.innerHTML = `<span class="eng-bad">could not be read: ${escHtml(er.message || 'refused')}</span>`; }
+        });
+      } catch (er) { box.innerHTML = `<span class="eng-bad">His notes did not answer: ${escHtml(er.message || 'refused')}</span>`; }
+    };
+    $('laws-rgo').onclick = rulings;
+    $('laws-rq').onkeydown = (e) => { if (e.key === 'Enter') rulings(); };
 
     const say = (id, text, bad) => { const m = $(id); if (m) { m.textContent = text; m.className = 'laws-msg' + (bad ? ' laws-bad' : ''); } };
 

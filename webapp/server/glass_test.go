@@ -665,6 +665,27 @@ func TestRegistryAndDocsCarriesTheToolsTheSeatsAndTheDocuments(t *testing.T) {
 	}
 }
 
+// HIS NOTES STAND ABOVE THE FILES (2026-10-23, the reconcile's stage 2, A2b; his
+// word: "let's do A and then B as proposed"). Registry & Docs reads the record the
+// core's /mirror sync keeps in his notes, a chip per kind; the Audit Ledger reads
+// the tolls the same way, with the ledger tag alone. One card draws both, one
+// handler lists a tag through the door's notes tool, and a row opens the note
+// whole. Read only: the door's notes tool carries no action that writes.
+func TestHisNotesStandAboveTheFiles(t *testing.T) {
+	src := page(t, "js/agent.js")
+	if !strings.Contains(funcOf(src, "  async docsHtml("), "this.notesCard('In his notes', 'ag-notes', this.NOTE_TAGS") {
+		t.Fatal("Registry & Docs no longer reads his notes above the files")
+	}
+	if !strings.Contains(funcOf(src, "  async ledgerHtml("), "this.notesCard('Tolls, from his notes', 'ag-tolls', [['ledger', 'list the tolls']]") {
+		t.Fatal("the Audit Ledger no longer reads the tolls from his notes")
+	}
+	click := funcOf(src, "  async paneClick(")
+	if !strings.Contains(click, "App.tool('notes', { action: 'list', tag: b.dataset.tag, limit: 200 })") ||
+		!strings.Contains(click, "App.tool('notes', { action: 'get', id: b.dataset.id })") {
+		t.Fatal("a tag chip no longer lists his notes through the door, or a row no longer opens the note whole")
+	}
+}
+
 // SETTINGS IS A DOOR OF ITS OWN (his word, 2026-10-06: "Add another page along the
 // top next to guardrails that is for settings. that'll include all the settings
 // for messaging integration."): beside Laws (Guardrails until 2026-10-08) in the

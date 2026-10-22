@@ -2035,7 +2035,9 @@ const Agent = {
     const note = this.card('Chain verdicts',
       '<p>The door\'s own chain checker cannot read the pen\'s links yet, so it would call a whole chain FLIP (WHAT\'S LEFT H7). Until it can, the words to read are the engine\'s own, in the report above: its record, gate and memory lines say whether the law and the memory are whole.</p>',
       'verify_chain is not asked here on purpose');
-    return '<div class="ag-proof" id="ag-proof-led"></div>' + live + report + '<div class="ag-proof" id="ag-proof-estate"></div>' + hand + logs + note;
+    const tolls = this.notesCard('Tolls, from his notes', 'ag-tolls', [['ledger', 'list the tolls']],
+      'notes - the ledger notes the core\'s /mirror sync writes from SEAT_LOG, a note a day');
+    return '<div class="ag-proof" id="ag-proof-led"></div>' + live + report + '<div class="ag-proof" id="ag-proof-estate"></div>' + hand + tolls + logs + note;
   },
 
   // ---- Aider Pair ---------------------------------------------------------------
@@ -2129,6 +2131,19 @@ const Agent = {
   // date and sealed badge. The settings went to a tab of their own, beside Guardrails (Laws since 2026-10-08). Since
   // 2026-10-10 (D17's last part, his cards) the Agents, Tools and Records pages' addresses open this tab, and the pages are
   // drawn nowhere else.
+  // HIS NOTES, ABOVE THE FILES (2026-10-23, the reconcile's stage 2, A2b; his word: "let's do A and then B"). The core's
+  // /mirror sync keeps the record in his notes, tagged by kind; a tag chip lists that kind newest first through the door's
+  // `notes` tool, and a row opens the note whole. Read-only, like the files it stands above. The same card, with the
+  // ledger tag alone, is the Audit Ledger's tolls.
+  NOTE_TAGS: [['doc', 'docs'], ['handoff', 'handoffs'], ['daybook', 'daybook'], ['changelog', 'changelog'],
+    ['whats-left', "what's left"], ['ruling', 'rulings'], ['ledger', 'tolls']],
+
+  notesCard(title, box, tags, src) {
+    return this.card(title, '<div class="ag-btns">' + tags.map(([t, l]) =>
+      `<button type="button" class="ag-btn" data-act="notes-tag" data-tag="${escHtml(t)}" data-box="${escHtml(box)}">${escHtml(l)}</button>`).join('') +
+      `</div><div id="${escHtml(box)}"></div>`, src);
+  },
+
   async docsHtml() {
     let tools = [];
     let said = '';
@@ -2144,6 +2159,8 @@ const Agent = {
         `<input type="text" id="ag-seats-q" placeholder="Filter ${seats.length} seats..." autocomplete="off" />` +
         `<div id="agent-grid" class="ag-seats">${seats.map((s, i) => App.seatCard(s, i)).join('')}</div>`,
         'seats - agents/ and pipelines.md, each drawn by the Agents page\'s own card') +
+      this.notesCard('In his notes', 'ag-notes', this.NOTE_TAGS,
+        'notes - his SecondBrain, through the notes kernel; the files below until each is retired') +
       this.card('Documents', '<div id="ag-docs"><p>The estate\'s own documents, sorted by what they are, each served whole with a sha256 receipt.</p></div>' +
         '<div class="ag-btns"><button type="button" class="ag-btn" data-act="kinds">List the kinds</button></div>', 'records');
   },
@@ -2284,6 +2301,30 @@ const Agent = {
       this.paintTitle();
       this.paintTop();
       if (this.open && this.tab === 'ledger') this.paintPane();
+      return;
+    }
+    if (act === 'notes-tag') {
+      const box = $ag(b.dataset.box);
+      if (!box) return;
+      box.innerHTML = '<p>Reading his notes...</p>';
+      try {
+        const d = JSON.parse(await App.tool('notes', { action: 'list', tag: b.dataset.tag, limit: 200 }));
+        const rows = Array.isArray(d.result) ? d.result : [];
+        box.innerHTML = rows.length
+          ? `<table><thead><tr><th>${escHtml(b.dataset.tag)} (${rows.length})</th><th>synced</th></tr></thead><tbody>${rows.map(n =>
+              `<tr class="click" data-act="note" data-id="${escHtml(n.id)}" data-box="${escHtml(b.dataset.box)}"><td>${escHtml(n.title)}</td><td>${escHtml(when(Date.parse(n.updated) || 0))}</td></tr>`).join('')}</tbody></table><div id="${escHtml(b.dataset.box)}-one"></div>`
+          : `<p>No note in his notes carries the tag ${escHtml(b.dataset.tag)}. The core's /mirror sync writes them.</p>`;
+      } catch (er) { box.innerHTML = `<p>His notes did not answer: ${escHtml(er.message || 'refused')}</p>`; }
+      return;
+    }
+    if (act === 'note') {
+      const box = $ag(b.dataset.box + '-one');
+      if (!box) return;
+      box.innerHTML = '<p>Reading...</p>';
+      try {
+        const n = JSON.parse(await App.tool('notes', { action: 'get', id: b.dataset.id })).result || {};
+        box.innerHTML = `<div class="ag-src">${escHtml(n.title || n.id)} &middot; ${escHtml((n.tags || []).join(', '))} &middot; synced ${escHtml(when(Date.parse(n.updated) || 0))} &middot; notes</div><pre>${escHtml(n.body || '')}</pre>`;
+      } catch (er) { box.innerHTML = `<p>${escHtml(er.message || 'refused')}</p>`; }
       return;
     }
     if (act === 'logs') {
