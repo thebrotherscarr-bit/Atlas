@@ -12,6 +12,21 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Registry & Docs, the Audit Ledger and Laws read his notes (2026-10-23, the reconcile's stage 2, piece A2b; his words: "let's do A and then B as proposed")
+
+The three pages that show the record now read it from his notes as well as from the files. All three go through the door's `notes` tool (A1), and all three only read.
+
+- **Registry & Docs** has a card, **In his notes**, above Documents. It has one chip per tag the core's /mirror sync writes: doc, handoff, daybook, changelog, whats-left, ruling and ledger. A chip lists that kind newest first, and a row opens the note whole.
+- **The Audit Ledger** has a card, **Tolls, from his notes**. It is the same card with the `ledger` tag alone, placed before the logs.
+- **Laws** has a card, **Rulings in his notes · SecondBrain**, after the laws on the chain. It lists the notes tagged `ruling`, or searches them for given words, and a row opens the ruling whole. Laws are still set and sealed on the chain, above it. Nothing on this card writes.
+
+What goes red if this is unplugged:
+- `TestHisNotesStandAboveTheFiles` (new, `webapp/server/glass_test.go`) covers both agent.js cards and the handler that lists and opens.
+- `TestTheLawsPageIsWired` covers the rulings reader.
+- `TestEveryToolTheLawsPageAsksForIsCarriedByTheDoorAndNothingItAsksIsQuiet` now lists `notes` among the tools the Laws page may reach.
+
+Each stroke was unplugged once and went red.
+
 ### His notes, through the door, and What's left read from them (2026-10-23, the reconcile's stage 2, pieces A1 and A2a; his words: "let's do A and then B as proposed")
 
 His ruling of 2026-10-22 makes SecondBrain the place for everything he knows. The core's /mirror sync already copies the record into his notes (stage 1). Stage 2 is that what reads the files reads the notes. Nothing in the door could reach a note. This adds the one reader the glass and the seats will share, and moves the first page onto it.

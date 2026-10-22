@@ -27,6 +27,9 @@ func TestTheLawsPageIsWired(t *testing.T) {
 		{laws, `App.tool('law_status', {})`, "the page no longer reads how far each law is sealed from the door's law_status"},
 		{laws, `RULES: 'CLAUDE.md'`, "the page no longer names the standing rules it shows"},
 		{laws, `LEDGER: 'law/LAW_LEDGER.md'`, "the page no longer names the ledger it shows"},
+		{laws, `App.tool('notes', q ? { action: 'search', q, tag: 'ruling', limit: 100 } : { action: 'list', tag: 'ruling', limit: 200 })`,
+			"the page no longer reads his rulings from his notes (the reconcile's stage 2, A2b)"},
+		{laws, `App.tool('notes', { action: 'get', id: a.dataset.note })`, "a ruling read from his notes no longer opens whole"},
 	} {
 		if !strings.Contains(c.in, c.want) {
 			t.Fatalf("%s -- wanted %s", c.why, c.want)
@@ -53,7 +56,7 @@ func TestEveryToolTheLawsPageAsksForIsCarriedByTheDoorAndNothingItAsksIsQuiet(t 
 		}
 	}
 	asked := regexp.MustCompile(`App\.tool\('([a-z_]+)'`).FindAllStringSubmatch(src, -1)
-	want := map[string]bool{"law_status": false, "records": false, "law_add": false, "law_seal": false}
+	want := map[string]bool{"law_status": false, "records": false, "law_add": false, "law_seal": false, "notes": false}
 	for _, m := range asked {
 		if !carried[m[1]] {
 			t.Fatalf("the Laws page asks for %s and the door does not carry it", m[1])
