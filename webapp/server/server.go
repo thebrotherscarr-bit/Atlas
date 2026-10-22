@@ -106,6 +106,11 @@ func (s *Server) ListenAndServe() error {
 	// sandboxed into the Dashboard's frame -- handlers/projects.go.
 	mux.HandleFunc("GET /api/projects/{name}/page", s.handlers.ProjectPage)
 	mux.HandleFunc("GET /metrics", s.handlers.Metrics)
+	// THE CLAUDE TAB (2026-10-22): the Claude Code harness, run headless in the
+	// ground with the door as its hands -- handlers/claude.go.
+	mux.HandleFunc("GET /api/claude/info", s.handlers.ClaudeInfo)
+	mux.HandleFunc("POST /api/claude/turn", s.handlers.ClaudeTurn)
+	mux.HandleFunc("POST /api/claude/stop", s.handlers.ClaudeStop)
 
 	staticFS, _ := fs.Sub(s.static, "static")
 	fileServer := http.FileServer(http.FS(staticFS))
