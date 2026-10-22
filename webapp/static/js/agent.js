@@ -275,7 +275,9 @@ const Agent = {
       const r = await fetch('/api/update/apply', { method: 'POST' });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'HTTP ' + r.status);
     } catch (e) {
-      b.disabled = false; b.textContent = 'Update'; b.title = 'The update did not start: ' + (e.message || e);
+      b.disabled = false; b.textContent = 'Update';
+      b.title = 'The update did not start: ' + (e.message || e);
+      this.say('Update', 'Refused: ' + (e.message || e), 'ERROR');
       return;
     }
     // The glass goes down and comes back; reload once it answers again (atlas/update.log says each step).
