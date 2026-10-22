@@ -208,6 +208,7 @@ const Agent = {
         <nav class="ag-nav" id="ag-nav">${doors}</nav>
         <div class="ag-right">
           <div class="ag-stat" id="ag-stat"><span class="ag-sdot" id="ag-sdot"></span><span id="ag-stat-a">reading</span><span class="ag-slash ag-rack">/</span><span id="ag-stat-b" class="ag-rack"></span></div>
+          <button type="button" class="ag-chipbtn" id="ag-update" hidden>Update</button>
           <div class="ag-pages-wrap">
             <button type="button" class="ag-chipbtn" id="ag-pages" title="Every other page">Pages</button>
             <div class="ag-menu" id="ag-menu" hidden></div>
@@ -249,6 +250,43 @@ const Agent = {
     </div>`;
   },
 
+  // ATLAS UPDATES ITSELF (2026-10-22, his word: "atlas should auto-update just like the secondbrain does"). The button
+  // shows only when GitHub's main is ahead of the commit this glass was built from; pressed, ../update.ps1 takes main
+  // forward, builds the door and the glass, swaps them in and starts both again, and the page reloads once the glass
+  // answers. It refuses while a sitting is open or over unsaved work, and says why (handlers/update.go).
+  async checkUpdate() {
+    const b = $ag('ag-update');
+    if (!b) return;
+    try {
+      const u = await (await fetch('/api/update/check')).json();
+      b.hidden = !u.available;
+      if (u.available) {
+        b.textContent = `Update (${u.behind})`;
+        b.title = `GitHub's main is ${u.behind} ahead of this build (${u.running} -> ${u.latest}):\n- ` + (u.changes || []).join('\n- ');
+      }
+    } catch { b.hidden = true; }
+  },
+
+  async update() {
+    const b = $ag('ag-update');
+    b.disabled = true;
+    b.textContent = 'Updating...';
+    try {
+      const r = await fetch('/api/update/apply', { method: 'POST' });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'HTTP ' + r.status);
+    } catch (e) {
+      b.disabled = false; b.textContent = 'Update'; b.title = 'The update did not start: ' + (e.message || e);
+      return;
+    }
+    // The glass goes down and comes back; reload once it answers again (atlas/update.log says each step).
+    await new Promise(res => setTimeout(res, 8000));
+    for (let i = 0; i < 120; i++) {
+      try { if ((await fetch('/api/health', { cache: 'no-store' })).ok) { location.reload(); return; } } catch {}
+      await new Promise(res => setTimeout(res, 2000));
+    }
+    b.disabled = false; b.textContent = 'Update'; b.title = 'Atlas did not come back; read atlas/update.log';
+  },
+
   wire() {
     const on = (id, ev, fn) => { const e = $ag(id); if (e) e['on' + ev] = fn; };
     document.querySelectorAll('#ag-nav [data-door]').forEach(b => { b.onclick = () => this.door(b.dataset.door); });
@@ -261,6 +299,9 @@ const Agent = {
     on('ag-mic', 'click', () => this.mic());
     on('ag-help', 'click', () => { const h = $ag('ag-hints'); h.hidden = !h.hidden; $ag('ag-help').classList.toggle('on', !h.hidden); });
     on('ag-pages', 'click', (e) => { e.stopPropagation(); this.menu(); });
+    on('ag-update', 'click', () => this.update());
+    this.checkUpdate();
+    setInterval(() => this.checkUpdate(), 30 * 60 * 1000);
     this.paintMode();
 
     const input = $ag('ag-input');
