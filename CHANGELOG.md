@@ -12,6 +12,19 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The desktop app opens the glass in his own Chrome (2026-10-22; his words: "recompile it in chrome" and "from here on you only use the PWA"; his card: "Your own Chrome profile")
+
+`atlas-desktop.exe` now opens the glass as a Chrome app window in his everyday Chrome profile, where Claude in Chrome lives, so the hand can drive the window he sees. Before, it opened in Edge's app mode, in a profile of its own under data/, which no tool of the hand's could reach.
+
+What changed in `webapp/desktop.go`:
+- `pickBrowser` takes Chrome first, from the three places Windows installs a browser.
+- Edge stays the fallback, with its own profile and the old behaviour: the app ends when its window closes.
+- Chrome hands the window to the Chrome already running, so the launcher returns at once. The glass therefore keeps serving after that window closes, as the door and Ollama do (`main.go`: `openWindow` now says whether it held the window).
+
+What goes red if it comes unplugged: `TestTheWindowIsHisChromeFirstThenEdge`, and `go vet` of webapp/.
+
+Building and placing atlas-desktop.exe (with the door and the glass at v0.2.6, the secret card in them) is his card.
+
 ## [v0.2.6] — 2026-10-21 15:38 (tag on 19dcc85)
 
 ### The secret card: a key typed into a masked field, never seen by the model (2026-10-21; his words: "steward should be able to walk me through setting it up as well as being able to wire it in himself", and "diff the full feature list ... build them all")
