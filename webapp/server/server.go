@@ -111,6 +111,9 @@ func (s *Server) ListenAndServe() error {
 	mux.HandleFunc("GET /api/claude/info", s.handlers.ClaudeInfo)
 	mux.HandleFunc("POST /api/claude/turn", s.handlers.ClaudeTurn)
 	mux.HandleFunc("POST /api/claude/stop", s.handlers.ClaudeStop)
+	// ATLAS UPDATES ITSELF (2026-10-22): handlers/update.go and ../update.ps1.
+	mux.HandleFunc("GET /api/update/check", s.handlers.UpdateCheck)
+	mux.HandleFunc("POST /api/update/apply", s.handlers.UpdateApply)
 
 	staticFS, _ := fs.Sub(s.static, "static")
 	fileServer := http.FileServer(http.FS(staticFS))
