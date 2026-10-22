@@ -11,7 +11,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
@@ -87,9 +90,39 @@ func (h *Handlers) UpdateCheck(w http.ResponseWriter, r *http.Request) {
 	jsonResp(w, out)
 }
 
+// updateRefusal is why an update may not start now, or "": the script's own
+// three refusals, asked here first so the button can say them (the first press
+// on 2026-10-22 was refused inside the script and the page only said
+// "Updating...").
+func updateRefusal(ctx context.Context, dir string) string {
+	if b, err := os.ReadFile(filepath.Join(filepath.Dir(dir), "sessions", "sessions.jsonl")); err == nil {
+		lines := strings.Split(strings.TrimRight(string(b), "\r\n"), "\n")
+		var row struct {
+			N     any    `json:"n"`
+			Ended string `json:"ended"`
+		}
+		if last := strings.TrimSpace(lines[len(lines)-1]); last != "" && json.Unmarshal([]byte(last), &row) == nil && strings.TrimSpace(row.Ended) == "" {
+			return fmt.Sprintf("sitting %v is open; close it first (the update restarts the door, and nothing moves under a sitting)", row.N)
+		}
+	}
+	if branch, err := gitIn(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD"); err != nil || branch != "main" {
+		return fmt.Sprintf("Atlas's checkout is on %q, not main; the update only moves main", branch)
+	}
+	if err := hidden(exec.CommandContext(ctx, "git", "-C", dir, "diff-index", "--quiet", "HEAD", "--")).Run(); err != nil {
+		return "Atlas's checkout has unsaved work; save or put it aside first"
+	}
+	return ""
+}
+
 // UpdateApply answers POST /api/update/apply: update.ps1 is started on its own
 // and outlives this glass, which it stops and starts again.
 func (h *Handlers) UpdateApply(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	if why := updateRefusal(ctx, atlasDir()); why != "" {
+		jsonErr(w, 409, why)
+		return
+	}
 	script := filepath.Join(atlasDir(), "update.ps1")
 	shell := "pwsh"
 	if _, err := exec.LookPath(shell); err != nil {

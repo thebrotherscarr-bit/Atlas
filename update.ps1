@@ -34,9 +34,11 @@ function Say([string]$t) {
     Write-Output $line
 }
 
-function Git([string[]]$a) {
+# Named Invoke-AtlasGit and calling git.exe: PowerShell's names ignore case, so a helper called
+# Git that runs `git` calls itself until the call depth overflows (the first two presses, 2026-10-22).
+function Invoke-AtlasGit([string[]]$a) {
     $env:GIT_TERMINAL_PROMPT = '0'
-    $out = & git -C $atlas @a 2>&1
+    $out = & git.exe -C $atlas @a 2>&1
     if ($LASTEXITCODE -ne 0) { throw "git $($a -join ' ') failed: $out" }
     return ($out | Out-String).Trim()
 }
@@ -67,16 +69,16 @@ try {
             if (-not $row.ended) { throw "sitting $($row.n) is open; close it first (RULE 9: nothing moves under a sitting)" }
         }
     }
-    $branch = Git @('rev-parse', '--abbrev-ref', 'HEAD')
+    $branch = Invoke-AtlasGit @('rev-parse', '--abbrev-ref', 'HEAD')
     if ($branch -ne 'main') { throw "this checkout is on '$branch', not main; the update only moves main" }
-    & git -C $atlas diff-index --quiet HEAD -- 2>$null
+    & git.exe -C $atlas diff-index --quiet HEAD -- 2>$null
     if ($LASTEXITCODE -ne 0) { throw "this checkout has unsaved work; save or put it aside first" }
 
     # 2. main from GitHub, forward only
-    Git @('fetch', '-q', 'origin', 'main') | Out-Null
-    $before = Git @('rev-parse', '--short', 'HEAD')
-    Git @('merge', '-q', '--ff-only', 'origin/main') | Out-Null
-    $after = Git @('rev-parse', '--short', 'HEAD')
+    Invoke-AtlasGit @('fetch', '-q', 'origin', 'main') | Out-Null
+    $before = Invoke-AtlasGit @('rev-parse', '--short', 'HEAD')
+    Invoke-AtlasGit @('merge', '-q', '--ff-only', 'origin/main') | Out-Null
+    $after = Invoke-AtlasGit @('rev-parse', '--short', 'HEAD')
     Say "update: main $before -> $after"
 
     # 3. build beside the running programs
