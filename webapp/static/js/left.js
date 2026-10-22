@@ -15,6 +15,13 @@
 // object is how it is read. The door's `records` tool serves it, the way it
 // serves every document in Registry & Docs; this keeps no copy.
 //
+// HIS NOTES FIRST (2026-10-23, the reconcile's stage 2, his word: "let's do A
+// and then B"). The core's /mirror sync keeps the list in his notes, one note
+// per section, tagged whats-left. The page reads those first, through the
+// door's `notes` tool, and puts the sections back in the document's order; the
+// file is read only when his notes do not answer or hold none. The footer says
+// which one was read.
+//
 // EVERY NUMBER HERE IS COUNTED FROM THE LINES DRAWN. The document carries no
 // tally of its own, so there is no second count to drift from the first.
 //
@@ -33,12 +40,25 @@ const Left = {
   // and what waits on him.
   TONE: { A: 'red', B: 'yellow' },
 
+  TAG: 'whats-left',
+  // the line the mirror ends every note with; it is the mirror's, not the list's
+  FOOT: /\n*Mirrored from \S+ by \/mirror sync\.[^\n]*\s*$/,
+
   async render(el) {
     this.style();
     el.innerHTML = '<div class="loading">Reading what is left...</div>';
+    let notesWhy = '';
+    try {
+      const n = await this.fromNotes();
+      if (n) return this.paint(el, this.parse(n.text), n);
+      notesWhy = 'his notes hold no ' + this.TAG + ' notes';
+    } catch (e) {
+      notesWhy = e.message || 'his notes did not answer';
+    }
     let d;
     try {
       d = JSON.parse(await App.tool('records', { name: this.DOC }));
+      d.notesWhy = notesWhy;
     } catch (e) {
       el.innerHTML = `
         <div class="card"><div class="eng-row eng-bad">
@@ -47,6 +67,30 @@ const Left = {
       return;
     }
     this.paint(el, this.parse(d.text || ''), d);
+  },
+
+  // The list as his notes hold it: every whats-left note, whole, put back in
+  // order -- the unlettered sections, A to Z, then Done --
+  // with a section's parts (a long one is cut at 40,000 characters) rejoined.
+  async fromNotes() {
+    const d = JSON.parse(await App.tool('notes', { action: 'list', tag: this.TAG, limit: 500, full: true }));
+    const notes = Array.isArray(d.result) ? d.result : [];
+    if (!notes.length) return null;
+    const secs = {};
+    let newest = '';
+    for (const n of notes) {
+      const m = /^What's left: (.+?)(?: \(part (\d+) of \d+\))?$/.exec(n.title || '');
+      const head = m ? m[1] : (n.title || n.id);
+      (secs[head] = secs[head] || []).push({ part: Number(m && m[2]) || 1, body: String(n.body || '').replace(this.FOOT, '') });
+      if ((n.updated || '') > newest) newest = n.updated;
+    }
+    // The notes carry no position, so the lettered sections take the letters'
+    // order, Done goes last, and the unlettered ones (the page's own words
+    // about itself) go first -- not always where the file had them.
+    const rank = h => (/^[A-Z]\. /.test(h) ? h.charCodeAt(0) - 64 : /^done\b/i.test(h) ? 99 : 0);
+    const heads = Object.keys(secs).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+    const text = heads.map(h => `## ${h}\n\n` + secs[h].sort((a, b) => a.part - b.part).map(p => p.body.trim()).join('\n')).join('\n\n');
+    return { from: 'notes', count: notes.length, modified: newest, text };
   },
 
   // The document, cut into what it holds: a title, the words before the first
@@ -197,10 +241,15 @@ const Left = {
       <div class="stats">${tiles}</div>
       ${doc.intro.map(b => this.block(b)).join('')}
       ${sections}
-      <div class="stat-note mt-16">Read from <code>${escHtml(d.name || this.DOC)}</code> ·
-        ${(Number(d.bytes || 0) / 1024).toFixed(1)} KB ·
-        changed ${escHtml(when(Date.parse(d.modified) || 0))}
-        <span class="brief-src">records · sha256 ${escHtml(String(d.sha256 || '').slice(0, 16))}</span></div>
+      ${d.from === 'notes'
+        ? `<div class="stat-note mt-16">Read from his notes: ${d.count} note${d.count === 1 ? '' : 's'} tagged <code>${escHtml(this.TAG)}</code> ·
+            synced ${escHtml(when(Date.parse(d.modified) || 0))}
+            <span class="brief-src">notes · /mirror sync keeps them current</span></div>`
+        : `<div class="stat-note mt-16">Read from <code>${escHtml(d.name || this.DOC)}</code> ·
+            ${(Number(d.bytes || 0) / 1024).toFixed(1)} KB ·
+            changed ${escHtml(when(Date.parse(d.modified) || 0))}
+            <span class="brief-src">records · sha256 ${escHtml(String(d.sha256 || '').slice(0, 16))}</span></div>
+          ${d.notesWhy ? `<div class="stat-note">Not from his notes: ${escHtml(d.notesWhy)}</div>` : ''}`}
     </div>`;
 
     document.getElementById('left-again').onclick = () => this.render(el);

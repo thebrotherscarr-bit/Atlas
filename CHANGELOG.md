@@ -12,6 +12,40 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### His notes, through the door, and What's left read from them (2026-10-23, the reconcile's stage 2, pieces A1 and A2a; his words: "let's do A and then B as proposed")
+
+His ruling of 2026-10-22 makes SecondBrain the place for everything he knows. The core's /mirror sync already copies the record into his notes (stage 1). Stage 2 is that what reads the files reads the notes. Nothing in the door could reach a note. This adds the one reader the glass and the seats will share, and moves the first page onto it.
+
+**`notes`** (`line/internal/tools/notes.go`, new) reads through the notes kernel he already declared for the core: `MANJUEL_MCP_NOTES_CMD` in the world's .env, or the door's environment.
+- **How it calls the kernel.** The door's spawn contract closes every child's stdin, so it does not speak MCP. It runs the same command with its trailing `mcp` replaced by the kernel's one-shot `call <method> <json>`, in the world's Home, bounded at 30 s and 4 MiB.
+- **Four actions, each one kernel method that only reads:**
+  - `search` (q, tag?, limit?) runs notes.search
+  - `list` (tag?, limit?, full?) runs notes.list, newest first
+  - `get` (id) runs notes.get
+  - `context` (q) runs context.for
+- **What it refuses.** Any other action is refused by name, and so is a missing declaration or one that is not the MCP command. A failing call returns the kernel's own words, and an answer that is not JSON is never passed on.
+- **Where it looks for the declaration.** One level up and no further, the same bound `dial()` keeps.
+- **RULE 7.** The declaration is never returned or logged.
+- `Writes: false`, core tier. docs/TOOL_PERMISSIONS.md is regenerated: 97 tools, 51 of them read.
+- **`full`** needs the notes kernel from Jesster `49d36a7` on (`notes.list full`). Older kernels refuse it by name, and the page then reads the file.
+
+**What's left** (`webapp/static/js/left.js`) reads his notes first: every `whats-left` note, whole.
+- The sections are put back together, with a long section's parts rejoined, and drawn by the same parser as before.
+- The file is read through `records`, as before, only when his notes do not answer or hold no `whats-left` note. The footer says which was read, and why it was not the notes.
+- **Checked against today's WHATS_LEFT.md,** run through the core's own mirror: every section holds the same open lines.
+- **Two differences remain:**
+  - The unlettered sections ("Today's working path", "The plan by office", "The words", "How this page is kept") come first. The notes carry no position, so they are not always where the file had them.
+  - Done, which the mirror cuts into two parts, shows two more blocks than the file. Its open count is the same.
+
+What goes red if it comes unplugged:
+- `notes_test.go` (five strokes: the argv built from the declaration, actions mapped only to readers, `full` reaching the kernel, refusals, the kernel's words, the one-level bound)
+- three new lines in `TestWhatsLeftIsATabOfItsOwn` (the page reads `notes` with the `whats-left` tag and says so)
+- `TestEveryCoreToolStandsAlone` and `TestEveryToolHasAPermissionRecord`
+
+**Checked live** against the real notes kernel in a temp ground: list, search and get answered. The proof that counts is his `prove.py` and the page on his glass (RULE 13).
+
+**Restart required:** the door and the glass are rebuilt and placed on his card, and the notes kernel at `worlds/jesster` fast-forwarded to `49d36a7`.
+
 ### The desktop app opens the glass in his own Chrome (2026-10-22; his words: "recompile it in chrome" and "from here on you only use the PWA"; his card: "Your own Chrome profile")
 
 `atlas-desktop.exe` now opens the glass as a Chrome app window in his everyday Chrome profile, where Claude in Chrome lives, so the hand can drive the window he sees. Before, it opened in Edge's app mode, in a profile of its own under data/, which no tool of the hand's could reach.

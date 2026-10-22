@@ -29,7 +29,7 @@ declaration visible. It does not make a false one true.
 
 ## The record
 
-96 tools: 50 read, 46 write (3 of the writers have reading actions); 5 carry a secret argument; service-only: 8. Tiers: core 86, spine 1, engine 9.
+97 tools: 51 read, 46 write (3 of the writers have reading actions); 5 carry a secret argument; service-only: 8. Tiers: core 87, spine 1, engine 9.
 
 `yes` = may call it; `reads only` = refused the tool as a writer, may call its reading actions; `-` = refused. `held` = a call from anything but the glass waits for the operator when holds are armed; `service only` = refused to anything but the glass, and never parked.
 
@@ -87,6 +87,7 @@ declaration visible. It does not make a false one true.
 | `mesh_post` | core | writes | - | - | held | yes | yes | - | - |
 | `mesh_read` | core | reads | - | - | - | yes | yes | yes | - |
 | `muster` | core | reads | - | - | - | yes | yes | yes | - |
+| `notes` | core | reads | - | - | - | yes | yes | yes | - |
 | `projects` | core | reads | - | - | - | yes | yes | yes | - |
 | `prompt_compare` | core | writes | - | - | held | yes | yes | - | - |
 | `prompt_eval` | core | writes | - | - | held | yes | yes | - | - |
