@@ -115,7 +115,10 @@ const Agent = {
     { id: 'laws',   label: 'Laws' },
     { id: 'settings', label: 'Settings' },
     { id: 'docs',   label: 'Registry & Docs' },
-    { id: 'rack',   label: 'Rack' }
+    { id: 'rack',   label: 'Rack' },
+    // CLAUDE (2026-10-22, his word: "give you an inspector tab"): the model, his instructions for the session, the talk
+    // and every step Claude takes, drawn by its own object (claude.js).
+    { id: 'claude', label: 'Claude' }
   ],
   // WHAT A TAB THAT IS NOT WIRED SAYS WHEN IT IS PRESSED. It says so. A tab
   // that looked wired and answered with a stub is the fault the page it came
@@ -1798,6 +1801,11 @@ const Agent = {
       return;
     }
     if (id === 'flows') { put('<div class="ag-wf" id="ag-wf"></div>'); await this.flowsPane(stamp); return; }
+    if (id === 'claude') {
+      put('<div class="ag-claude" id="ag-claude"></div>');
+      if (this._pane === stamp && this.tab === id && $ag('ag-claude')) await ClaudeTab.render($ag('ag-claude'));
+      return;
+    }
     put('<div class="ag-empty">Reading...</div>');
     try {
       if (id === 'aider') put(await this.aiderHtml());
