@@ -30,7 +30,19 @@ const Flows = {
   // the page drew besides them went with it (his card: "Remove what nothing reads"), each to the front page's own: the hold
   // queue is the cards pinned at the foot of the terminal, the way through the council is the terminal itself, and Recent
   // is the terminal's own history.
+  // GITHUB LIVES IN SECONDBRAIN (2026-10-23, his word: "move that whole thing out of the inspector into a proper shelf on
+  // secondbrain"; SecondBrain's plan-github-shelf, G4). The tab says where it went; the old panel stays one press away
+  // until his SecondBrain carries the shelf.
   async render(el) {
+    el.innerHTML = `<div class="card"><div class="card-title">GitHub lives in SecondBrain now</div>
+        <div class="muted">Open SecondBrain and press <b>GitHub</b> in its top bar: every repository (SecondBrain, Manjuel, Atlas) with its next step,
+        the pull requests and their checks, the git writes waiting on you, and the git flows on the Flows shelf.</div>
+        <button class="btn btn-sm mt-16" id="gh-old-panel">Show the old panel here</button>
+      </div>`;
+    el.querySelector('#gh-old-panel').onclick = () => this.renderPanel(el);
+  },
+
+  async renderPanel(el) {
     el.innerHTML = `<div class="card"><div class="card-title">The repositories — what is saved, what is not, and what you can do about it</div>
         <div id="repo-watch"><div class="skel skel-60"></div><div class="skel skel-80"></div><div class="skel skel-40"></div></div>
         <div class="muted mt-16">Every button here is your hand, not the machine's.

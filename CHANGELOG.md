@@ -12,6 +12,10 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The Inspector's GitHub tab points to SecondBrain (2026-10-23, SecondBrain's plan-github-shelf, G4; his words: "move that whole thing out of the inspector into a proper shelf on secondbrain")
+
+The tab now says that GitHub lives in SecondBrain: its GitHub tab carries every repository, the pull requests, the git writes waiting on him, and the git flows. The old panel is still one press away (Show the old panel here) until his SecondBrain carries the shelf.
+
 ### The core's SYSTEM_DESIGN is read from his notes (2026-10-23, the reconcile's stage 3; his word: "go")
 
 The core retired SYSTEM_DESIGN.md (Manjuel, "SYSTEM_DESIGN.md retired; its notes are now the source"). Its text is in his notes, tagged `system-design`. Atlas's three pointers that sent a reader to the file now name the notes instead:
