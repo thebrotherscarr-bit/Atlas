@@ -12,6 +12,46 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The Update button keeps the whole ground up with GitHub: Atlas, Manjuel and the notes kernel (2026-10-23; his words: "is there a better way ... where my shit always just like gets the latest version from github so i dont have to keep like going in and manually pulling and fast forwarding", then "build the glass button")
+
+Until now the Update button (2026-10-22) moved Atlas alone. The Manjuel ground and the notes kernel's checkout (`worlds/jesster`) were pulled by hand. And Workflows' Take from GitHub never asks GitHub, so it says "Nothing to fetch" until something else has fetched. The button now keeps three checkouts.
+
+| checkout | where | follows |
+|---|---|---|
+| Atlas | the ground's `atlas` | main |
+| Manjuel | the ground | main |
+| notes kernel | the ground's `worlds/jesster` | the branch it tracks (today `secondbrain-app`) |
+
+- **The check** (`GET /api/update/check`) fetches each one and says how far behind it is, with up to ten commit subjects. If one can't move, it says why:
+  - it isn't there, or isn't a git checkout;
+  - it is off the branch it follows, or follows none;
+  - it has saves GitHub doesn't, so joining the two is his;
+  - git's `index.lock` is there;
+  - for Atlas only, unsaved work.
+
+  The button shows when anything is behind, and its title lists all three.
+- **The press** (`POST /api/update/apply`):
+  - Nothing moves while a sitting is open.
+  - Manjuel and the kernel are taken forward here, fast-forward only, each on its own; one that can't move is skipped and the rest still move. The terminal says what each did.
+  - Manjuel moving is "restart required": the core is his to restart.
+  - The kernel moving takes effect at Manjuel's next notes call; SecondBrain's own server needs the app restarted.
+  - When Atlas has anything to take, or this build is behind its checkout, `update.ps1` runs as before. The page waits for the glass and reloads only then.
+  - Each result is a line in `atlas/update.log`.
+- **Unsaved work** holds Atlas back, because it is rebuilt from its checkout. It doesn't hold back Manjuel or the kernel: the ground's suites rewrite tracked stamps (`tests/last_run.*`) on every run. Git's own guard decides instead (`merge --ff-only` refuses to overwrite a changed file), and the changed files are named.
+
+What goes red if it comes unplugged:
+- `handlers/update_test.go` (new) works on temporary repos laid out like his ground: Manjuel, Atlas inside it, and the kernel at `worlds/jesster`, each cloned from a bare origin in the test's directory.
+  - `TestTheUpdateKeepsThreeCheckouts`.
+  - `TestEachCheckoutSaysHowFarBehindAndWhyItWillNotMove` covers each skip, a changed file naming itself without holding Manjuel back, and the kernel following its own branch.
+  - `TestApplyMovesWhatItCanAndRefusesUnderASitting` covers the open sitting, the moves, the untouched stamp, "restart required" and the log line.
+- `TestTheUpdateButtonSaysWhatMovedAndReloadsOnlyForAtlas` (glass).
+
+Each was proved by reversal: Manjuel dropped from the list, the sitting refusal removed, and the Atlas-only reload changed. Each went red.
+
+`update.ps1` itself is unchanged. Its first run with this glass is his press (RULE 13).
+
+Restart required: the glass serves the changed handler and page. The current Update button will offer this build.
+
 ### Registry & Docs, the Audit Ledger and Laws read his notes (2026-10-23, the reconcile's stage 2, piece A2b; his words: "let's do A and then B as proposed")
 
 The three pages that show the record now read it from his notes as well as from the files. All three go through the door's `notes` tool (A1), and all three only read.

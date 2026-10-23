@@ -250,10 +250,13 @@ const Agent = {
     </div>`;
   },
 
-  // ATLAS UPDATES ITSELF (2026-10-22, his word: "atlas should auto-update just like the secondbrain does"). The button
-  // shows only when GitHub's main is ahead of the commit this glass was built from; pressed, ../update.ps1 takes main
-  // forward, builds the door and the glass, swaps them in and starts both again, and the page reloads once the glass
-  // answers. It refuses while a sitting is open or over unsaved work, and says why (handlers/update.go).
+  // ATLAS UPDATES ITSELF (2026-10-22, his word: "atlas should auto-update just like the secondbrain does"), AND SINCE
+  // 2026-10-23 THE GROUND WITH IT (his word: "build the glass button"): Atlas, the Manjuel ground and the notes kernel at
+  // worlds/jesster. The button shows when any of them is behind GitHub, its title says what each would take or why it
+  // would not move. Pressed, the glass takes Manjuel and the kernel forward itself, fast-forward only, and says what
+  // moved here -- Manjuel moving is "restart required", his to do. When Atlas has anything to take or to build,
+  // ../update.ps1 rebuilds it and starts it again, and the page reloads once the glass answers. Nothing moves while a
+  // sitting is open (handlers/update.go).
   async checkUpdate() {
     const b = $ag('ag-update');
     if (!b) return;
@@ -262,7 +265,11 @@ const Agent = {
       b.hidden = !u.available;
       if (u.available) {
         b.textContent = `Update (${u.behind})`;
-        b.title = `GitHub's main is ${u.behind} ahead of this build (${u.running} -> ${u.latest}):\n- ` + (u.changes || []).join('\n- ');
+        b.title = (u.refused ? 'Not now: ' + u.refused + '\n\n' : '') + (u.repos || []).map(r =>
+          `${r.name}: ` + (r.skip ? 'stays -- ' + r.skip
+            : r.behind ? `${r.behind} new\n  - ` + (r.changes || []).join('\n  - ')
+              : r.name === 'Atlas' && u.built_behind ? `this build is ${u.built_behind} behind its checkout; it is rebuilt`
+                : 'up to date')).join('\n');
       }
     } catch { b.hidden = true; }
   },
@@ -271,13 +278,23 @@ const Agent = {
     const b = $ag('ag-update');
     b.disabled = true;
     b.textContent = 'Updating...';
+    let u;
     try {
       const r = await fetch('/api/update/apply', { method: 'POST' });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'HTTP ' + r.status);
+      u = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(u.error || 'HTTP ' + r.status);
     } catch (e) {
       b.disabled = false; b.textContent = 'Update';
       b.title = 'The update did not start: ' + (e.message || e);
       this.say('Update', 'Refused: ' + (e.message || e), 'ERROR');
+      return;
+    }
+    (u.repos || []).forEach(r => this.say('Update', `${r.name}: ${r.result}`));
+    (u.restart || []).forEach(line => this.say('Update', line));
+    if (u.atlas_error) this.say('Update', u.atlas_error, 'ERROR');
+    if (!u.atlas) {
+      b.disabled = false; b.textContent = 'Update';
+      this.checkUpdate();
       return;
     }
     // The glass goes down and comes back; reload once it answers again (atlas/update.log says each step).

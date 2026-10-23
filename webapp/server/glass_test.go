@@ -686,6 +686,29 @@ func TestHisNotesStandAboveTheFiles(t *testing.T) {
 	}
 }
 
+// THE UPDATE BUTTON KEEPS THE GROUND UP WITH GITHUB (2026-10-23, his word: "build the glass button"). The handler
+// answers with each checkout's result and the restarts owed (handlers/update.go, held by its own strokes); the page says
+// every one of them in the terminal, and waits for the glass to come back only when Atlas itself is being rebuilt.
+func TestTheUpdateButtonSaysWhatMovedAndReloadsOnlyForAtlas(t *testing.T) {
+	src := page(t, "js/agent.js")
+	up := funcOf(src, "  async update(")
+	for _, want := range []string{
+		"(u.repos || []).forEach(r => this.say('Update', `${r.name}: ${r.result}`))",
+		"(u.restart || []).forEach(line => this.say('Update', line))",
+		"if (!u.atlas) {",
+	} {
+		if !strings.Contains(up, want) {
+			t.Fatalf("the Update button no longer says what the update did (wanted %s)", want)
+		}
+	}
+	if i, j := strings.Index(up, "if (!u.atlas) {"), strings.Index(up, "location.reload()"); i < 0 || j < i {
+		t.Fatal("the page reloads before it knows whether Atlas is being rebuilt")
+	}
+	if !strings.Contains(funcOf(src, "  async checkUpdate("), "(u.repos || []).map(r =>") {
+		t.Fatal("the button's title no longer lists each checkout")
+	}
+}
+
 // SETTINGS IS A DOOR OF ITS OWN (his word, 2026-10-06: "Add another page along the
 // top next to guardrails that is for settings. that'll include all the settings
 // for messaging integration."): beside Laws (Guardrails until 2026-10-08) in the
