@@ -38,7 +38,7 @@ Proved by three real jobs, live on his glass (H31 step (3)):
 3. **HANDOFF's finding (bb)** -- the boot's gate finds the day's HANDOFF block; its check: a stroke shown red first, green
    after.
 
-Then v0.2.6 is cut by his release flow (I2), and SPEC's first line gains what H31 says it never had: it finishes jobs.
+Then v0.2.6 is cut by his release flow (I2; cut 2026-10-21), and SPEC's first line gains what H31 says it never had: it finishes jobs.
 
 ---
 
@@ -67,7 +67,7 @@ on his card. Each piece names what would go red if it came unplugged (RULE 11).
 | 6 | **The numbers**: each job's passes, minutes, tool calls, cards and model loads, read off the record | written on H31 and in the CHANGELOG |
 | 7 | **Another model, only if the numbers ask** (R5): Nemotron 3.5 Bolt on the job the 9B failed | the same job's check, in the same record |
 | 8 | **Folding on the numbers**: D18, H23 and H25 close with H31; any other layer the driver's runs show is not needed (the routing, the relay of seats) is put to him, then folded, never deleted (LAW 1) | the suites green after each fold |
-| 9 | **The cut**: v0.2.6, by his release flow | the release gate; GitHub's checks |
+| 9 | **The cut**: v0.2.6, by his release flow -- done 2026-10-21 | the release gate; GitHub's checks |
 
 If week one runs long, week two starts later; the order does not change.
 

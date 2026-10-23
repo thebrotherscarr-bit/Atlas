@@ -38,7 +38,7 @@ ATLAS is alpha software (0.x; the number is in `VERSION`). It is not designed fo
 
 ## Hardening Checklist
 
-- [ ] All `.us` files validated (`atlas agent enroll --dry`)
+- [ ] All `.us` files validated (`atlas agent enroll <db> --dir agents --dry`)
 - [ ] No secrets in source code
 - [ ] No external dependencies
 - [ ] All tests pass

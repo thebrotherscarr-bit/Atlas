@@ -168,3 +168,8 @@ here and in the seeder constants, per fold law.*
 - **G2 — source_lines column held bytes, not lines.** Row recorded 19,133
   for `estate\Steward 1.0\door.py`; measured 2026-08-25: **453 lines**
   (19,133 bytes). Seeder constant trued this sitting.
+- **§0 Trust and G1 — corrected 2026-10-23.** Both say the forbidden verbs
+  (merge, commit, push) are absent from every server. The door now carries
+  `git_commit`, `git_push` and a merge on GitHub (`git_pr`, on the operator's
+  word of 2026-10-09; `docs/TOOL_PERMISSIONS.md`). None approves, and none
+  acts for anything but the glass without the operator's card.

@@ -22,7 +22,8 @@ declaration visible. It does not make a false one true.
    is answered and read. A reading action of a writing tool (`git_tag list`) is judged as a read.
 3. `can_approve` is structurally false. rbac never grants approval; it lives in the hand alone.
 4. A tool declared `ServiceOnly` is the operator's own hand (`shell_run`, his typed shell; `aider_run` and `aider_undo`, his
-   Aider; `law_add` and `law_seal`, his laws): `Registry.Call` refuses
+   Aider; `law_add` and `law_seal`, his laws; `file_edit`, his edit; `git_pr`, his pull requests; `secret_set`, his
+   keys): `Registry.Call` refuses
    every caller but the glass before RBAC or the holds look at it, and writes the attempt down. No role grants it
    and no agent can park a call of it for him to approve, so the role columns below say what a role would be
    allowed WITHOUT that declaration and cannot make a caller other than the glass able to call it.

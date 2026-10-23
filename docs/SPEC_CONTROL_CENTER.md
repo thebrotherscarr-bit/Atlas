@@ -58,7 +58,7 @@ Nothing in `Archive\atlas` is written by a hand (ESTATE LAW 2).*
 > is that harness's plan; neither carries what it did on 2026-09-08. The glass this
 > spec defines became one front page from the operator's own design (WHAT'S LEFT
 > H14, H16) and is Aurora, kept as it is (2026-10-13). Its counts (62 tools, 37
-> skills) are of 2026-09-09; the door serves 95 tools today (`TOOL_PERMISSIONS.md`).
+> skills) are of 2026-09-09; the door serves 97 tools on 2026-10-23 (`TOOL_PERMISSIONS.md`).
 > Whether this file still governs atlas, and how, is his to say.
 
 ---

@@ -8,7 +8,7 @@
 
 | Document | Purpose |
 |---|---|
-| [QUICKSTART.md](QUICKSTART.md) | Get running in 5 minutes |
+| [QUICKSTART.md](QUICKSTART.md) | Get running in one hour |
 | [TUTORIAL.md](TUTORIAL.md) | 5 progressive exercises with answer key |
 | [WALKTHROUGH.md](WALKTHROUGH.md) | End-to-end system tour |
 | [GUIDED_DEMO.md](GUIDED_DEMO.md) | Live demo walkthrough |
@@ -119,6 +119,8 @@
 | Document | Purpose |
 |---|---|
 | [../README.md](../README.md) | Project overview |
+| [../AGENTS.md](../AGENTS.md) | How a session works here: preflight, THE BALL, the laws in short |
+| [../DELIVERABLE.md](../DELIVERABLE.md) | The deliverable of 0.1.5, kept as written |
 | [../CHARTER.md](../CHARTER.md) | Founding rulings & standing laws |
 | [../THE_CATALOG.md](../THE_CATALOG.md) | Module inventory |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guide |

@@ -12,6 +12,25 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The docs say what is true at v0.2.6 (2026-10-23; his words: "make a pass on all the docs on the repos and make sure they are all good and match the system's 0.2.6 publish")
+
+Every living doc was read against the code. The 28 findings are in his notes ("Docs pass"). What changed:
+- **Versions and counts:** the last cut is v0.2.6 (2026-10-21) and the door has 97 tools. README, DELIVERABLE, THE_ROAD, CHARTER, ARCHITECTURE and SPEC_CONTROL_CENTER are updated, and LAUNCH_PLAN's piece 9 is marked done.
+- **README:**
+  - The background-reads paragraph names `backgroundReads`; the retired Dashboard is gone from it.
+  - The Twelve Tribes list has the real seats.
+  - The `atlas` CLI's real verbs, what `core/` holds, and what `atlas-door` is.
+  - The Inspector's Rack and Claude tabs, and `atlas-desktop`.
+  - `-http :8090` on the door's run line.
+- **AGENTS:** VERSION is plain semver, and DONE is a passing check plus the CHANGELOG entry.
+- **CONTRIBUTING:** the `.us` example is in the real format, prose and then a fenced JSON block.
+- **`atlas agent enroll`** carries `<db>` in README, CONTRIBUTING and SECURITY.
+- **docs/:** QUICKSTART points at his notes for the core's testing; the docs/README index is complete.
+- **TOOL_PERMISSIONS** names all eight service-only tools, and is regenerated from `permissions_test.go`.
+- **THE_CATALOG:** a dated erratum. The door now carries `git_commit`, `git_push` and `git_pr`'s merge.
+
+Dated history is unchanged. `go test` passes in line/internal/tools and in webapp/.
+
 ### The core's SYSTEM_DESIGN is read from his notes (2026-10-23, the reconcile's stage 3; his word: "go")
 
 The core retired SYSTEM_DESIGN.md (Manjuel, "SYSTEM_DESIGN.md retired; its notes are now the source"). Its text is in his notes, tagged `system-design`. Atlas's three pointers that sent a reader to the file now name the notes instead:
