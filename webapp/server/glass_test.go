@@ -813,7 +813,12 @@ func TestGitHubIsATabOfItsOwn(t *testing.T) {
 			t.Fatalf("the front page still sends him to Version control by its old name (%s)", old)
 		}
 	}
-	render := funcOf(fl, "  async render(")
+	// GITHUB LIVES IN SECONDBRAIN (2026-10-23, SecondBrain's plan-github-shelf G4): the tab says so, and the old panel,
+	// one press away, is what draws the repositories.
+	if !strings.Contains(funcOf(fl, "  async render("), "GitHub lives in SecondBrain now") {
+		t.Fatal("the GitHub tab no longer says where GitHub lives")
+	}
+	render := funcOf(fl, "  async renderPanel(")
 	if !strings.Contains(render, "await this.repos();") || strings.Contains(fl, "inPanel") || strings.Contains(render, "page-title") {
 		t.Fatal("GitHub draws more than its repositories, or still asks whether it stands in the panel")
 	}
