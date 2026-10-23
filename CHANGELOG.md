@@ -12,6 +12,17 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The core's SYSTEM_DESIGN is read from his notes (2026-10-23, the reconcile's stage 3; his word: "go")
+
+The core retired SYSTEM_DESIGN.md (Manjuel, "SYSTEM_DESIGN.md retired; its notes are now the source"). Its text is in his notes, tagged `system-design`. Atlas's three pointers that sent a reader to the file now name the notes instead:
+- LAUNCH_PLAN's header ("What the harness is").
+- LAUNCH_PLAN's §8 Read first.
+- `docs/ARCHITECTURE.md`'s harness line.
+
+The dated rows and the amendment history that cite it stay as written: LAUNCH_PLAN's documentation-pass row and SPEC_CONTROL_CENTER. The door's `records` sorts the files it finds, so it lists the file no longer and needs no change.
+
+Docs only; no code moved. Nothing goes red if this is unplugged, because a pointer in prose has no wire. The core's `mirror._strokes` is what holds the file retired.
+
 ### The Update button leaves SecondBrain alone when SecondBrain is the door (2026-10-23, SecondBrain's plan-one-exe, piece 1; his words: "I want ONE .exe as secondbrain ... the door, the gate, the glass, everything COMES FROM SECONDBRAIN")
 
 SecondBrain now answers on 8090 itself and runs the glass as its own child. `update.ps1` used to stop whatever held 8090, and that would now be SecondBrain. Now it checks first: when 8090 belongs to `SecondBrain.exe`, it does three things:

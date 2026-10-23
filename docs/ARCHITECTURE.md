@@ -21,8 +21,8 @@ This architecture is of 2026-09-07 and stands below as written. What moved since
 - **Forbidden verbs (4b).** The door carries `git_commit`, `git_push` and a merge
   on GitHub (`git_pr`, on the operator's word of 2026-10-09). None approves, and
   none acts for anything but the glass without the operator's card.
-- **The harness** built on all of it is the core's `SYSTEM_DESIGN.md` (WHAT'S LEFT
-  H31).
+- **The harness** built on all of it is the core's SYSTEM_DESIGN, in his notes
+  (tag `system-design`; WHAT'S LEFT H31).
 
 ## 1. Design Principles
 

@@ -3,7 +3,7 @@
 *Rewritten 2026-10-16 on the operator's word: "Rewrite the system design and launch_plan. Supersede spec 8.2, on my word";
 and of what it is for: "This is the plan, we are doing the harness. we built the recorder, its perfect, now we build the
 harness on top of it." The plan it replaces (2026-09-08) stands in git at atlas `5648290`. What the harness is: the core's
-SYSTEM_DESIGN.md. What is open, item by item: the core's WHATS_LEFT.md -- H31 is the item, and its Now line says where we
+SYSTEM_DESIGN, in his notes (tag `system-design`; the file retired 2026-10-23). What is open, item by item: the core's WHATS_LEFT.md -- H31 is the item, and its Now line says where we
 are working today.*
 
 ---
@@ -129,4 +129,4 @@ engine's `do the git cycle` on a line that has an upstream (it would send with n
 
 ## 8. Read first
 
-`CLAUDE.md`'s list, every time (RULE 0); then What's left's Now line; then the core's SYSTEM_DESIGN.md and this file.
+`CLAUDE.md`'s list, every time (RULE 0); then What's left's Now line; then the core's SYSTEM_DESIGN (his notes, tag `system-design`) and this file.
