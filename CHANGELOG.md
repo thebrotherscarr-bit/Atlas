@@ -12,6 +12,16 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The Update button leaves SecondBrain alone when SecondBrain is the door (2026-10-23, SecondBrain's plan-one-exe, piece 1; his words: "I want ONE .exe as secondbrain ... the door, the gate, the glass, everything COMES FROM SECONDBRAIN")
+
+SecondBrain now answers on 8090 itself and runs the glass as its own child. `update.ps1` used to stop whatever held 8090, and that would now be SecondBrain. Now it checks first: when 8090 belongs to `SecondBrain.exe`, it does three things:
+
+- puts the new programs in place first (a running program can be renamed);
+- stops only the glass on 8091 and SecondBrain's inner door, the `atlas-mcp.exe` on 43112;
+- waits for SecondBrain to start the glass again.
+
+With an old standalone door on 8090, the script does what it always did. The first real run is his press on the glass.
+
 ### Registry & Docs, the Audit Ledger and Laws read his notes (2026-10-23, the reconcile's stage 2, piece A2b; his words: "let's do A and then B as proposed")
 
 The three pages that show the record now read it from his notes as well as from the files. All three go through the door's `notes` tool (A1), and all three only read.

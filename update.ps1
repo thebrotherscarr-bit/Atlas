@@ -16,6 +16,10 @@
 #   5. start the door with RUNBOOK's line and the glass, each with the service
 #      wire read from the ground's .env (never printed, never on a command line).
 #
+# When SecondBrain is the door on 8090 (its note plan-one-exe, 2026-10-23), steps
+# 4 and 5 leave SecondBrain alone: the new programs go in place, only the glass
+# and SecondBrain's inner door are stopped, and SecondBrain starts them again.
+#
 # Anything that fails before step 4 leaves both running as they were.
 # Pure ASCII, so PowerShell 5.1 reads it whatever the code page.
 
@@ -98,11 +102,19 @@ try {
 
     # 4. stop, keep the old, place the new
     Start-Sleep -Seconds 2   # the glass answers the button before it is stopped
-    foreach ($port in 8090, 8091) {
-        $p = PidOn $port
-        if ($p) { Stop-Process -Id $p -Force; Say "update: stopped pid $p on $port" }
+    # SecondBrain may be the door (its note plan-one-exe, 2026-10-23): then 8090 is SecondBrain
+    # itself, which is never stopped here. The new programs go in place first (a running program
+    # can be renamed), then only Atlas's own are stopped -- the glass on 8091 and SecondBrain's
+    # inner door on 43112 -- and SecondBrain starts them again.
+    $doorPid = PidOn 8090
+    $fromSB = [bool]($doorPid -and ((Get-Process -Id $doorPid -ErrorAction SilentlyContinue).ProcessName -eq 'SecondBrain'))
+    if (-not $fromSB) {
+        foreach ($port in 8090, 8091) {
+            $p = PidOn $port
+            if ($p) { Stop-Process -Id $p -Force; Say "update: stopped pid $p on $port" }
+        }
+        Start-Sleep -Milliseconds 800
     }
-    Start-Sleep -Milliseconds 800
     $stamp = Get-Date -Format 'MMdd-HHmmss'
     $swaps = @(
         @{ Dir = $line; Name = 'atlas-mcp.exe'; New = 'atlas-mcp.new.exe' },
@@ -117,6 +129,20 @@ try {
     if (Test-Path $desk) { Rename-Item $desk "atlas-desktop.old-$stamp.exe" }
     Copy-Item (Join-Path $web 'atlas-webapp.exe') $desk
     Say "update: placed; the old programs are kept as *.old-$stamp.exe"
+
+    if ($fromSB) {
+        $p = PidOn 8091
+        if ($p) { Stop-Process -Id $p -Force; Say "update: stopped the glass, pid $p" }
+        Get-CimInstance Win32_Process -Filter "Name = 'atlas-mcp.exe'" | Where-Object { $_.CommandLine -match '127\.0\.0\.1:43112' } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force; Say "update: stopped SecondBrain's inner door, pid $($_.ProcessId)" }
+        # 5. SecondBrain starts the glass again in a few seconds, and its inner door at the next call
+        Start-Sleep -Seconds 1
+        $up = $false
+        foreach ($i in 1..40) { if (PidOn 8091) { $up = $true; break }; Start-Sleep -Milliseconds 500 }
+        Say "update: SecondBrain started the glass again: $up"
+        Say "update: done, Atlas is on $after"
+        exit 0
+    }
 
     # 5. start them again
     $wire = Wire
