@@ -49,8 +49,8 @@ each flag does, are in the core's `RUNBOOK.md`, "Starting the system". Then open
     cd atlas ; python tests\prove.py ; cd ..
 
 THE BALL: every leg atlas has, one verdict -- PASS, FAIL, or ABSENT (a leg whose
-dependency this machine does not hold, never counted as a pass). The core's own
-suites are in its `TESTING.md`.
+dependency this machine does not hold, never counted as a pass). How the core's own
+suites run is in his notes (the core's `TESTING.md`, retired 2026-10-23).
 
 ## What's next
 

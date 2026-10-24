@@ -70,22 +70,31 @@ operator, not something to route around.
 
 ## Agent Declarations
 
-Every agent, seat, tool, and skill must have a `.us` declaration file:
+Every agent, seat, tool, and skill must have a `.us` declaration file: prose,
+then one fenced JSON block (`specs/SPEC_US.md`; e.g. `agents/scout.us`):
 
-```yaml
-name: agent-id
-office: descriptive-office-name
-reports_to: parent-agent-id
-can_approve: false
-permissions:
-  - read
-  - write
-covenant: "1512741580b7239b"
+````markdown
+# agent-id - declared seat
+
+What the seat is for, in one line.
+
+```json
+{
+  "can_approve": false,
+  "covenant": "1512741580b7239b",
+  "id": "agent-id",
+  "kind": "agent",
+  "office": "OFFICE",
+  "permission": { "edit": "deny", "read": { "**": "allow" } },
+  "reports_to": "parent-agent-id",
+  "us": 1
+}
 ```
+````
 
 Validation:
 ```powershell
-atlas agent enroll --dry --dir agents
+atlas agent enroll <db> --dir agents --dry
 ```
 
 ## Commits

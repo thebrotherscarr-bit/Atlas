@@ -100,7 +100,7 @@ amended accordingly.
 then atlas was pulled into the ground: it lives at `atlas/` inside
 `Desktop\Research`, its own repository since 2026-09-10 (the core's RUNBOOK,
 "Starting the system"). Its version is plain semver in `VERSION`, the stone
-tag struck 2026-09-10 (THE_ROAD); the last cut is v0.2.5 (2026-10-10). And
+tag struck 2026-09-10 (THE_ROAD); the last cut is v0.2.6 (2026-10-21). And
 since 2026-10-09 its main line takes a change only through a pull request
 whose checks have passed, merged by the operator's click (the core's WHAT'S
 LEFT I1).

@@ -49,8 +49,10 @@ python tools\<any_cutter>.py --verify
 cargo run -q -p atlas -- --version                    # the number in VERSION
 ```
 
-A stone is DONE only when its ACCEPTANCE row passes AND
-`STATE_OF_BUILD.md` carries its witness.
+A piece is DONE when its check passes and its CHANGELOG entry is written.
+Acceptance lives in the core's SPEC, section 4, and in the check
+`LAUNCH_PLAN.md` names for each piece (ACCEPTANCE.md closed with the stones
+on 2026-09-08; STATE_OF_BUILD.md stops at 2026-09-09).
 
 ## The laws (short form; CHARTER is authoritative)
 
@@ -61,8 +63,10 @@ A stone is DONE only when its ACCEPTANCE row passes AND
    operator's hand alone ("i am the approval").
 4. Ports never move at cutover (SPEC_COMMANDS). Old verbs keep their verbs.
 5. Proves are hermetic: temp grounds, never the live record.
-6. Append-only witnesses: SEAT_LOG.md + STATE_OF_BUILD.md, dated blocks.
-7. VERSION pins the stone (`0.1.0+b1`); the version test catches drift.
+6. Append-only witnesses: dated entries in CHANGELOG.md (SEAT_LOG.md and
+   STATE_OF_BUILD.md, the stones' witnesses, stop at 2026-09-09).
+7. VERSION pins the version (plain semver; the stone tag was struck
+   2026-09-10); the version test catches drift.
 8. Multi-tenancy: the MCP carries ALL projects; every call names its ground;
    strangers are refused by name.
 

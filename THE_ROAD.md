@@ -48,8 +48,8 @@ The snapshot above is 2026-09-08's and stays as written. What moved after it:
 ## Since 2026-09-17 (written 2026-10-16, the core's documentation pass)
 
 The stones above are finished, and this file no longer carries the road. The
-door serves 95 tools on 2026-10-16 (`docs/TOOL_PERMISSIONS.md`, generated and
-held current by a test). The marks run to v0.2.5 (2026-10-10); the core's
+door serves 97 tools (`docs/TOOL_PERMISSIONS.md`, generated and held current
+by a test). The marks run to v0.2.6 (2026-10-21); the core's
 BUILDPATH carries the ladder of both repositories. Since 2026-10-09 every
 change reaches main through a pull request whose checks have passed. The road
 now is the harness built on the recorder: `LAUNCH_PLAN.md` (rewritten

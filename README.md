@@ -2,7 +2,7 @@
 
 A polyglot agent provenance system with cryptographic chain integrity, structural governance, and a modern observability webapp.
 
-**Version:** in `VERSION` (v0.2.5 at the last cut, 2026-10-10)  
+**Version:** in `VERSION` (v0.2.6 at the last cut, 2026-10-21)  
 **Covenant:** 1512741580b7239b  
 **License:** MIT
 
@@ -10,7 +10,7 @@ A polyglot agent provenance system with cryptographic chain integrity, structura
 
 ATLAS is an operator-first agent harness that treats every tool call, trace, and agent declaration as a cryptographically chained, append-only record. It is not a framework — it is a governance layer that sits on top of any agent runtime and refuses to let the system lie about what happened.
 
-One exception, since 2026-09-16 and on the operator's ruling: the Dashboard's own refresh reads (`muster`, `rack_list`, `proofs`, asked every 15 seconds while the page is on screen) are answered and not kept. Since 2026-09-21 the Projects card's two reads are answered the same way: its list (`projects`, asked when the page opens and after every turn) and the page its frame shows, served at `/api/projects/<name>/page`. Every other tool call through the glass is kept as a trace.
+One exception, since 2026-09-16 and on the operator's ruling: the glass's own background reads (`backgroundReads` in `webapp/handlers/handlers.go`: `muster`, `rack_list`, `proofs`, `projects`, `hold_list`, `aider_status`, asked when a page or tab opens, after a turn, or on a timer) are answered and not kept, and so is the page the Projects card's frame shows, served at `/api/projects/<name>/page`. Every other tool call through the glass is kept as a trace.
 
 ### Core Properties
 
@@ -27,7 +27,7 @@ One exception, since 2026-09-16 and on the operator's ruling: the Dashboard's ow
 
 ```
 atlas/
-├── core/           Rust crate: store, prov-hash, ground-prove, atlas-api
+├── core/           Rust crate: sha256, canon, chain verdicts, covenant, .us parser, merkle
 ├── store/          Rust crate: sqlite persistence
 ├── apps/atlas/     Rust CLI binary
 ├── line/           Go workspace: atlas-mcp, atlas-tui, atlas-town, atlas-door, atlas-vc
@@ -44,13 +44,14 @@ atlas/
 
 | Binary | Language | Description |
 |---|---|---|
-| `atlas` | Rust | CLI: version, ground-init, ground-prove |
+| `atlas` | Rust | CLI: `--version`, `--prove`, `chain`, `db`, `orient`, `agent`, `trade`, `link` |
 | `atlas-mcp` | Go | The door: MCP and HTTP on :8090; its tools in `docs/TOOL_PERMISSIONS.md` |
 | `atlas-tui` | Go | Terminal UI: dashboard, traces, agents, chain view |
 | `atlas-town` | Go | Town square: multi-agent coordination |
-| `atlas-door` | Go | Door: per-module MCP gateway |
+| `atlas-door` | Go | HTTP door on :8080: search with receipts, the badge, the visit and work-order forms |
 | `atlas-vc` | Go | `.us` declarations as W3C verifiable credentials (`specs/SPEC_VC.md`) |
 | `atlas-webapp` | Go | The glass: the front page on :8091 -- one terminal, its Inspector, every card |
+| `atlas-desktop` | Go | The glass's own program under its desktop name (`webapp/desktop.go`): starts what is not answering and opens the glass in a window of its own |
 
 ## Quick Start
 
@@ -88,8 +89,8 @@ cd webapp ; go build -o atlas-webapp.exe . ; cd ..
 ### Run
 
 ```powershell
-# MCP server
-cd line ; go run ./cmd/atlas-mcp
+# MCP server (without -http it speaks MCP on stdio)
+cd line ; go run ./cmd/atlas-mcp -http :8090
 
 # TUI
 cd line ; go run ./cmd/atlas-tui
@@ -114,7 +115,7 @@ in `tools\` with `--verify`); `tests/PROVING.md` is the map.
 
 - **The front page** — one terminal with five tabs (Agent, Bash, Python,
   PowerShell, Aider) and an Inspector beside it: Run, What's left, Aider Pair,
-  GitHub, Audit Ledger, Workflows, Registry & Docs, Laws, Settings
+  GitHub, Audit Ledger, Workflows, Registry & Docs, Laws, Settings, Rack, Claude
 - **Cards** — every write that waits for the operator is a card pinned at the
   foot of the terminal, in every tab
 - **Live** — each seat's tokens and its thought as they arrive (SSE)
@@ -125,10 +126,10 @@ nothing on the front page reaches them (the core's WHAT'S LEFT D19).
 
 ## Agent System
 
-40 `.us` agent declaration files, validated by `atlas agent enroll --dry`:
+40 `.us` agent declaration files, validated by `atlas agent enroll <db> --dir agents --dry`:
 
 - **manjuel** — Operator's serf, record keeper
-- **Twelve Tribes** — Core household (aria, rex, mason, luna, quinn, alex, scout, courier, scribe, steward, neiro, builder)
+- **Twelve Tribes** — Core household (reuben, simeon, levi, judah, issachar, zebulun, dan, naphtali, gad, asher, joseph, benjamin)
 - **Council personas** — Advisory seats
 - **Lineage actors** — Historical chain
 - **Gate** — Access control
