@@ -53,7 +53,7 @@ func main() {
 		showVer   = flag.Bool("version", false, "print the stone-tagged version")
 		atlasBin  = flag.String("atlas-bin", "atlas", "path to the Rust spine binary")
 		defaultPj = flag.String("default-project", "", "default tenant name")
-		httpAddr  = flag.String("http", "", "HTTP bind address (e.g. :8090); empty = stdio mode")
+		httpAddr  = flag.String("http", "", "HTTP bind address (e.g. :43111); empty = stdio mode")
 		authOn    = flag.Bool("auth", false, "demand bearer keys on /rpc + /chat/stream (N6)")
 		authSvc   = flag.String("auth-service", "", "same-computer service wire (or ATLAS_SERVICE)")
 		coreCmd   = flag.String("manjuel", "", "the command that runs Manjuel, e.g. `python C:\\...\\manjuel.py`; --headless --ground are appended by THE LINE")
