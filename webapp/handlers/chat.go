@@ -40,7 +40,7 @@ var (
 func (h *Handlers) mcpURL() string {
 	u := h.store.GetSetting("mcp_url")
 	if u == "" {
-		u = "http://127.0.0.1:8090"
+		u = "http://127.0.0.1:43111"
 	}
 	return strings.TrimRight(u, "/")
 }

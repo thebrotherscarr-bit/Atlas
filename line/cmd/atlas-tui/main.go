@@ -431,7 +431,7 @@ func cmdToolsList(home string, args []string) {
 			output(map[string]any{"tools": tools, "count": len(tools)})
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "%sHTTP server not running. Start with: atlas-mcp --http :8090%s\n", yellow, reset)
+		fmt.Fprintf(os.Stderr, "%sHTTP server not running. Start with: atlas-mcp --http :43111%s\n", yellow, reset)
 	}
 }
 
@@ -528,7 +528,7 @@ func cmdAgentsGet(home string, name string) {
 
 func cmdTenantsList(home string) {
 	_ = home
-	fmt.Println("Tenants are managed by atlas-mcp. Start with: atlas-mcp --http :8090")
+	fmt.Println("Tenants are managed by atlas-mcp. Start with: atlas-mcp --http :43111")
 }
 
 func cmdRBACList(home string) {
@@ -553,17 +553,17 @@ func cmdRBACAssign(home, actor, role string) {
 
 func cmdMeshStatus(home string) {
 	_ = home
-	fmt.Println("Mesh status requires atlas-mcp. Start with: atlas-mcp --http :8090")
+	fmt.Println("Mesh status requires atlas-mcp. Start with: atlas-mcp --http :43111")
 }
 
 func cmdMeshChain(home string) {
 	_ = home
-	fmt.Println("Mesh chain requires atlas-mcp. Start with: atlas-mcp --http :8090")
+	fmt.Println("Mesh chain requires atlas-mcp. Start with: atlas-mcp --http :43111")
 }
 
 func cmdRackList(home string) {
 	_ = home
-	fmt.Println("Rack list requires atlas-mcp. Start with: atlas-mcp --http :8090")
+	fmt.Println("Rack list requires atlas-mcp. Start with: atlas-mcp --http :43111")
 }
 
 func cmdProve(home string) {
@@ -615,7 +615,7 @@ func run(name string, args ...string) (string, error) {
 func curlJSON(home, method, path string) (map[string]any, error) {
 	// N0: stdlib net/http — no external curl process (SPEC_CONTROL_CENTER P0-10).
 	// Only loopback is ever dialed; anything else is refused before dial.
-	url := "http://127.0.0.1:8090" + path
+	url := "http://127.0.0.1:43111" + path
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {

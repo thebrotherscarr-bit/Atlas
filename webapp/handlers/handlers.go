@@ -229,7 +229,7 @@ func (h *Handlers) AddEval(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 	mcpURL := h.store.GetSetting("mcp_url")
 	if mcpURL == "" {
-		mcpURL = "http://127.0.0.1:8090"
+		mcpURL = "http://127.0.0.1:43111"
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), pollWait)
 	defer cancel()
@@ -320,7 +320,7 @@ func (h *Handlers) CallTool(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	mcpURL := h.store.GetSetting("mcp_url")
 	if mcpURL == "" {
-		mcpURL = "http://127.0.0.1:8090"
+		mcpURL = "http://127.0.0.1:43111"
 	}
 	if req.Args == nil {
 		req.Args = map[string]any{}

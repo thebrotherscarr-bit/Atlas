@@ -130,7 +130,7 @@ func startOllama() {
 
 // startDoor starts the door with RUNBOOK's line when it does not answer.
 func startDoor(ground string) {
-	if answering("8090") {
+	if answering("43111") {
 		return
 	}
 	line := filepath.Join(ground, "atlas", "line")
@@ -140,7 +140,7 @@ func startDoor(ground string) {
 		return
 	}
 	g := filepath.ToSlash(ground)
-	cmd := hidden(exec.Command(exe, "--http", "127.0.0.1:8090", "--auth",
+	cmd := hidden(exec.Command(exe, "--http", "127.0.0.1:43111", "--auth",
 		"--tenant", "research="+g, "--tenant", "atlas="+g+"/atlas",
 		"--default-project", "research", "--manjuel", "python "+g+"/manjuel.py"))
 	cmd.Dir = line
@@ -154,7 +154,7 @@ func startDoor(ground string) {
 		desktopLog("the door could not be started: %v", err)
 		return
 	}
-	desktopLog("the door started (pid %d): %v", cmd.Process.Pid, waitFor("8090", 20*time.Second))
+	desktopLog("the door started (pid %d): %v", cmd.Process.Pid, waitFor("43111", 20*time.Second))
 }
 
 // installed finds a browser's program under the three places Windows installs one.

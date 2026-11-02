@@ -2250,8 +2250,8 @@ const Agent = {
     const save = (key, id) => `<div class="ag-btns"><button type="button" class="ag-btn" data-act="set" data-key="${key}" data-input="${id}">Save</button></div>`;
     const unread = '<p>The glass\'s own settings could not be read.</p>';
     return this.card('The door\'s address',
-        (door === null ? unread : row('stored', door || 'nothing') + row('used', door || 'http://127.0.0.1:8090')) +
-        box('ag-set-door', door, 'http://127.0.0.1:8090') +
+        (door === null ? unread : row('stored', door || 'nothing') + row('used', door || 'http://127.0.0.1:43111')) +
+        box('ag-set-door', door, 'http://127.0.0.1:43111') +
         '<p>Every tool and every turn reaches the door at this address. A wrong one cuts the glass off it until it is put back, and this tab can still put it back: these settings are the glass\'s own. Empty means the default.</p>' +
         save('mcp_url', 'ag-set-door'),
         'mcp_url, in the glass\'s own settings') +
