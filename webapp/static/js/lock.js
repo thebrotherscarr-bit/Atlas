@@ -48,7 +48,7 @@ const Lock = {
     const shell = (title, words, body, button) => `
       <form id="lock-form" autocomplete="off" style="width:340px;max-width:calc(100vw - 32px);padding:28px;
         background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow)">
-        <div style="font-family:var(--font);color:var(--accent);letter-spacing:3px;font-size:var(--t-sm)">ATLAS</div>
+        <div style="font-family:var(--font);color:var(--accent);letter-spacing:3px;font-size:var(--t-sm)">AURORA</div>
         <div style="font-size:var(--t-2xl);margin:6px 0 8px">${title}</div>
         <div style="color:var(--text-2);font-size:var(--t-base);line-height:1.5">${words}</div>
         ${body}

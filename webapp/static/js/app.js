@@ -75,7 +75,7 @@ const App = {
   // rather than furniture. The page's NAME comes off the one page list
   // (PAGES), so a label renamed there (Flows -> Version control, 2026-09-10)
   // is renamed here in the same stroke and cannot drift. With the sidebar
-  // retired (2026-10-07) the crumb's ATLAS is every page's way home.
+  // retired (2026-10-07) the crumb's AURORA is every page's way home.
   paintCrumb() {
     const el = document.getElementById('crumb');
     if (!el) return;
@@ -86,7 +86,7 @@ const App = {
       ? link.label
       : this.currentPage.charAt(0).toUpperCase() + this.currentPage.slice(1);
     const home = this.currentPage === 'agent';
-    const parts = [`<a href="/" onclick="event.preventDefault();history.pushState(null,'','/');App.router();">ATLAS</a>`];
+    const parts = [`<a href="/" onclick="event.preventDefault();history.pushState(null,'','/');App.router();">AURORA</a>`];
     if (!home) {
       parts.push('<span class="sep">/</span>');
       if (this.pageParam) {
