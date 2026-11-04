@@ -204,7 +204,7 @@ const Agent = {
       `<button type="button" data-tab="${t.id}">${escHtml(t.label)}</button>`).join('');
     return `<div class="ag" id="ag">
       <header class="ag-top"><div class="ag-top-in">
-        <div class="ag-brand"><span class="ag-dot" id="ag-dot"></span><span class="ag-word">ATLAS</span><span class="ag-ver" id="ag-ver"></span></div>
+        <div class="ag-brand"><span class="ag-dot" id="ag-dot"></span><span class="ag-word">AURORA</span><span class="ag-ver" id="ag-ver"></span></div>
         <nav class="ag-nav" id="ag-nav">${doors}</nav>
         <div class="ag-right">
           <div class="ag-stat" id="ag-stat"><span class="ag-sdot" id="ag-sdot"></span><span id="ag-stat-a">reading</span><span class="ag-slash ag-rack">/</span><span id="ag-stat-b" class="ag-rack"></span></div>
@@ -246,7 +246,7 @@ const Agent = {
           <div class="ag-pane" id="ag-pane"></div>
         </aside>
       </main>
-      <footer class="ag-foot"><div class="ag-foot-in"><span>ATLAS - sovereign agent harness<span class="ag-cov" id="covenant">covenant: reading the record...</span></span><span>Offline-first &middot; Local runtime</span></div></footer>
+      <footer class="ag-foot"><div class="ag-foot-in"><span>AURORA - sovereign agent harness<span class="ag-cov" id="covenant">covenant: reading the record...</span></span><span>Offline-first &middot; Local runtime</span></div></footer>
     </div>`;
   },
 
@@ -286,7 +286,7 @@ const Agent = {
       try { if ((await fetch('/api/health', { cache: 'no-store' })).ok) { location.reload(); return; } } catch {}
       await new Promise(res => setTimeout(res, 2000));
     }
-    b.disabled = false; b.textContent = 'Update'; b.title = 'Atlas did not come back; read atlas/update.log';
+    b.disabled = false; b.textContent = 'Update'; b.title = 'Aurora did not come back; read atlas/update.log';
   },
 
   wire() {
