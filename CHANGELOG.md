@@ -12,6 +12,10 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### ask_steward waits 900 s for Steward's turn, not 600 (2026-11-04; a turn can sit on an approval card up to 660 s plus model time, and the call gave up first)
+
+- `line/internal/tools/tools.go`: `askTimeout`, which `stewardWait` bounds each JSON-RPC call to Steward by, is 900 s. Stroke `TestAskStewardWaitsPastTheApprovalCard` (`ask_steward_test.go`) holds it at 900. Running atlas-mcp processes keep the old bound until they are restarted.
+
 ### ask_steward asks Steward, the MAF agent, over his MCP server (2026-11-04; his word: Steward is THE agent of the Estate and Manjuel's default, and the council is superseded by MAF)
 
 Until now the door tool `ask_steward` spawned the tenant's wired Manjuel engine (`--engine`). It now speaks to Steward's own MCP server, on the contract Manjuel's ground already uses (`manjuel/serve.py` `maf_ask`, `manjuel/skills.py` `_mcp_rpc`): a JSON-RPC `tools/list` reads the `Steward` tool off his roster, then `tools/call` sends the question as `task` with a `session_id` (the caller's `session_id`, else `atlas-<project>`).
