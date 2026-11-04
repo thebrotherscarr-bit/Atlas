@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -802,8 +803,8 @@ func Build(reg *tenant.Registry, opts Options) *Registry {
 
 	r.add(Tool{
 		Name: "ask_steward", Writes: true, Tier: TierEngine,
-		Description: "the weighed ruling with receipts, never raw model output; one-shot under the ask lock",
-		Args:        []string{"question", "project?"},
+		Description: "ask Steward, the MAF agent of the Estate, over his MCP server (MANJUEL_MCP_STEWARD, else 127.0.0.1:43121; loopback only); his answer, or that he is not reachable -- no fallback; one turn under the ask lock",
+		Args:        []string{"question", "session_id?", "project?"},
 		Fn:          toolAskSteward,
 	})
 
@@ -3437,45 +3438,215 @@ func toolStateMatrix(t tenant.Tenant, _ map[string]any) (string, error) {
 	return plain.String(), nil
 }
 
+// askTimeout bounds one turn of Steward's: a local model on the operator's
+// machine may take minutes to weigh a question.
 const askTimeout = 600 * time.Second
 
-// readonlyGroundMarkers name the operator's read-only source grounds that
-// atlas folds but must never bootstrap or forward into. manjuel's
-// Steward().awaken() writes to secondbrain/.../state — triggering it from the
-// MCP would violate the read-only law (AGENTS / STOP). The guard inspects the
-// engine command only; the question text is never a path.
-var readonlyGroundMarkers = []string{
-	`\estate\`, `/estate/`,
-	`\secondbrain\`, `/secondbrain/`,
-	"manjuel.py", `manjuel\core`, `manjuel/core`,
+// ASK_STEWARD ASKS STEWARD, THE MAF AGENT (2026-11-04; his word: Steward is THE
+// agent of the Estate and Manjuel's default, and the council is superseded by
+// MAF). Until then this tool spawned the tenant's wired Manjuel engine. It now
+// speaks to Steward's own MCP server the way Manjuel's ground already does
+// (manjuel/serve.py maf_url/maf_ask, manjuel/skills.py _mcp_rpc): stateless
+// streamable HTTP on loopback, `tools/list` to read the agent's tool off his
+// roster, then `tools/call` with the question as `task` and a `session_id`.
+// When he cannot be reached that is said, and nothing else takes the question:
+// there is no fallback to the engine.
+const (
+	stewardDial    = "MANJUEL_MCP_STEWARD"
+	stewardKeyDial = "MANJUEL_MCP_STEWARD_KEY"
+	stewardURL     = "http://127.0.0.1:43121/mcp"
+	stewardTool    = "Steward"
+)
+
+// stewardAt is where Steward's MCP server is: the declared dial, else his
+// server's own port. A var so the strokes can point it at a fake server.
+var stewardAt = func() string {
+	if u := strings.TrimSpace(os.Getenv(stewardDial)); u != "" {
+		return u
+	}
+	return stewardURL
 }
 
-// touchesReadonlyGround reports whether a command string would reach a
-// read-only source ground. It matches the known ground markers, and also
-// resolves any path token to an absolute path and checks ancestry, so a
-// relative "../secondbrain/manjuel.py" is caught too.
-func touchesReadonlyGround(cmd string) bool {
-	low := strings.ToLower(cmd)
-	for _, m := range readonlyGroundMarkers {
-		if strings.Contains(low, m) {
-			return true
-		}
+// stewardWait bounds one JSON-RPC call to Steward. A var for the strokes.
+var stewardWait = askTimeout
+
+// stewardLoopback reports whether url names this machine. The estate is local.
+func stewardLoopback(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
 	}
-	for _, f := range splitCommand(cmd) {
-		if !strings.ContainsAny(f, `\/`) {
-			continue
-		}
-		abs, err := filepath.Abs(f)
-		if err != nil {
-			continue
-		}
-		a := strings.ToLower(filepath.Clean(abs))
-		if strings.Contains(a, `\estate\`) || strings.Contains(a, `/estate/`) ||
-			strings.Contains(a, `\secondbrain\`) || strings.Contains(a, `/secondbrain/`) {
-			return true
-		}
+	switch strings.ToLower(u.Hostname()) {
+	case "127.0.0.1", "localhost", "::1":
+		return true
 	}
 	return false
+}
+
+// stewardRPC makes one JSON-RPC call and returns its `result`, or why not in
+// plain words. Both kinds of answer are asked for and read, as the MCP spec's
+// streamable HTTP transport requires (a server on the MCP SDK answers 406
+// without the Accept header). The key, when one is declared, rides as the
+// bearer and nowhere else; it is never logged or echoed.
+func stewardRPC(endpoint, method string, params map[string]any) (map[string]any, error) {
+	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+	ctx, cancel := context.WithTimeout(context.Background(), stewardWait)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("the address is not one a request can be made to")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if key := strings.TrimSpace(os.Getenv(stewardKeyDial)); key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("it did not answer inside %d seconds", int(stewardWait.Seconds()))
+		}
+		return nil, fmt.Errorf("it did not answer")
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return nil, fmt.Errorf("the answer was cut off")
+	}
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("it answered HTTP %d", resp.StatusCode)
+	}
+	var row map[string]any
+	if strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
+		row = stewardSSE(string(raw))
+	} else if json.Unmarshal(raw, &row) != nil {
+		row = nil
+	}
+	if row == nil {
+		return nil, fmt.Errorf("it answered with something that is not JSON-RPC")
+	}
+	if e, ok := row["error"].(map[string]any); ok {
+		msg, _ := e["message"].(string)
+		if msg == "" {
+			msg = fmt.Sprint(e)
+		}
+		return nil, fmt.Errorf("it refused: %s", msg)
+	}
+	res, _ := row["result"].(map[string]any)
+	if res == nil {
+		res = map[string]any{}
+	}
+	return res, nil
+}
+
+// stewardSSE is the JSON-RPC answer in an event stream: the last event whose
+// data is a message carrying `result` or `error`, or nil when there is none.
+func stewardSSE(text string) map[string]any {
+	var found map[string]any
+	for _, event := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n\n") {
+		var data []string
+		for _, l := range strings.Split(event, "\n") {
+			if strings.HasPrefix(l, "data:") {
+				data = append(data, strings.TrimPrefix(l[5:], " "))
+			}
+		}
+		if len(data) == 0 {
+			continue
+		}
+		var row map[string]any
+		if json.Unmarshal([]byte(strings.Join(data, "\n")), &row) != nil {
+			continue
+		}
+		if _, ok := row["result"]; ok {
+			found = row
+		} else if _, ok := row["error"]; ok {
+			found = row
+		}
+	}
+	return found
+}
+
+// stewardText joins the text parts of a tools/call result.
+func stewardText(result map[string]any) string {
+	parts, _ := result["content"].([]any)
+	var out []string
+	for _, p := range parts {
+		if m, ok := p.(map[string]any); ok {
+			if s, ok := m["text"].(string); ok && strings.TrimSpace(s) != "" {
+				out = append(out, s)
+			}
+		}
+	}
+	return strings.TrimSpace(strings.Join(out, "\n"))
+}
+
+// askStewardMCP is one turn sent to Steward: (his reply, nil) or why he did not
+// answer. The tool and its request argument are read off his server's own
+// roster, so a renamed agent or argument is followed, not guessed.
+func askStewardMCP(endpoint, task, sessionID string) (string, error) {
+	listing, err := stewardRPC(endpoint, "tools/list", map[string]any{})
+	if err != nil {
+		return "", fmt.Errorf("Steward is not reachable at %s: %v. Nothing else took the question", endpoint, err)
+	}
+	var tools []map[string]any
+	if ts, ok := listing["tools"].([]any); ok {
+		for _, t := range ts {
+			if m, ok := t.(map[string]any); ok {
+				tools = append(tools, m)
+			}
+		}
+	}
+	var tool map[string]any
+	for _, t := range tools {
+		if t["name"] == stewardTool {
+			tool = t
+			break
+		}
+	}
+	if tool == nil && len(tools) == 1 {
+		tool = tools[0]
+	}
+	if tool == nil {
+		var names []string
+		for _, t := range tools {
+			names = append(names, fmt.Sprint(t["name"]))
+		}
+		carries := strings.Join(names, ", ")
+		if carries == "" {
+			carries = "nothing"
+		}
+		return "", fmt.Errorf("Steward's MCP server at %s carries no %s tool (it carries: %s)", endpoint, stewardTool, carries)
+	}
+	schema, _ := tool["inputSchema"].(map[string]any)
+	props, _ := schema["properties"].(map[string]any)
+	arg := "task"
+	if req, ok := schema["required"].([]any); ok {
+		for _, r := range req {
+			if s, ok := r.(string); ok && s != "session_id" {
+				arg = s
+				break
+			}
+		}
+	}
+	callArgs := map[string]any{arg: task}
+	if _, ok := props["session_id"]; ok {
+		callArgs["session_id"] = sessionID
+	}
+	result, err := stewardRPC(endpoint, "tools/call", map[string]any{"name": tool["name"], "arguments": callArgs})
+	if err != nil {
+		return "", fmt.Errorf("Steward is not reachable at %s: his server could not run the turn (%v)", endpoint, err)
+	}
+	text := stewardText(result)
+	if isErr, _ := result["isError"].(bool); isErr {
+		if text == "" {
+			text = "and said nothing about why"
+		}
+		return "", fmt.Errorf("REFUSED — Steward refused: %s", text)
+	}
+	if text == "" {
+		return "", fmt.Errorf("REFUSED — Steward answered with nothing")
+	}
+	return text, nil
 }
 
 func toolAskSteward(t tenant.Tenant, args map[string]any) (string, error) {
@@ -3484,43 +3655,17 @@ func toolAskSteward(t tenant.Tenant, args map[string]any) (string, error) {
 	if q == "" {
 		return "", fmt.Errorf("ask_steward needs a question — he cannot weigh the empty string")
 	}
-	if t.Engine == "" {
-		return "", fmt.Errorf("ask_steward has no engine wired for project %q: nothing to wake. The operator wires one with --engine.", t.Name)
+	endpoint := stewardAt()
+	if !stewardLoopback(endpoint) {
+		return "", fmt.Errorf("REFUSED — Steward's address %s is not on this machine, and the estate is local; nothing was sent", endpoint)
 	}
-	// ZERO-WRITE GUARD (B1 hardening): atlas is self-contained and must never
-	// boot or forward to a read-only ground. The operator lands everything;
-	// ask_steward refuses until its own rebuilt engine lands (F1).
-	if touchesReadonlyGround(t.Engine) {
-		return "", fmt.Errorf("REFUSED — ask_steward will not boot or forward to a read-only ground (estate/, secondbrain/, manjuel core). atlas is self-contained; the operator lands everything.")
+	sessionID, _ := args["session_id"].(string)
+	if sessionID = strings.TrimSpace(sessionID); sessionID == "" {
+		sessionID = "atlas-" + t.Name
 	}
-	fields := splitCommand(t.Engine)
-	if len(fields) == 0 {
-		return "", fmt.Errorf("ask_steward engine command is empty for %q", t.Name)
-	}
-	cmdArgs := append(append([]string{}, fields[1:]...), q)
 	askLock.Lock()
 	defer askLock.Unlock()
-	// Through the one spawn contract (ADR-006 item 5). The bound, the
-	// closed stdin and the kept streams all come from there now; what stays
-	// local is the only part that is this tool's own -- the WORDS of the
-	// refusal, which name the engine rather than the exit code.
-	res := spawn(fields[0], cmdArgs, spawnOpts{Dir: t.Home, Timeout: askTimeout})
-	if res.TimedOut {
-		return "", fmt.Errorf("REFUSED — the weighing did not finish inside %d seconds; the engine may be cold. Nothing is claimed.", int(askTimeout.Seconds()))
-	}
-	if res.Err != nil {
-		tail := strings.Split(strings.TrimRight(res.Stderr, "\r\n"), "\n")
-		last := ""
-		if len(tail) > 0 {
-			last = tail[len(tail)-1]
-		}
-		return "", fmt.Errorf("REFUSED — the engine did not answer (exit %v): %s", res.Err, last)
-	}
-	out := strings.TrimSpace(res.Stdout)
-	if out == "" {
-		return "", fmt.Errorf("REFUSED — the engine said nothing")
-	}
-	return out, nil
+	return askStewardMCP(endpoint, q, sessionID)
 }
 
 func toolRemember(t tenant.Tenant, args map[string]any) (string, error) {

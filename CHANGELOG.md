@@ -12,6 +12,19 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### ask_steward asks Steward, the MAF agent, over his MCP server (2026-11-04; his word: Steward is THE agent of the Estate and Manjuel's default, and the council is superseded by MAF)
+
+Until now the door tool `ask_steward` spawned the tenant's wired Manjuel engine (`--engine`). It now speaks to Steward's own MCP server, on the contract Manjuel's ground already uses (`manjuel/serve.py` `maf_ask`, `manjuel/skills.py` `_mcp_rpc`): a JSON-RPC `tools/list` reads the `Steward` tool off his roster, then `tools/call` sends the question as `task` with a `session_id` (the caller's `session_id`, else `atlas-<project>`).
+
+- **Address:** `MANJUEL_MCP_STEWARD`, else `http://127.0.0.1:43121/mcp`. Loopback only: an address off this machine is refused and nothing is sent. `MANJUEL_MCP_STEWARD_KEY`, when declared, rides as the bearer and is never logged or echoed.
+- **Transport:** stateless streamable HTTP; `Accept: application/json, text/event-stream`, and either kind of answer is read. One call is bounded at 600 s, as the engine's weighing was.
+- **Unreachable:** "Steward is not reachable at <url>". Nothing else takes the question: there is no fallback to the engine.
+- Unchanged: it still writes (held for any caller but his glass), sits in the engine tier, and runs one turn at a time under the ask lock. The engine-command guard for read-only grounds is gone with the engine call it guarded; the loopback wall takes its place.
+
+**What goes red if unplugged:** `line/internal/tools/ask_steward_test.go` (a fake MCP server via httptest: the answer comes back, JSON and event-stream; session and bearer carried; Steward not listening is said and the wired engine does not run; an off-machine address is refused) and the binary's own `--prove` strokes in `line/cmd/atlas-mcp/prove.go` (answer from a fake Steward; unreachable said; off-machine refused), which `go test ./cmd/atlas-mcp` runs.
+
+**On his machine:** the running door and glass pick this up only when a new build is placed, which is his card.
+
 ### CI pinned: every toolchain, runner image and action named by number (2026-11-04; his word: "everything pinned and versioned for CI")
 
 Until now CI took whatever GitHub handed it that day: `windows-latest` and `ubuntu-latest`, the runner's own stable Rust, the newest Go 1.26.x and Python 3.13.x, and GitHub's own actions on major tags (`@v4`, `@v5`). Each is now pinned to what it resolved to on 2026-11-04, read off run 41873516439 (`gh run view --log`), so nothing changes on the day and nothing changes after it without an edit.
