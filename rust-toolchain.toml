@@ -1,0 +1,15 @@
+# THE RUST THAT PROVES ATLAS, BY NUMBER (2026-11-04, the operator's word:
+# "everything pinned and versioned for CI").
+#
+# The version windows-latest's own stable was on 2026-11-04 (run 41873516439,
+# "rustc 1.99.1 (58cf8f9c3 2026-10-13)"). rustup reads this file wherever cargo
+# runs inside the workspace, CI and the operator's machine alike, so both
+# build with this one compiler. CI installs it with `rustup toolchain install`
+# and its "Toolchains, named in the log" step refuses any other rustc.
+#
+# Minimal: CI runs cargo build and cargo test only, on the host target
+# (x86_64-pc-windows-msvc; the spine is Windows by construction), so no extra
+# component and no extra target. It moves only by an edit here.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"

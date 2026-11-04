@@ -345,9 +345,14 @@ def leg_e2e(live):
 # tests/release.py, `workflows`), and held to the same two rules. An action from
 # outside GitHub's own `actions/` is named by its 40-hex commit: a tag is a
 # pointer its owner can move, and release.yml's is the one step that holds
-# `contents: write`. And a line is proved once: a workflow that runs on pull
-# requests does not also run on a push to every line, as prove.yml's bare
-# `push:` did -- the same commit twice on every line with a pull request open.
+# `contents: write`. SINCE 2026-11-04 GITHUB'S OWN TOO (the operator's word:
+# "everything pinned and versioned for CI"; all actions pinned to full commit
+# SHAs and gated): `actions/checkout@v4` is a tag its owner moves as surely as
+# any other, so the `actions/` exemption is struck; only a local `./` action,
+# which is this repo's own commit, is exempt. And a line is proved once: a
+# workflow that runs on pull requests does not also run on a push to every
+# line, as prove.yml's bare `push:` did -- the same commit twice on every line
+# with a pull request open.
 USES = re.compile(r"^\s*(?:-\s+)?uses:\s*[\"']?([^\"'\s#]+)")
 SHA_PIN = re.compile(r"^[0-9a-f]{40}$")
 ON_KEY = re.compile(r"^[\"']?on[\"']?:\s*(.*)$")
@@ -417,9 +422,9 @@ def leg_github():
         with open(os.path.join(wfdir, fn), encoding="utf-8", errors="replace") as f:
             text = f.read()
         used = [m.group(1) for m in map(USES.match, text.splitlines())
-                if m and not m.group(1).startswith(("./", "actions/"))]
-        faults = ["%s names a tag its owner can move; an action from outside "
-                  "GitHub's own is named by its 40-hex commit" % a
+                if m and not m.group(1).startswith("./")]
+        faults = ["%s names a tag its owner can move; every action, GitHub's "
+                  "own included, is named by its 40-hex commit" % a
                   for a in used if not SHA_PIN.match(a.partition("@")[2])]
         on = triggers(text)
         if "pull_request" in on and pushes_every_line(on):
@@ -429,8 +434,8 @@ def leg_github():
         if faults:
             out.append(Leg("GITHUB", fn, FAIL, "\n".join(faults)))
             continue
-        said = ("%d outside action%s, each named by its commit"
-                % (len(used), "" if len(used) == 1 else "s")) if used else "no outside action"
+        said = ("%d action%s, each named by its commit"
+                % (len(used), "" if len(used) == 1 else "s")) if used else "no action"
         out.append(Leg("GITHUB", fn, PASS, said + "; no line proved twice"))
     return out
 
