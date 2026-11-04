@@ -227,7 +227,7 @@ Tools available (30+):
 - `rack_open` — expanded context bundle
 - `check_the_wall` — judge a path before acting
 - `muster` — declared projects roll call
-- `ask_steward` — weighed ruling with receipts
+- `ask_steward` — asks Steward, the MAF agent, over his MCP server (`MANJUEL_MCP_STEWARD`, else `http://127.0.0.1:43121/mcp`)
 - `mesh_read` — read channel chain
 - `mesh_post` — post signed message
 - `mesh_chain` — verify mesh chain

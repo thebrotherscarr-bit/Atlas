@@ -16,7 +16,7 @@
       {"name": "read_doctrine",   "writes": false, "desc": "one document whole with sha256 receipt; absent name denied honestly"},
       {"name": "check_the_wall",  "writes": false, "args": ["path"], "desc": "judge a path before acting; quote the law on refusal"},
       {"name": "state_matrix",    "writes": false, "desc": "state = fold(record) index of the home module"},
-      {"name": "ask_steward",     "writes": true,  "desc": "the weighed ruling with receipts, never raw model output; one-shot runner under the ask lock"},
+      {"name": "ask_steward",     "writes": true,  "desc": "ask Steward, the MAF agent, over his MCP server (loopback only); his answer, or that he is not reachable -- no fallback; one turn under the ask lock"},
       {"name": "rack_list",       "writes": false, "desc": "the live tier ladder of lawful local voices"},
       {"name": "rack_ask",        "writes": true,  "desc": "routed ask: classified depth/tier, witnessed to the ledger"},
       {"name": "rack_open",       "writes": false, "desc": "expanded context bundle for a query at a depth; nothing answered"},

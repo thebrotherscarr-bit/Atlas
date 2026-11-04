@@ -14,7 +14,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -73,9 +72,6 @@ func runProve() int {
 		homes[name] = makeHome(root, name, marker)
 		reg2.Add(name, homes[name])
 	}
-	// Wire a hermetic stub engine for the atlas tenant so ask_steward's
-	// subprocess + lock contract is proven without booting a real engine.
-	reg2.SetEngine("atlas", echoEngine())
 
 	surface2 := tools.Build(reg2, tools.Options{AtlasBin: "atlas"})
 
@@ -251,26 +247,50 @@ func runProve() int {
 	check("read_plan returns a plan with receipt",
 		!isErr && strings.Contains(text, "THE_ROAD.md") && strings.Contains(text, "sha256"))
 
-	// ask_steward honest refusal when no engine is wired.
-	text, isErr = callTool(map[string]any{
-		"name": "ask_steward", "arguments": map[string]any{"project": "manjuel", "question": "what is a steward?"}})
-	check("ask_steward refuses honestly when no engine wired",
-		isErr && strings.Contains(text, "no engine wired"))
-
-	// ask_steward routes through the wired (stub) engine.
+	// ask_steward asks Steward, the MAF agent, over his MCP server
+	// (2026-11-04). A fake MCP server on loopback stands in for his: tools/list
+	// names the Steward tool, tools/call answers the task back.
+	stewardStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Method string `json:"method"`
+			Params struct {
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
+			} `json:"params"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		var result any
+		if req.Method == "tools/list" {
+			result = map[string]any{"tools": []any{map[string]any{"name": "Steward",
+				"inputSchema": map[string]any{"required": []any{"task"},
+					"properties": map[string]any{"task": map[string]any{}, "session_id": map[string]any{}}}}}}
+		} else {
+			task, _ := req.Params.Arguments["task"].(string)
+			result = map[string]any{"content": []any{map[string]any{"type": "text", "text": "THE ANSWER to " + task}}}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
+	}))
+	os.Setenv("MANJUEL_MCP_STEWARD", stewardStub.URL+"/mcp")
 	text, isErr = callTool(map[string]any{
 		"name": "ask_steward", "arguments": map[string]any{"project": "atlas", "question": "does the door work"}})
-	check("ask_steward routes through the engine under the ask lock",
-		!isErr && strings.Contains(text, "THE ANSWER"))
+	check("ask_steward answers from Steward over MCP",
+		!isErr && strings.Contains(text, "THE ANSWER to does the door work"))
+	stewardStub.Close()
 
-	// B1 hardening: ask_steward refuses any engine that would reach a read-only
-	// ground. The path need not exist; the guard inspects the command string.
-	reg2.SetEngine("atlas", filepath.Join(root, "..", "secondbrain", "manjuel.py"))
-	refText, refIsErr := callTool(map[string]any{
-		"name": "ask_steward", "arguments": map[string]any{"project": "atlas", "question": "boot manjuel?"}})
-	check("ask_steward refuses an engine reaching a read-only ground (B1 hardening)",
-		refIsErr && strings.Contains(refText, "REFUSED") && strings.Contains(refText, "read-only ground"))
-	reg2.SetEngine("atlas", echoEngine())
+	// Steward unplugged: said by address, and nothing else takes the question.
+	text, isErr = callTool(map[string]any{
+		"name": "ask_steward", "arguments": map[string]any{"project": "atlas", "question": "anyone home?"}})
+	check("ask_steward says Steward is not reachable, with no fallback",
+		isErr && strings.Contains(text, "Steward is not reachable at "+stewardStub.URL))
+
+	// An address off this machine is refused, never dialed.
+	os.Setenv("MANJUEL_MCP_STEWARD", "http://example.com/mcp")
+	text, isErr = callTool(map[string]any{
+		"name": "ask_steward", "arguments": map[string]any{"project": "atlas", "question": "hi"}})
+	check("ask_steward refuses an address off this machine",
+		isErr && strings.Contains(text, "not on this machine"))
+	os.Unsetenv("MANJUEL_MCP_STEWARD")
 
 	// manifest remaps the handoffs key to a directory.
 	mHome := filepath.Join(root, "manifested")
@@ -1387,23 +1407,4 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// echoEngine is the stub engine the ask_steward strokes wire: a command that
-// answers instantly and reaches nothing.
-//
-// IT WAS `cmd /c echo THE ANSWER`, HARDCODED, IN TWO PLACES — and `cmd` does
-// not exist off Windows. Nobody could know, because until 2026-09-11 these
-// suites had never run anywhere but the operator's machine. The first Linux
-// job in atlas's first CI found it on its first run, which is the entire
-// reason that job exists: the suites must not quietly depend on the
-// operator's platform.
-//
-// splitCommand splits on whitespace, so both spellings arrive as argv and
-// both print exactly "THE ANSWER".
-func echoEngine() string {
-	if runtime.GOOS == "windows" {
-		return "cmd /c echo THE ANSWER"
-	}
-	return "/bin/echo THE ANSWER"
 }
