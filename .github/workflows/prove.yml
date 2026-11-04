@@ -63,31 +63,66 @@ jobs:
   # ---------------------------------------------------------------------
   ball:
     name: the battery (windows)
-    runs-on: windows-latest
+    # PINNED TO THE IMAGE windows-latest RAN ON 2026-11-04 (run 41873516439:
+    # "Image: windows-2025-vs2026, Version: 20261030.294.1"), so GitHub moving
+    # its -latest label cannot change what was proven. The job's NAME above is
+    # the check main's ruleset waits for and does not carry the runner.
+    runs-on: windows-2025-vs2026
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          # Both go.mod files say `go 1.26`. Named here rather than floating,
-          # so a runner image bump cannot silently change what was proven.
-          go-version: "1.26"
+          # THE EXACT GO, FROM go.mod (2026-11-04). Both go.mod files carry a
+          # `toolchain` line, and setup-go v6 installs the version that line
+          # names (v5 read only the `go 1.26` line and took the newest 1.26.x
+          # of the day). The check below refuses the two files disagreeing.
+          go-version-file: line/go.mod
           cache: false # nothing to cache: stdlib only
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: "3.13"
+          python-version: "3.13.17"
+
+      - name: The Rust that rust-toolchain.toml names
+        # Installed by rustup from the file at the root, before anything asks
+        # cargo for it. With no argument, `rustup toolchain install` installs
+        # the toolchain the file makes active, and nothing else.
+        run: rustup toolchain install
 
       - name: Toolchains, named in the log
         # A stranger reading a failed run should be able to tell a version
         # problem from a code problem without guessing.
+        #
+        # AND THE PINNED ONES, OR RED (2026-11-04, his word: "everything
+        # pinned and versioned for CI"). rust-toolchain.toml names the Rust
+        # and both go.mod files name the Go with a `toolchain` line; setup-go
+        # reads that line through go-version-file. A runner that hands this
+        # job anything else -- the file gone, the two go.mod files apart, a
+        # default stable that won over the file -- stops here.
+        shell: bash
         run: |
           go version
           cargo --version
           rustc --version
           python --version
+          fail=0
+          want_rust="$(sed -n 's/^channel *= *"\(.*\)".*/\1/p' rust-toolchain.toml)"
+          got_rust="$(rustc --version | cut -d' ' -f2)"
+          if [ -z "$want_rust" ] || [ "$got_rust" != "$want_rust" ]; then
+            echo "REFUSED: rustc is '$got_rust', rust-toolchain.toml says '$want_rust'"; fail=1
+          fi
+          got_go="$(go env GOVERSION)"
+          for mod in line webapp; do
+            want_go="$(sed -n 's/^toolchain \(go[0-9.]*\).*/\1/p' "$mod/go.mod" | tr -d '\r')"
+            if [ -z "$want_go" ] || [ "$got_go" != "$want_go" ]; then
+              echo "REFUSED: go is '$got_go', $mod/go.mod says toolchain '$want_go'"; fail=1
+            fi
+          done
+          [ "$fail" = 0 ] && echo "the toolchains are the pinned ones: rust $got_rust, $got_go"
+          exit $fail
 
       - name: Every version pin agrees
         # THE DRIFT THAT SHIPPED v0.1.6 (2026-09-22). The root VERSION was
@@ -171,15 +206,17 @@ jobs:
   # ---------------------------------------------------------------------
   portable:
     name: the go half, off Windows
-    runs-on: ubuntu-latest
+    # Pinned to the image ubuntu-latest ran on 2026-11-04 (run 41873516439:
+    # "Image: ubuntu-26.04, Version: 20261025.179.1").
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version: "1.26"
+          go-version-file: line/go.mod
           cache: false
 
       - name: It builds

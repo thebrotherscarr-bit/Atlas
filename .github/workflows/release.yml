@@ -52,27 +52,60 @@ jobs:
     # spine links the Windows SDK's own SQLite (store/src/ffi.rs,
     # `#[link(name = "winsqlite3")]`) with no alternative backend. On any other
     # platform cargo fails at link time, so the binaries are cut here.
-    runs-on: windows-latest
+    # Pinned to the image windows-latest ran on 2026-11-04, the same as
+    # prove.yml's gate: windows-2025-vs2026 (20261030.294.1).
+    runs-on: windows-2025-vs2026
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version: "1.26"
+          go-version-file: line/go.mod # the `toolchain` line, exactly
           cache: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: "3.13"
+          python-version: "3.13.17"
+
+      - name: The Rust that rust-toolchain.toml names
+        # Installed by rustup from the file at the root, before anything asks
+        # cargo for it. With no argument, `rustup toolchain install` installs
+        # the toolchain the file makes active, and nothing else.
+        run: rustup toolchain install
 
       - name: Toolchains, named in the log
+        # A stranger reading a failed run should be able to tell a version
+        # problem from a code problem without guessing.
+        #
+        # AND THE PINNED ONES, OR RED (2026-11-04, his word: "everything
+        # pinned and versioned for CI"). rust-toolchain.toml names the Rust
+        # and both go.mod files name the Go with a `toolchain` line; setup-go
+        # reads that line through go-version-file. A runner that hands this
+        # job anything else -- the file gone, the two go.mod files apart, a
+        # default stable that won over the file -- stops here.
+        shell: bash
         run: |
           go version
           cargo --version
           rustc --version
           python --version
+          fail=0
+          want_rust="$(sed -n 's/^channel *= *"\(.*\)".*/\1/p' rust-toolchain.toml)"
+          got_rust="$(rustc --version | cut -d' ' -f2)"
+          if [ -z "$want_rust" ] || [ "$got_rust" != "$want_rust" ]; then
+            echo "REFUSED: rustc is '$got_rust', rust-toolchain.toml says '$want_rust'"; fail=1
+          fi
+          got_go="$(go env GOVERSION)"
+          for mod in line webapp; do
+            want_go="$(sed -n 's/^toolchain \(go[0-9.]*\).*/\1/p' "$mod/go.mod" | tr -d '\r')"
+            if [ -z "$want_go" ] || [ "$got_go" != "$want_go" ]; then
+              echo "REFUSED: go is '$got_go', $mod/go.mod says toolchain '$want_go'"; fail=1
+            fi
+          done
+          [ "$fail" = 0 ] && echo "the toolchains are the pinned ones: rust $got_rust, $got_go"
+          exit $fail
 
       - name: The tag says what the files say
         # THE ARITHMETIC THAT CATCHES A BAD TAG. Three things must agree: the

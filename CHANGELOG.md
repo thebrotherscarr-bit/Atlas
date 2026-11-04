@@ -12,6 +12,20 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### CI pinned: every toolchain, runner image and action named by number (2026-11-04; his word: "everything pinned and versioned for CI")
+
+Until now CI took whatever GitHub handed it that day: `windows-latest` and `ubuntu-latest`, the runner's own stable Rust, the newest Go 1.26.x and Python 3.13.x, and GitHub's own actions on major tags (`@v4`, `@v5`). Each is now pinned to what it resolved to on 2026-11-04, read off run 41873516439 (`gh run view --log`), so nothing changes on the day and nothing changes after it without an edit.
+
+- **Rust:** a new `rust-toolchain.toml` at the workspace root, `channel = "1.99.1"`, `profile = "minimal"` (CI builds and tests on the host target only). Both workflows install it with `rustup toolchain install`, no extra action.
+- **Go:** `toolchain go1.26.7` (the operator's machine) in `line/go.mod` and `webapp/go.mod`; setup-go reads it through `go-version-file: line/go.mod`. That needed setup-go **v6** (v5 read only the `go 1.26` line).
+- **Python:** `3.13.17`.
+- **Runners:** `windows-2025-vs2026` (image 20261030.294.1) and `ubuntu-26.04` (20261025.179.1). The check main's ruleset waits for, `the battery (windows)`, is the job's `name:` and does not carry the runner, so it is unchanged.
+- **Actions, by commit, tag as a comment:** `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0` (what `@v4` ran), `actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0`, `actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0` (what `@v5` ran); `softprops/action-gh-release` stays at v2.6.2. No Dependabot or Renovate: a pin moves by an edit.
+
+**What goes red if unplugged:** the GITHUB leg of the battery (`tests/prove.py`, `leg_github`) no longer exempts `actions/`: any action named by a tag is FAIL, on every pull request into main. And the "Toolchains, named in the log" step in both workflows now refuses a `rustc` other than `rust-toolchain.toml`'s channel, or a `go` other than both go.mod files' `toolchain` line. `tests/PROVING.md` row 9 says so.
+
+**On his machine:** the pins match what is installed: rustup reads `rust-toolchain.toml` (rustc 1.99.1) and Go is pinned to go1.26.7, the installed version, so nothing downloads a toolchain. Proved here: `go test ./...` green in `line` and `webapp`. **Not yet proved:** the first run on GitHub, which is this line's pull request.
+
 ### The docs say what is true at v0.2.6 (2026-10-23; his words: "make a pass on all the docs on the repos and make sure they are all good and match the system's 0.2.6 publish")
 
 Every living doc was read against the code. The 28 findings are in his notes ("Docs pass"). What changed:

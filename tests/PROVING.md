@@ -75,7 +75,7 @@ on. ADR-006 item 6.
 | 6 | **GOLDENS** — 28 × `--verify` | law 2: every vector re-cut and compared against the pinned fixture; and that no cutter cuts on a word it does not know | ~6s | 14 of them want an oracle not in this ground |
 | 7 | **WORKFLOWS** — 6 × `wf_*.py` | the seat journeys end to end through the live door | minutes | `:8090` answering |
 | 8 | **E2E** — `test_suite.py` | 84 scenarios in 12 categories | minutes | `:8090` + Ollama on `:11434` |
-| 9 | **GITHUB** — `.github/workflows/*.yml`, read as text | an action from outside GitHub's own `actions/` is named by its 40-hex commit, and no workflow proves a line twice, on its push and its pull request; the core's release gate holds its own workflows to the same two rules (2026-10-09) | instant | — |
+| 9 | **GITHUB** — `.github/workflows/*.yml`, read as text | every action, GitHub's own `actions/` included since 2026-11-04, is named by its 40-hex commit (only a local `./` action is exempt), and no workflow proves a line twice, on its push and its pull request; the core's release gate holds its own workflows to the two rules as they stood on 2026-10-09, outside actions only | instant | — |
 
 The **door battery** is not a leg of its own — it lives *inside* leg 3, as
 `TestDoorProveStrokesGreen` in `cmd/atlas-door`. It shells the Rust binary
