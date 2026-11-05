@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"atlas/line/internal/tenant"
 )
@@ -171,5 +172,11 @@ func TestAskStewardDefaultAddress(t *testing.T) {
 	t.Setenv(stewardDial, "http://127.0.0.1:9/mcp")
 	if got := stewardAt(); got != "http://127.0.0.1:9/mcp" {
 		t.Fatalf("dial not read: %q", got)
+	}
+}
+
+func TestAskStewardWaitsPastTheApprovalCard(t *testing.T) {
+	if stewardWait != 900*time.Second || askTimeout != 900*time.Second {
+		t.Fatalf("Steward's turn is waited %v (askTimeout %v), want 900s past a 660s card", stewardWait, askTimeout)
 	}
 }

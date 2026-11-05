@@ -3439,8 +3439,10 @@ func toolStateMatrix(t tenant.Tenant, _ map[string]any) (string, error) {
 }
 
 // askTimeout bounds one turn of Steward's: a local model on the operator's
-// machine may take minutes to weigh a question.
-const askTimeout = 600 * time.Second
+// machine may take minutes to weigh a question, and a turn can sit on an
+// approval card for up to 660 s before the model runs (2026-11-04), so the
+// wait is 900 s -- past the card, with the model's time on top.
+const askTimeout = 900 * time.Second
 
 // ASK_STEWARD ASKS STEWARD, THE MAF AGENT (2026-11-04; his word: Steward is THE
 // agent of the Estate and Manjuel's default, and the council is superseded by
