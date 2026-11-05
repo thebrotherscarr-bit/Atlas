@@ -12,8 +12,8 @@ This architecture is of 2026-09-07 and stands below as written. What moved since
 - **The glass.** `atlas-webapp` is the operator's front page on 127.0.0.1:8091: one
   terminal (Agent, Bash, Python, PowerShell, Aider) and an Inspector beside it,
   opened with a PIN. Every write the door holds waits there as a card.
-- **The door.** `atlas-mcp` serves 97 tools over MCP and HTTP on 127.0.0.1:8090
-  (`TOOL_PERMISSIONS.md`), raises the core's engine for a world, and holds every
+- **The door.** `atlas-mcp` serves 97 tools over MCP and HTTP on 127.0.0.1:43111, where the glass
+  reaches it (`webapp/handlers`; today it runs inside SecondBrain) (`TOOL_PERMISSIONS.md`), raises the core's engine for a world, and holds every
   writing call from anything but the glass for the operator's card.
 - **Principle 1.** The door's chain verdict runs Python since 2026-10-01
   (`tools/chain_verify.py`; the core's WHAT'S LEFT B14). The Rust core stays the
@@ -241,7 +241,7 @@ the truth. SQLite is re-derivable from the journals at any time.
 | Binary | Language | Purpose | Port |
 |---|---|---|---|
 | `atlas` | Rust | Provenance core CLI | — |
-| `atlas-mcp` | Go | The door: MCP (stdio) and HTTP, the operator's holds | :8090 |
+| `atlas-mcp` | Go | The door: MCP (stdio) and HTTP, the operator's holds | :43111 |
 | `atlas-webapp` | Go | The glass: the front page, opened with a PIN | :8091 |
 | `atlas-tui` | Go | Terminal UI | — |
 | `atlas-town` | Go | Town beat/flow/story | — |

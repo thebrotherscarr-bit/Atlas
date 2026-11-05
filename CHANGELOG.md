@@ -12,6 +12,11 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### docs/ARCHITECTURE.md gives the door as 43111; AGENTS.md says what prove --live probes (2026-11-05)
+
+- `docs/ARCHITECTURE.md`: the door (§ parts and § 8, Binary Inventory) is on 127.0.0.1:43111, where the glass reaches it (`webapp/handlers`, `webapp/desktop.go`), as Steward's `docs/ARCHITECTURE.md` has it; the glass stays 8091.
+- `AGENTS.md`: `tests\prove.py --live` probes `http://127.0.0.1:8090/health` (`mcp_online`), a standalone `atlas-mcp`, not the Estate's door on 43111. The test is unchanged.
+
 ### README gives the door as 43111, not :8090 (2026-11-05)
 
 - `README.md`: the door (`atlas-mcp`) is on 127.0.0.1:43111 and the glass on 8091, as the glass's own code (`webapp/handlers`, `webapp/desktop.go`) and Steward's `docs/ARCHITECTURE.md` (its ports table) have them. The binaries table and the run line now say 43111; the note says `tests\prove.py --live` still probes :8090.
