@@ -1027,6 +1027,7 @@ func TestRBACJudgesTheTransportNotTheArgs(t *testing.T) {
 // verify_chain on a golden master reads INTACT in the line the Rust printed;
 // a file that is not a chain reads TAMPER and the call errs with its words.
 func TestVerifyChainReadsAGoldenThroughThePythonSpine(t *testing.T) {
+	needFixtures(t)
 	script := findChainVerifier("")
 	if script == "" {
 		t.Fatal("tools/chain_verify.py is not beside this test: the walk from the working directory must find the repository's tools/")
@@ -1977,4 +1978,22 @@ func TestTheSuitesRunFromTheGlassAndTheHeadIsReadOffTheStamp(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatalf("the first run must still finish: %v", err)
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

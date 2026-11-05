@@ -25,6 +25,7 @@ func findFixture(t *testing.T, name string) []byte {
 }
 
 func TestVramGoldens(t *testing.T) {
+	needFixtures(t)
 	raw := findFixture(t, "rack_plan.json")
 	var doc struct {
 		Constants struct {

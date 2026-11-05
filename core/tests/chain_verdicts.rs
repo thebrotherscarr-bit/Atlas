@@ -14,6 +14,20 @@ use atlas_core::chain::{read_rows, verify_rows, Verdict};
 use atlas_core::forms::recognize_rows;
 use atlas_core::json::{self, Json};
 
+/// The Archive-cut fixtures left the repository 2026-11-05 and stay local
+/// only. Without them this proof skips, and says why, rather than failing.
+fn fixtures_absent() -> bool {
+    let d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("tests")
+        .join("fixtures");
+    if d.is_dir() {
+        return false;
+    }
+    eprintln!("SKIP: tests/fixtures absent (Archive-cut, local only since 2026-11-05)");
+    true
+}
+
 fn fixture(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -108,6 +122,9 @@ fn assert_verify(golden: &Json, got: &atlas_core::chain::VerifyReport, ctx: &str
 
 #[test]
 fn every_fixture_chain_matches_both_oracle_provers() {
+    if fixtures_absent() {
+        return;
+    }
     let doc = load_doc();
     let chains = match doc.get("chains") {
         Some(Json::Arr(c)) => c,
@@ -237,6 +254,9 @@ fn apply_recipe(lines: &mut Vec<String>, recipe: &Json) {
 
 #[test]
 fn injections_on_temp_ground_reproduce_the_oracle_words() {
+    if fixtures_absent() {
+        return;
+    }
     let doc = load_doc();
     let injections = match doc.get("injections") {
         Some(Json::Arr(a)) => a,

@@ -4,7 +4,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
-from _mcp_client import call, is_online
+from _mcp_client import call, is_online, without_fixtures
 
 PROJECT = "atlas"
 
@@ -21,6 +21,7 @@ def main():
         ("state_matrix", {"project": PROJECT},
          lambda r: "fold" in r.lower() or len(r) > 10),
     ]
+    steps = without_fixtures(steps)
     passed = 0
     for tool, args, check in steps:
         try:

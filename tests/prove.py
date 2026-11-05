@@ -47,6 +47,21 @@ PASS, FAIL, ABSENT, SKIPPED = "PASS", "FAIL", "ABSENT", "SKIPPED"
 ATLAS_BIN = os.path.join(ATLAS, "target", "debug",
                          "atlas.exe" if os.name == "nt" else "atlas")
 
+# THE ARCHIVE-CUT FIXTURES LEFT THE REPOSITORY 2026-11-05 and stay local
+# only. Where they are absent, a leg that reads them is SKIPPED with this
+# reason -- never a pass, never read from anywhere else.
+FIXTURES = os.path.join(ATLAS, "tests", "fixtures")
+FIXTURES_GONE = "tests/fixtures absent (Archive-cut, local only since 2026-11-05)"
+
+
+def fixtures_gone_in(text):
+    """True when the fixtures are not here and a refusal names a path in them."""
+    if os.path.isdir(FIXTURES):
+        return False
+    flat = text.replace("\\\\", "/").replace("\\", "/")
+    return "tests/fixtures" in flat
+
+
 MISSING_PATH = re.compile(r"No such file or directory: '([^']+)'")
 NOT_FOUND = re.compile(r"panicked at [^\n]*\n *([^\n:]+): The system cannot find")
 
@@ -223,6 +238,9 @@ def leg_goldens():
         if code == 0:
             out.append(Leg("GOLDENS", name, PASS, "", "", secs))
             continue
+        if fixtures_gone_in(text):
+            out.append(Leg("GOLDENS", name, SKIPPED, FIXTURES_GONE, "", secs))
+            continue
         # A CUTTER THAT SHELLS THE SPINE IS ABSENT WITHOUT IT, NOT BROKEN.
         # absent_dependency only recognises an absence that NAMES A PATH. A
         # cutter whose subject is the unbuilt binary names a COMMAND instead,
@@ -271,7 +289,10 @@ def leg_chain_verify():
     -- so it is not in leg_goldens' list; this is its own leg: every chain
     and injection in tests/fixtures/canon/chain_verdicts.json re-verdicted by
     tools/chain_verify.py and compared. The goldens are committed, so this
-    leg is never ABSENT: it holds or it broke."""
+    leg is never ABSENT: it holds or it broke -- or, since the fixtures left
+    the repository (2026-11-05), it is SKIPPED where they are absent."""
+    if not os.path.isdir(FIXTURES):
+        return [Leg("GOLDENS", "chain_verify (python spine)", SKIPPED, FIXTURES_GONE)]
     t = time.time()
     code, text = run([sys.executable, os.path.join(TOOLS, "chain_verify.py"), "--goldens"], timeout=300)
     secs = time.time() - t
@@ -491,9 +512,10 @@ def main():
     broke = [l for l in legs if l.verdict == FAIL]
     gone = [l for l in legs if l.verdict == ABSENT]
     held = [l for l in legs if l.verdict == PASS]
+    skipped = [l for l in legs if l.verdict == SKIPPED]
     print()
-    print("  %d held - %d absent - %d broke - %.1fs"
-          % (len(held), len(gone), len(broke), time.time() - t0))
+    print("  %d held - %d absent - %d skipped - %d broke - %.1fs"
+          % (len(held), len(gone), len(skipped), len(broke), time.time() - t0))
     if gone and not args.quiet:
         print()
         print("  ABSENT is not a pass. These legs named something this ground")

@@ -62,6 +62,7 @@ func voiceByName(t *testing.T, voices []Voice, name string) Voice {
 }
 
 func TestBundleDepthsByteExact(t *testing.T) {
+	needFixtures(t)
 	voices, caps, ladder, ledger := openFixtures(t)
 	v := voiceByName(t, voices, "llama3.2:latest")
 	for depth, file := range map[int]string{1: "rack_bundle_d1.txt", 2: "rack_bundle_d2.txt"} {
@@ -81,6 +82,7 @@ func TestBundleDepthsByteExact(t *testing.T) {
 }
 
 func TestBundleDepthThreeStructural(t *testing.T) {
+	needFixtures(t)
 	voices, caps, ladder, ledger := openFixtures(t)
 	v := voiceByName(t, voices, "llama3.2:latest")
 	got, err := Bundle("atlas", v.Name, TierOf(v.Size), v.Size, v.Family,

@@ -5,7 +5,7 @@ import sys
 import os
 import uuid
 sys.path.insert(0, os.path.dirname(__file__))
-from _mcp_client import call, is_online
+from _mcp_client import call, is_online, without_fixtures
 
 PROJECT = "atlas"
 # Read from atlas's root VERSION, the one authority (2026-09-22) -- this said
@@ -43,6 +43,7 @@ def main():
         ("read_handoffs", {"project": PROJECT}, lambda r: len(r) > 10),
         ("state_matrix", {"project": PROJECT}, lambda r: len(r) > 10),
     ]
+    steps = without_fixtures(steps)
     passed = 0
     for tool, args, check in steps:
         try:

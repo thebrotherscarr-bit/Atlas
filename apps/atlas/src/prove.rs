@@ -519,14 +519,26 @@ pub fn run_prove() -> i32 {
 
     check_version_pin(&mut strokes);
     check_version_cross(&mut strokes);
-    check_chain_verify_fixtures(&mut strokes);
-    check_chain_recognize_fixtures(&mut strokes);
-    check_store_trio(&mut strokes);
-    check_db_lifecycle(&mut strokes);
+    // The Archive-cut fixtures left the repository 2026-11-05 and stay local
+    // only. Without them the strokes that read them skip, by name, and the
+    // rest of the battery still runs.
+    let fixtures = fixture("").is_dir();
+    if fixtures {
+        check_chain_verify_fixtures(&mut strokes);
+        check_chain_recognize_fixtures(&mut strokes);
+        check_store_trio(&mut strokes);
+        check_db_lifecycle(&mut strokes);
+    }
     check_enroll_dry(&mut strokes);
     check_orient_pack(&mut strokes);
-    check_link_lay_status(&mut strokes);
-    check_covenant_repro(&mut strokes);
+    if fixtures {
+        check_link_lay_status(&mut strokes);
+        check_covenant_repro(&mut strokes);
+    } else {
+        eprintln!(
+            "    [SKIP]  chain-verify-fixtures, chain-recognize-fixtures, store-trio,              db-lifecycle, link-lay-status, covenant-repro   tests/fixtures absent              (Archive-cut, local only since 2026-11-05)"
+        );
+    }
 
     let mut failed = 0usize;
     for s in &strokes {

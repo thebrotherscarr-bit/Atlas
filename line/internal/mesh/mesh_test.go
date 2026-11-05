@@ -277,6 +277,7 @@ func TestTamperVerdicts(t *testing.T) {
 // verifies whole under Go hands: hash, weld, signature, and mark on every
 // entry. This is the cross-impl direction estate->atlas for mesh chains.
 func TestFacesGoldenGround(t *testing.T) {
+	needFixtures(t)
 	dir := filepath.Join("..", "..", "..", "tests", "fixtures", "faces_ground")
 	v, err := Chain(dir)
 	if err != nil {
@@ -321,4 +322,22 @@ func TestEstateSignaturesVerify(t *testing.T) {
 	if n != 3 {
 		t.Fatalf("want 3 estate signatures, verified %d", n)
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

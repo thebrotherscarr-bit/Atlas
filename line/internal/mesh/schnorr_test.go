@@ -79,6 +79,7 @@ func unhex(t *testing.T, s string) []byte {
 }
 
 func TestDifferential(t *testing.T) {
+	needFixtures(t)
 	g := loadGoldens(t)
 	byID := map[string]vector{}
 	for _, v := range g.Vectors {

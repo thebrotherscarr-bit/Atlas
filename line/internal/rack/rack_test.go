@@ -22,6 +22,7 @@ func fixture(t *testing.T, name string) string {
 }
 
 func TestLadderMatchesGolden(t *testing.T) {
+	needFixtures(t)
 	tags := fixture(t, "rack_tags.json")
 	want := fixture(t, "rack_ladder.txt")
 	voices, err := ParseTags([]byte(tags))
@@ -34,6 +35,7 @@ func TestLadderMatchesGolden(t *testing.T) {
 }
 
 func TestStubDoorListsTiers(t *testing.T) {
+	needFixtures(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/tags" {
 			http.NotFound(w, r)
@@ -124,4 +126,22 @@ func TestSilenceHonest(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "silent") {
 		t.Fatalf("silence without the honest word: %s", err)
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

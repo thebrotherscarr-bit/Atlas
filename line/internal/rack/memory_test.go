@@ -9,6 +9,7 @@ import (
 )
 
 func TestEnvelopeGoldens(t *testing.T) {
+	needFixtures(t)
 	home := filepath.Join("..", "..", "..", "tests", "fixtures", "rack_open_ground")
 	cases := []struct {
 		file, voice, question string
@@ -33,6 +34,7 @@ func TestEnvelopeGoldens(t *testing.T) {
 }
 
 func TestEnvelopeRefusals(t *testing.T) {
+	needFixtures(t)
 	home := filepath.Join("..", "..", "..", "tests", "fixtures", "rack_open_ground")
 	if _, err := Recall(home, "", "no such thing"); err == nil ||
 		!strings.Contains(err.Error(), "no cited memory for") {
