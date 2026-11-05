@@ -108,7 +108,16 @@ mod tests {
     #[test]
     fn the_system_dll_answers_through_rust() {
         let ver = unsafe { CStr::from_ptr(sqlite3_libversion()) };
-        assert_eq!(ver.to_str().unwrap(), "3.51.1");
+        // The OS's own SQLite moves with Windows updates (3.51.1 on
+        // 2026-09-09, 3.53.4 on 2026-11-05), so the floor is pinned, not the
+        // build: at least the 3.50.4 that wrote data\master.db.
+        let parts: Vec<u32> = ver
+            .to_str()
+            .unwrap()
+            .split('.')
+            .map(|p| p.parse().unwrap())
+            .collect();
+        assert!(parts >= vec![3, 50, 4], "libversion {:?} is below 3.50.4", ver);
         let sid = unsafe { CStr::from_ptr(sqlite3_sourceid()) };
         assert!(sid.to_str().unwrap().len() > 20);
     }
