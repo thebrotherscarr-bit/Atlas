@@ -23,7 +23,7 @@ is the operator's -- his click on the glass, or his card. Start with the core.
 
     git clone https://github.com/thebrotherscarr-bit/Manjuel.git <YOUR-GROUND>
     cd <YOUR-GROUND>
-    git clone https://github.com/thebrotherscarr-bit/Atlas.git atlas
+    git clone https://github.com/thebrotherscarr-bit/Aurora.git atlas
 
 Atlas lives INSIDE the core's folder, at exactly `atlas`; the core's `.gitignore`
 expects it there.
