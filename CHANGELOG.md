@@ -12,6 +12,10 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### README gives the door as 43111, not :8090 (2026-11-05)
+
+- `README.md`: the door (`atlas-mcp`) is on 127.0.0.1:43111 and the glass on 8091, as the glass's own code (`webapp/handlers`, `webapp/desktop.go`) and Steward's `docs/ARCHITECTURE.md` (its ports table) have them. The binaries table and the run line now say 43111; the note says `tests\prove.py --live` still probes :8090.
+
 ### Archive-cut fixtures removed from the repository 2026-11-05; they stay local only
 
 - `tests/fixtures/` (155 files, cut 2026-09-09 per its MANIFEST.json) is off main and in `.gitignore`. History is not rewritten.
