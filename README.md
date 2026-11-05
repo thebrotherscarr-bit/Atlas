@@ -6,6 +6,12 @@ A polyglot agent provenance system with cryptographic chain integrity, structura
 **Covenant:** 1512741580b7239b  
 **License:** MIT
 
+> **2026-11-05:** Aurora is parked until Steward has visible computer control. The Estate's design (its parts, ports,
+> protocols, data and plan) is in Steward's
+> [`docs/ARCHITECTURE.md`](https://github.com/thebrotherscarr-bit/Steward/blob/main/docs/ARCHITECTURE.md), with its
+> decision records in [`docs/decisions/`](https://github.com/thebrotherscarr-bit/Steward/tree/main/docs/decisions).
+> The door now runs inside SecondBrain on 127.0.0.1:43111; the :8090 below is the door's original port.
+
 ## What This Is
 
 ATLAS is an operator-first agent harness that treats every tool call, trace, and agent declaration as a cryptographically chained, append-only record. It is not a framework — it is a governance layer that sits on top of any agent runtime and refuses to let the system lie about what happened.

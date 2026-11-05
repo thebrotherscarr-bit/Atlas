@@ -6,6 +6,24 @@ are working today) → `LAUNCH_PLAN.md` (the road) → work ONE piece → its
 CHANGELOG entry. (Until 2026-10-16 this read THE_ROAD and SEAT_LOG's tail;
 SEAT_LOG stopped on 2026-09-09.)
 
+**2026-11-05: the Estate's design and doc standard.** Aurora is parked until Steward has visible computer control
+(Steward's ADR-0004): no new Aurora work until then, and its look is never changed. The Estate's design now lives in
+Steward's repository, and every repository follows its doc standard (the operator, 2026-11-05: "make this the
+standard moving forward, this way nothing gets misaligned"):
+
+- [docs/README.md](https://github.com/thebrotherscarr-bit/Steward/blob/main/docs/README.md) - the doc map: which
+  document is for what
+- [docs/ARCHITECTURE.md](https://github.com/thebrotherscarr-bit/Steward/blob/main/docs/ARCHITECTURE.md) - the Estate
+  as it is now: parts, wires (ports, protocols), data, flows, rules, plan
+- [docs/decisions/](https://github.com/thebrotherscarr-bit/Steward/tree/main/docs/decisions) - decision records in
+  MAF's ADR format. A decision (a part, a wire, a port, a store of data, a rule) gets an ADR there before it is
+  built; a feature gets a spec in Steward's `docs/specs/`; a multi-step build an ExecPlan in Steward's `docs/plans/`.
+
+Where the Preflight above or LAUNCH_PLAN.md disagrees with those, they win. Every command below carries a hard time
+limit when run by an agent (for example `timeout 1800 python tests/prove.py`). The pull-request checks are
+`prove.yml`'s two jobs: the battery on Windows (`cargo build -p atlas --locked`, `python tests/prove.py`) and the Go
+half (`go build ./...` and `go vet ./...` in `line/` and `webapp/`, then the suites).
+
 ---
 
 ## Ground truth
