@@ -1,5 +1,7 @@
-// Package protocol speaks MCP over stdio: newline-delimited JSON-RPC 2.0
-// (protocol 2025-06-18). Handshake, tools/list, tools/call; nothing else.
+// Package protocol speaks MCP over stdio: newline-delimited JSON-RPC 2.0, in
+// both eras (era.go): 2026-07-28 statelessly (server/discover, tools/list,
+// tools/call with the _meta envelope), and 2025-06-18 with its handshake
+// (initialize, ping, tools/list, tools/call). Nothing else.
 package protocol
 
 import (
@@ -35,7 +37,7 @@ func Serve(in io.Reader, out io.Writer, info ServerInfo, instructions string,
 		if len(line) == 0 {
 			continue
 		}
-		resp := s.handle(line)
+		resp := Dual(line, s.info, s.instructions, s.handle)
 		if resp == nil {
 			continue // notification
 		}
@@ -53,8 +55,9 @@ type request struct {
 	ID      json.RawMessage `json:"id"`
 	Method  string          `json:"method"`
 	Params  struct {
-		Name      string         `json:"name"`
-		Arguments map[string]any `json:"arguments"`
+		Name            string         `json:"name"`
+		Arguments       map[string]any `json:"arguments"`
+		ProtocolVersion string         `json:"protocolVersion"`
 	} `json:"params"`
 }
 
@@ -66,13 +69,16 @@ func (s *server) handle(line []byte) any {
 	switch req.Method {
 	case "initialize":
 		return resultResponse(req.ID, map[string]any{
-			"protocolVersion": "2025-06-18",
+			"protocolVersion": NegotiateLegacy(req.Params.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      s.info,
 			"instructions":    s.instructions,
 		})
 	case "notifications/initialized", "initialized":
 		return nil
+	case "ping":
+		// legacy only: Dual refuses it for a 2026-07-28 request
+		return resultResponse(req.ID, map[string]any{})
 	case "tools/list":
 		list := []map[string]any{}
 		for _, t := range s.tools.All() {

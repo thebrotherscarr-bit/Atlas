@@ -515,3 +515,37 @@ func spineBuilt() bool {
 	}
 	return false
 }
+
+// ---- both MCP eras on /rpc (protocol.Dual) --------------------------------
+
+// A 2026-07-28 CLIENT ON /rpc NEEDS NO HANDSHAKE, and the 2025-06-18 one
+// beside it keeps its initialize and ping. Unplug protocol.Dual from
+// handleGated and server/discover is -32601 here.
+func TestRpcAnswersBothEras(t *testing.T) {
+	s, _ := newTestServer(t)
+	meta := `"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}`
+	d := result(t, rpc(t, s, `{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{`+meta+`}}`))
+	if d["resultType"] != "complete" {
+		t.Errorf("discover = %v", d)
+	}
+	l := result(t, rpc(t, s, `{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{`+meta+`}}`))
+	if l["resultType"] != "complete" || l["cacheScope"] != "private" {
+		t.Errorf("tools/list = %v", l)
+	}
+	c := result(t, rpc(t, s, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"muster","arguments":{},`+meta+`}}`))
+	if c["resultType"] != "complete" || !strings.Contains(firstText(t, c), "t") {
+		t.Errorf("tools/call = %v", c)
+	}
+	if code, _ := errOf(t, rpc(t, s, `{"jsonrpc":"2.0","id":4,"method":"ping","params":{`+meta+`}}`)); code != -32601 {
+		t.Errorf("modern ping = %d, want -32601", code)
+	}
+	if code, _ := errOf(t, rpc(t, s, `{"jsonrpc":"2.0","id":5,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1900-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}`)); code != -32022 {
+		t.Errorf("unknown version = %d, want -32022", code)
+	}
+	if v := result(t, rpc(t, s, `{"jsonrpc":"2.0","id":6,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`))["protocolVersion"]; v != "2025-06-18" {
+		t.Errorf("legacy initialize = %v", v)
+	}
+	if p := result(t, rpc(t, s, `{"jsonrpc":"2.0","id":7,"method":"ping"}`)); len(p) != 0 {
+		t.Errorf("legacy ping = %v", p)
+	}
+}

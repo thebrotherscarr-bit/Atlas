@@ -36,8 +36,9 @@ type toolsRequest struct {
 	ID      json.RawMessage `json:"id"`
 	Method  string          `json:"method"`
 	Params  struct {
-		Name      string         `json:"name"`
-		Arguments map[string]any `json:"arguments"`
+		Name            string         `json:"name"`
+		Arguments       map[string]any `json:"arguments"`
+		ProtocolVersion string         `json:"protocolVersion"`
 	} `json:"params"`
 }
 
@@ -178,9 +179,13 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 
 // handleGated judges the gate before the tool: the login door stays open,
 // strangers get 401, out-of-scope keys get 403. Gate off: straight through.
+// Either way the line is answered in the MCP era it was asked in
+// (protocol.Dual): 2026-07-28 with no initialize, or 2025-06-18 as before.
 func (s *Server) handleGated(line []byte, cred credential) any {
+	info := s.info
+	answer := func(l []byte) any { return s.handle(l, cred) }
 	if !s.auth.On {
-		return s.handle(line, cred)
+		return protocol.Dual(line, info, s.instructions, answer)
 	}
 	var peek struct {
 		ID     json.RawMessage `json:"id"`
@@ -209,7 +214,7 @@ func (s *Server) handleGated(line []byte, cred credential) any {
 	} else {
 		s.m.inc(peek.Method)
 	}
-	return s.handle(line, cred)
+	return protocol.Dual(line, info, s.instructions, answer)
 }
 
 // handle carries the CREDENTIAL through to the tool call. It is the door's own
@@ -225,7 +230,7 @@ func (s *Server) handle(line []byte, cred credential) any {
 	switch req.Method {
 	case "initialize":
 		return resultResponse(req.ID, map[string]any{
-			"protocolVersion": "2025-06-18",
+			"protocolVersion": protocol.NegotiateLegacy(req.Params.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo": map[string]any{
 				"name":    s.info.Name,
@@ -235,6 +240,9 @@ func (s *Server) handle(line []byte, cred credential) any {
 		})
 	case "notifications/initialized", "initialized":
 		return nil
+	case "ping":
+		// legacy only: protocol.Dual refuses it for a 2026-07-28 request
+		return resultResponse(req.ID, map[string]any{})
 	case "tools/list":
 		list := []map[string]any{}
 		for _, t := range s.tools.All() {
