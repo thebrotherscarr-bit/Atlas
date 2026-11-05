@@ -43,7 +43,7 @@ pip packages, no Go modules beyond stdlib. Hand-roll or refuse.
 $env:Path = "$env:USERPROFILE\.cargo\bin;" + $env:Path
 cargo build -p atlas                    # the door battery shells this binary
 python tests\prove.py                   # THE BALL: all nine legs, one verdict
-python tests\prove.py --live            # + the legs needing :8090 and Ollama
+python tests\prove.py --live            # + the legs needing a standalone atlas-mcp on :8090 and Ollama (the Estate's door is 43111)
 ```
 
 THE BALL gathers every prover atlas has — the Rust spine, both Go modules,
