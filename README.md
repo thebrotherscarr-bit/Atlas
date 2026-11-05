@@ -10,7 +10,8 @@ A polyglot agent provenance system with cryptographic chain integrity, structura
 > protocols, data and plan) is in Steward's
 > [`docs/ARCHITECTURE.md`](https://github.com/thebrotherscarr-bit/Steward/blob/main/docs/ARCHITECTURE.md), with its
 > decision records in [`docs/decisions/`](https://github.com/thebrotherscarr-bit/Steward/tree/main/docs/decisions).
-> The door now runs inside SecondBrain on 127.0.0.1:43111; the :8090 below is the door's original port.
+> The door runs inside SecondBrain on 127.0.0.1:43111 and the glass on 8091 (Steward's `docs/ARCHITECTURE.md`, ports
+> table); `tests\prove.py --live` still looks for the door on its original :8090.
 
 ## What This Is
 
@@ -51,7 +52,7 @@ atlas/
 | Binary | Language | Description |
 |---|---|---|
 | `atlas` | Rust | CLI: `--version`, `--prove`, `chain`, `db`, `orient`, `agent`, `trade`, `link` |
-| `atlas-mcp` | Go | The door: MCP and HTTP on :8090; its tools in `docs/TOOL_PERMISSIONS.md` |
+| `atlas-mcp` | Go | The door: MCP and HTTP on :43111; its tools in `docs/TOOL_PERMISSIONS.md` |
 | `atlas-tui` | Go | Terminal UI: dashboard, traces, agents, chain view |
 | `atlas-town` | Go | Town square: multi-agent coordination |
 | `atlas-door` | Go | HTTP door on :8080: search with receipts, the badge, the visit and work-order forms |
@@ -96,7 +97,7 @@ cd webapp ; go build -o atlas-webapp.exe . ; cd ..
 
 ```powershell
 # MCP server (without -http it speaks MCP on stdio)
-cd line ; go run ./cmd/atlas-mcp -http :8090
+cd line ; go run ./cmd/atlas-mcp -http 127.0.0.1:43111
 
 # TUI
 cd line ; go run ./cmd/atlas-tui
