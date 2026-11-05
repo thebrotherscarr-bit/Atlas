@@ -12,6 +12,18 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### The door speaks MCP 2026-07-28 beside 2025-06-18, on stdio and on /rpc (2026-11-05; Steward's `mcp` 2.3.0 client fell back to the handshake against us and pinged)
+
+Spec: https://modelcontextprotocol.io/specification/2026-07-28/changelog (major 2, 3, 5, 8; minor 3, 5, 12) and basic/versioning, "Backward Compatibility with Initialization-Based Versions".
+
+- `line/internal/protocol/era.go`: `Dual` answers a line in the era it was asked in. A request carrying `_meta["io.modelcontextprotocol/protocolVersion"]` is served with no initialize: `server/discover` (supportedVersions 2026-07-28 then the 2025 and 2024 handshake versions, capabilities, instructions), and every result gets `resultType: "complete"` and `_meta["io.modelcontextprotocol/serverInfo"]`; `tools/list` also gets `ttlMs` 0 and `cacheScope: "private"` (the list follows the gate and the grounds carried). `ping`, `logging/setLevel` and `resources/(un)subscribe` are -32601 there. An unknown version is -32022 with `data: { supported, requested }`; a missing `clientCapabilities` is -32602.
+- A legacy line (`initialize`, or no envelope) is answered as before. `initialize` now answers with the client's version when it is a handshake version we speak, else 2025-06-18, and `ping` is answered (it was -32601).
+- `protocol.Serve` (stdio) and `httpserver.handleGated` (/rpc, the gate first as before) both go through `Dual`. Both are newline JSON-RPC, not Streamable HTTP, so there is no header check. Tool order is unchanged: the registry's fixed order.
+
+**What goes red if unplugged:** `internal/protocol/era_test.go` (modern list and call without initialize, -32022 and -32602, the legacy handshake with ping) and `internal/httpserver` `TestRpcAnswersBothEras`. Short-circuiting `Dual` to the legacy path reds all three, checked.
+
+**On his machine:** the running door picks this up only when a new atlas-mcp.exe is placed.
+
 ### ask_steward waits 900 s for Steward's turn, not 600 (2026-11-04; a turn can sit on an approval card up to 660 s plus model time, and the call gave up first)
 
 - `line/internal/tools/tools.go`: `askTimeout`, which `stewardWait` bounds each JSON-RPC call to Steward by, is 900 s. Stroke `TestAskStewardWaitsPastTheApprovalCard` (`ask_steward_test.go`) holds it at 900. Running atlas-mcp processes keep the old bound until they are restarted.
