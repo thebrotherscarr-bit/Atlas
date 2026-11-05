@@ -25,6 +25,7 @@ func findFixture(t *testing.T, name string) []byte {
 }
 
 func TestPlayContract(t *testing.T) {
+	needFixtures(t)
 	raw := findFixture(t, "playground_vectors.json")
 	var doc struct {
 		NameRe string   `json:"name_re"`
@@ -143,4 +144,22 @@ func TestPromptFold(t *testing.T) {
 	if len(list) != 1 || list[0].Name != "hello" {
 		t.Fatalf("list must name the prompt: %+v", list)
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

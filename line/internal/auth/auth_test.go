@@ -25,6 +25,7 @@ func findFixture(t *testing.T, name string) []byte {
 }
 
 func TestAuthContract(t *testing.T) {
+	needFixtures(t)
 	raw := findFixture(t, "auth_vectors.json")
 	var doc struct {
 		KeyRe  string `json:"key_re"`
@@ -183,4 +184,22 @@ func TestAKeysScopeMovesWithoutTheSecret(t *testing.T) {
 	if second["action"] != "scope" || second["tenant"] != "research,atlas" || second["key_id"] != rec.ID || second["by"] != "op" {
 		t.Fatalf("the scope line must say what moved, to what, and by whom: %s", lines[1])
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

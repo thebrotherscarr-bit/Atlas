@@ -32,8 +32,13 @@ func sha256Hex(b []byte) string {
 type stroke struct {
 	name string
 	ok   bool
+	skip bool
 	det  string
 }
+
+// fixturesGone is what a stroke says when it skips: the Archive-cut
+// fixtures left the repository 2026-11-05 and stay local only.
+const fixturesGone = "tests/fixtures absent (Archive-cut, local only since 2026-11-05)"
 
 func makeHome(root, name, marker string) string {
 	dir := filepath.Join(root, name)
@@ -56,7 +61,17 @@ func runProve() int {
 		if len(det) > 0 {
 			d = fmt.Sprint(det...)
 		}
-		strokes = append(strokes, stroke{name, ok, d})
+		strokes = append(strokes, stroke{name: name, ok: ok, det: d})
+	}
+	// missing records a stroke whose fixture did not load: a FAIL when the
+	// fixtures are here, a named SKIP when the whole set is absent. A skip is
+	// never counted as a pass.
+	missing := func(name string, det any) {
+		if fixturesHere() {
+			check(name, false, det)
+			return
+		}
+		strokes = append(strokes, stroke{name: name, ok: true, skip: true, det: fixturesGone})
 	}
 
 	root, err := os.MkdirTemp("", "atlas_mcp_prove_")
@@ -416,7 +431,7 @@ func runProve() int {
 	// all three tiers with the stub voices.
 	tags, terr := loadFixture("rack_tags.json")
 	if terr != nil {
-		check("rack_list stub ground loads", false, terr)
+		missing("rack_list stub ground loads", terr)
 	} else {
 		stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Write(tags)
@@ -449,7 +464,7 @@ func runProve() int {
 	askTags, askTerr := loadFixture("rack_tags.json")
 	askGolden, askGerr := loadFixture("rack_ask.json")
 	if askTerr != nil || askGerr != nil {
-		check("rack_ask stub ground loads", false, "fixtures missing")
+		missing("rack_ask stub ground loads", "fixtures missing")
 	} else {
 		var askDoc struct {
 			Answer map[string]any `json:"answer"`
@@ -586,8 +601,14 @@ func runProve() int {
 		isErr && strings.Contains(text, "no cited memory"))
 	text, isErr = callTool(map[string]any{
 		"name": "memory", "arguments": map[string]any{"project": "atlas"}})
-	check("memory on a lived ledger answers, never invents",
-		!isErr && strings.Contains(text, "ENVELOPE"))
+	// The ledger is lived by the rack_ask strokes above, which need the
+	// fixtures; without them it is empty and this stroke skips.
+	if askTerr != nil || askGerr != nil {
+		missing("memory on a lived ledger answers, never invents", "the rack_ask strokes did not run")
+	} else {
+		check("memory on a lived ledger answers, never invents",
+			!isErr && strings.Contains(text, "ENVELOPE"))
+	}
 	emptyHome := filepath.Join(root, "memempty")
 	os.MkdirAll(emptyHome, 0o755)
 	reg2.Add("memempty", emptyHome)
@@ -715,7 +736,7 @@ func runProve() int {
 	// --- N3 rack_plan + management -------------------------------------------
 	planRaw, planErr := loadFixture("rack_plan.json")
 	if planErr != nil {
-		check("rack_plan golden ground loads", false, planErr)
+		missing("rack_plan golden ground loads", planErr)
 	} else {
 		var planDoc struct {
 			Vectors []struct {
@@ -765,7 +786,7 @@ func runProve() int {
 	// guard-first refusal with no write, quiet cancel honesty.
 	chatTags, chatTerr := loadFixture("rack_tags.json")
 	if chatTerr != nil {
-		check("chat stub ground loads", false, "fixtures missing")
+		missing("chat stub ground loads", "fixtures missing")
 	} else {
 		chatStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
@@ -857,7 +878,7 @@ func runProve() int {
 	// all over a stub door answering one fixed word.
 	playTags, playTerr := loadFixture("rack_tags.json")
 	if playTerr != nil {
-		check("playground stub ground loads", false, "fixtures missing")
+		missing("playground stub ground loads", "fixtures missing")
 	} else {
 		playStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
@@ -978,7 +999,7 @@ func runProve() int {
 
 	flowTags, flowTerr := loadFixture("rack_tags.json")
 	if flowTerr != nil {
-		check("flow stub ground loads", false, "fixtures missing")
+		missing("flow stub ground loads", "fixtures missing")
 	} else {
 		flowStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
@@ -1356,7 +1377,9 @@ func runProve() int {
 	fmt.Println("\n  THE LINE -- prove (multi-tenant genesis + B1/B2 tools)")
 	for _, s := range strokes {
 		status := "PASS"
-		if !s.ok {
+		if s.skip {
+			status = "SKIP"
+		} else if !s.ok {
 			status = "FAIL"
 			allOk = false
 		}
@@ -1384,6 +1407,22 @@ func hmacProve(secret, body string) string {
 	m := hmac.New(sha256.New, []byte(secret))
 	m.Write([]byte(body))
 	return "sha256=" + hex.EncodeToString(m.Sum(nil))
+}
+
+// fixturesHere reports whether the tests/fixtures directory is reachable
+// from any of the places loadFixture looks.
+func fixturesHere() bool {
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // loadFixture finds a test fixture whether prove runs from the package dir

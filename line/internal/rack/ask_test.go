@@ -35,6 +35,7 @@ func speakingOf(caps []any) bool {
 }
 
 func TestRouteMatchesGolden(t *testing.T) {
+	needFixtures(t)
 	g := loadAskGolden(t)
 	tags, err := os.ReadFile(filepath.Join("..", "..", "..", "tests", "fixtures", "rack_tags.json"))
 	if err != nil {
@@ -70,6 +71,7 @@ func TestRouteMatchesGolden(t *testing.T) {
 }
 
 func TestAnswerShapeParses(t *testing.T) {
+	needFixtures(t)
 	g := loadAskGolden(t)
 	answer := g["answer"].(map[string]any)
 	model, _ := answer["model"].(string)
@@ -81,6 +83,7 @@ func TestAnswerShapeParses(t *testing.T) {
 }
 
 func TestAskEndToEndStubbed(t *testing.T) {
+	needFixtures(t)
 	tags, _ := os.ReadFile(filepath.Join("..", "..", "..", "tests", "fixtures", "rack_tags.json"))
 	g := loadAskGolden(t)
 	answerBody, _ := json.Marshal(g["answer"])

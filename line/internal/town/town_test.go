@@ -105,6 +105,7 @@ func equalDecisions(a, b [][]string) bool {
 }
 
 func TestGoldenDraft(t *testing.T) {
+	needFixtures(t)
 	g := loadGoldens(t)
 	dir := t.TempDir()
 	ops := writeOps(t, dir, g.Inputs.Mirror.Workorders, g.Inputs.Mirror.Properties, g.Inputs.Mirror.Inspections)
@@ -115,6 +116,7 @@ func TestGoldenDraft(t *testing.T) {
 }
 
 func TestGoldenRecurAndDedup(t *testing.T) {
+	needFixtures(t)
 	g := loadGoldens(t)
 	dir := t.TempDir()
 	ops := writeOps(t, dir, g.Inputs.Mirror.Workorders, g.Inputs.Mirror.Properties, g.Inputs.Mirror.Inspections)
@@ -144,6 +146,7 @@ func TestGoldenClosed(t *testing.T) {
 }
 
 func TestBeatFilesAtReview(t *testing.T) {
+	needFixtures(t)
 	g := loadGoldens(t)
 	dir := t.TempDir()
 	ops := writeOps(t, dir, g.Inputs.Mirror.Workorders, g.Inputs.Mirror.Properties, g.Inputs.Mirror.Inspections)
@@ -266,4 +269,22 @@ func TestNoApprovePath(t *testing.T) {
 			}
 		}
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

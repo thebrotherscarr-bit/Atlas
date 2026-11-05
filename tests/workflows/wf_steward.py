@@ -4,7 +4,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
-from _mcp_client import call, is_online
+from _mcp_client import call, is_online, without_fixtures
 
 PROJECT = "atlas"
 
@@ -25,6 +25,7 @@ def main():
          lambda r: len(r) > 0),
         ("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}, lambda r: "INTACT" in r),
     ]
+    steps = without_fixtures(steps)
     passed = 0
     for tool, args, check in steps:
         try:

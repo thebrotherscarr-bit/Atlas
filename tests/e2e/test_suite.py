@@ -30,6 +30,15 @@ if CARGO_BIN not in os.environ.get("PATH", ""):
     os.environ["PATH"] = CARGO_BIN + os.pathsep + os.environ.get("PATH", "")
 
 
+# The Archive-cut fixtures left the repository 2026-11-05 and stay local only.
+# The checks that read them skip, by name, where they are absent.
+FIXTURES_HERE = (REPO / "tests" / "fixtures").is_dir()
+
+
+def gone(name):
+    print(f"  [SKIP] {name}: tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
+
+
 def exe(name):
     """Return platform-appropriate executable name."""
     return name + (".exe" if WIN else "")
@@ -204,25 +213,29 @@ def test_rust_spine():
         layer.results.append(TestResult("atlas binary exists", "rust", False, "not found"))
         return layer
 
-    # Chain verify on steward_chain (known-TAMPER fixture — verdict=FLIP is expected)
-    t0 = time.monotonic()
-    code, out, err = run(f'"{atlas}" chain verify "{REPO / "tests" / "fixtures" / "chains" / "steward_chain.jsonl"}"')
-    dt = (time.monotonic() - t0) * 1000
-    ok = code == 0 and "verdict=" in out
-    layer.results.append(TestResult(
-        "chain verify steward_chain", "rust", ok,
-        f"exit={code} {out.strip()[:80]}", dt,
-    ))
+    if FIXTURES_HERE:
+        # Chain verify on steward_chain (known-TAMPER fixture — verdict=FLIP is expected)
+        t0 = time.monotonic()
+        code, out, err = run(f'"{atlas}" chain verify "{REPO / "tests" / "fixtures" / "chains" / "steward_chain.jsonl"}"')
+        dt = (time.monotonic() - t0) * 1000
+        ok = code == 0 and "verdict=" in out
+        layer.results.append(TestResult(
+            "chain verify steward_chain", "rust", ok,
+            f"exit={code} {out.strip()[:80]}", dt,
+        ))
 
-    # Chain recognize
-    t0 = time.monotonic()
-    code, out, err = run(f'"{atlas}" chain recognize "{REPO / "tests" / "fixtures" / "chains" / "forge_links_chain.jsonl"}"')
-    dt = (time.monotonic() - t0) * 1000
-    ok = code == 0 and "form=" in out
-    layer.results.append(TestResult(
-        "chain recognize forge_links", "rust", ok,
-        f"exit={code} {out.strip()[:80]}", dt,
-    ))
+        # Chain recognize
+        t0 = time.monotonic()
+        code, out, err = run(f'"{atlas}" chain recognize "{REPO / "tests" / "fixtures" / "chains" / "forge_links_chain.jsonl"}"')
+        dt = (time.monotonic() - t0) * 1000
+        ok = code == 0 and "form=" in out
+        layer.results.append(TestResult(
+            "chain recognize forge_links", "rust", ok,
+            f"exit={code} {out.strip()[:80]}", dt,
+        ))
+    else:
+        gone('chain verify steward_chain')
+        gone('chain recognize forge_links')
 
     # Chain verify --roots (live walk)
     t0 = time.monotonic()
@@ -247,33 +260,38 @@ def test_rust_spine():
             f"exit={code} {out.strip()[:80]}", dt,
         ))
 
-        fixture = REPO / "tests" / "fixtures" / "chains" / "agents_seatlog.jsonl"
-        t0 = time.monotonic()
-        code, out, err = run(f'"{atlas}" db import "{db}" agents_seatlog "{fixture}"')
-        dt = (time.monotonic() - t0) * 1000
-        ok = code == 0 and "imported" in out
-        layer.results.append(TestResult(
-            "db import agents_seatlog", "rust", ok,
-            f"exit={code} {out.strip()[:80]}", dt,
-        ))
+        if FIXTURES_HERE:
+            fixture = REPO / "tests" / "fixtures" / "chains" / "agents_seatlog.jsonl"
+            t0 = time.monotonic()
+            code, out, err = run(f'"{atlas}" db import "{db}" agents_seatlog "{fixture}"')
+            dt = (time.monotonic() - t0) * 1000
+            ok = code == 0 and "imported" in out
+            layer.results.append(TestResult(
+                "db import agents_seatlog", "rust", ok,
+                f"exit={code} {out.strip()[:80]}", dt,
+            ))
 
-        t0 = time.monotonic()
-        code, out, err = run(f'"{atlas}" db status "{db}"')
-        dt = (time.monotonic() - t0) * 1000
-        ok = code == 0 and "chain" in out.lower()
-        layer.results.append(TestResult(
-            "db status", "rust", ok,
-            f"exit={code} {out.strip()[:80]}", dt,
-        ))
+            t0 = time.monotonic()
+            code, out, err = run(f'"{atlas}" db status "{db}"')
+            dt = (time.monotonic() - t0) * 1000
+            ok = code == 0 and "chain" in out.lower()
+            layer.results.append(TestResult(
+                "db status", "rust", ok,
+                f"exit={code} {out.strip()[:80]}", dt,
+            ))
 
-        t0 = time.monotonic()
-        code, out, err = run(f'"{atlas}" db export "{db}" agents_seatlog --check "{fixture}"')
-        dt = (time.monotonic() - t0) * 1000
-        ok = code == 0 and "byte-identical" in out
-        layer.results.append(TestResult(
-            "db export byte-identical", "rust", ok,
-            f"exit={code} {out.strip()[:80]}", dt,
-        ))
+            t0 = time.monotonic()
+            code, out, err = run(f'"{atlas}" db export "{db}" agents_seatlog --check "{fixture}"')
+            dt = (time.monotonic() - t0) * 1000
+            ok = code == 0 and "byte-identical" in out
+            layer.results.append(TestResult(
+                "db export byte-identical", "rust", ok,
+                f"exit={code} {out.strip()[:80]}", dt,
+            ))
+        else:
+            gone('db import agents_seatlog')
+            gone('db status')
+            gone('db export byte-identical')
     finally:
         shutil.rmtree(td, ignore_errors=True)
 
@@ -319,16 +337,19 @@ def test_rust_spine():
     ))
     shutil.rmtree(td, ignore_errors=True)
 
-    # Link status on forge_links fixture (known-FLIP — accept any verdict)
-    chain = REPO / "tests" / "fixtures" / "chains" / "forge_links_chain.jsonl"
-    t0 = time.monotonic()
-    code, out, err = run(f'"{atlas}" link status --chain "{chain}"')
-    dt = (time.monotonic() - t0) * 1000
-    ok = "verdict=" in out  # accept FLIP or INTACT, any exit code
-    layer.results.append(TestResult(
-        "link status forge_links", "rust", ok,
-        f"exit={code} {out.strip()[:80]}", dt,
-    ))
+    if FIXTURES_HERE:
+        # Link status on forge_links fixture (known-FLIP — accept any verdict)
+        chain = REPO / "tests" / "fixtures" / "chains" / "forge_links_chain.jsonl"
+        t0 = time.monotonic()
+        code, out, err = run(f'"{atlas}" link status --chain "{chain}"')
+        dt = (time.monotonic() - t0) * 1000
+        ok = "verdict=" in out  # accept FLIP or INTACT, any exit code
+        layer.results.append(TestResult(
+            "link status forge_links", "rust", ok,
+            f"exit={code} {out.strip()[:80]}", dt,
+        ))
+    else:
+        gone('link status forge_links')
 
     # --prove (Rust eprintlns PROVEN to stderr)
     t0 = time.monotonic()
@@ -559,18 +580,21 @@ def test_ts_atl():
         f"exit={code} proven={'PROVEN' in out}", dt,
     ))
 
-    # bridge snapshot
-    t0 = time.monotonic()
-    code, out, err = run(
-        f'{NODE} --experimental-strip-types "{cli}" bridge snapshot '
-        f'--ground "{REPO / "tests" / "fixtures" / "faces_ground"}" --name e2e-test',
-    )
-    dt = (time.monotonic() - t0) * 1000
-    ok = code == 0 and len(out) > 100
-    layer.results.append(TestResult(
-        "atl bridge snapshot", "ts_atl", ok,
-        f"exit={code} bytes={len(out)}", dt,
-    ))
+    if FIXTURES_HERE:
+        # bridge snapshot
+        t0 = time.monotonic()
+        code, out, err = run(
+            f'{NODE} --experimental-strip-types "{cli}" bridge snapshot '
+            f'--ground "{REPO / "tests" / "fixtures" / "faces_ground"}" --name e2e-test',
+        )
+        dt = (time.monotonic() - t0) * 1000
+        ok = code == 0 and len(out) > 100
+        layer.results.append(TestResult(
+            "atl bridge snapshot", "ts_atl", ok,
+            f"exit={code} bytes={len(out)}", dt,
+        ))
+    else:
+        gone('atl bridge snapshot')
 
     return layer
 
@@ -701,16 +725,19 @@ def test_integration():
         max(dt1, dt2),
     ))
 
-    # Chain verify parity — steward_chain fixture is known-TAMPER (FLIP expected)
-    fixture = REPO / "tests" / "fixtures" / "chains" / "steward_chain.jsonl"
-    t0 = time.monotonic()
-    code, out, err = run(f'"{atlas}" chain verify "{fixture}"')
-    dt = (time.monotonic() - t0) * 1000
-    ok = code == 0 and "verdict=" in out  # FLIP is expected for this fixture
-    layer.results.append(TestResult(
-        "chain verify fixture (known-TAMPER)", "integration", ok,
-        f"exit={code} {out.strip()[:60]}", dt,
-    ))
+    if FIXTURES_HERE:
+        # Chain verify parity — steward_chain fixture is known-TAMPER (FLIP expected)
+        fixture = REPO / "tests" / "fixtures" / "chains" / "steward_chain.jsonl"
+        t0 = time.monotonic()
+        code, out, err = run(f'"{atlas}" chain verify "{fixture}"')
+        dt = (time.monotonic() - t0) * 1000
+        ok = code == 0 and "verdict=" in out  # FLIP is expected for this fixture
+        layer.results.append(TestResult(
+            "chain verify fixture (known-TAMPER)", "integration", ok,
+            f"exit={code} {out.strip()[:60]}", dt,
+        ))
+    else:
+        gone('chain verify fixture (known-TAMPER)')
 
     return layer
 

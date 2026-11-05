@@ -36,6 +36,10 @@ WEBAPP_URL = "http://127.0.0.1:8091"
 PROJECT = "atlas"
 RESULTS_FILE = os.path.join(os.path.dirname(__file__), "ollama_prover_results.json")
 TIMEOUT = 60
+# The Archive-cut fixtures left the repository 2026-11-05 and stay local only;
+# the scenarios that read them skip, by name, where they are absent.
+FIXTURES_HERE = os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "fixtures"))
+FIXTURES_GONE = "tests/fixtures absent (Archive-cut, local only since 2026-11-05)"
 
 # ─── HTTP helpers (stdlib only) ──────────────────────────────────────────────
 
@@ -378,6 +382,9 @@ def s2_mcp_tools(ollama_ok, mcp_ok, webapp_ok):
     names = ["handshake", "verify_chain", "muster", "read_handoffs",
              "list_doctrine", "check_wall_in", "check_wall_out", "state_matrix"]
     for i, (fn, name) in enumerate(zip(fns, names), 1):
+        if fn is s2_2 and not FIXTURES_HERE:
+            results.append(skip("S2", i, name, FIXTURES_GONE))
+            continue
         results.append(scenario("S2", i, name, fn))
     return results
 
@@ -432,6 +439,9 @@ def s3_write_tools(ollama_ok, mcp_ok, webapp_ok):
     fns = [s3_1, s3_2, s3_3, s3_4, s3_5]
     names = ["remember", "remember_concurrent", "remember_cap", "read_plan", "ask_steward"]
     for i, (fn, name) in enumerate(zip(fns, names), 1):
+        if fn is s3_2 and not FIXTURES_HERE:
+            results.append(skip("S3", i, name, FIXTURES_GONE))
+            continue
         results.append(scenario("S3", i, name, fn))
     return results
 
@@ -1083,10 +1093,11 @@ def workflow_steward(mcp, ollama):
         })) > 0,
         ""
     ))
-    step("verify_chain", lambda: (
-        "INTACT" in mcp.call_tool("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}),
-        ""
-    ))
+    if FIXTURES_HERE:
+        step("verify_chain", lambda: (
+            "INTACT" in mcp.call_tool("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}),
+            ""
+        ))
     return WorkflowResult("STEWARD", steps)
 
 def workflow_mesh(mcp):
@@ -1209,10 +1220,11 @@ def workflow_town(mcp):
         })) > 0,
         ""
     ))
-    step("verify_chain", lambda: (
-        "INTACT" in mcp.call_tool("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}),
-        ""
-    ))
+    if FIXTURES_HERE:
+        step("verify_chain", lambda: (
+            "INTACT" in mcp.call_tool("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}),
+            ""
+        ))
     step("state_matrix", lambda: (
         "fold" in mcp.call_tool("state_matrix", {"project": PROJECT}).lower()
         or len(mcp.call_tool("state_matrix", {"project": PROJECT})) > 10,
@@ -1253,9 +1265,10 @@ def workflow_operator(mcp):
             "body": "Operator lifecycle complete."
         })) > 0, ""
     ))
-    step("verify_chain", lambda: (
-        "INTACT" in mcp.call_tool("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}), ""
-    ))
+    if FIXTURES_HERE:
+        step("verify_chain", lambda: (
+            "INTACT" in mcp.call_tool("verify_chain", {"project": PROJECT, "path": "tests/fixtures/chains/agents_seatlog.jsonl"}), ""
+        ))
     step("mesh_enroll", lambda: (
         len(mcp.call_tool("mesh_enroll", {
             "project": PROJECT, "actor": "operator"

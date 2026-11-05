@@ -62,6 +62,7 @@ func loadGoldens(t *testing.T) goldenDoc {
 }
 
 func TestFlowContract(t *testing.T) {
+	needFixtures(t)
 	doc := loadGoldens(t)
 	if NameRe.String() != doc.NameRe {
 		t.Fatalf("name law drifted: code %q vs golden %q", NameRe.String(), doc.NameRe)
@@ -112,6 +113,7 @@ func TestFlowContract(t *testing.T) {
 }
 
 func TestTopoGolden(t *testing.T) {
+	needFixtures(t)
 	doc := loadGoldens(t)
 	linear := Spec{Name: "linear",
 		Nodes: []Node{{Name: "a", Kind: "ask"}, {Name: "b", Kind: "ask"}},
@@ -199,4 +201,22 @@ func TestListHidesNothing(t *testing.T) {
 	if _, u, _ := List(t.TempDir()); u != nil {
 		t.Errorf("a home with no flows/ has nothing unreadable: %+v", u)
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

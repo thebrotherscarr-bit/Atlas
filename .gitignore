@@ -66,7 +66,8 @@ __pycache__/
 # state/ is the tenant's own append-only record (chat.go: "one append-only
 # file per tenant home"). The PROVERS do not read these: prove.go builds its
 # homes with os.MkdirTemp and the golden it compares against lives at
-# tests/fixtures/rack_open_ground/state/rack_ledger.jsonl, which stays tracked.
+# tests/fixtures/rack_open_ground/state/rack_ledger.jsonl (local only since
+# 2026-11-05, with the rest of tests/fixtures; see below).
 #
 # data/ is NOT ignored and data/master.db STAYS TRACKED on purpose: prove.rs
 # and prove.ps1 both copy it as their base and store/src/enroll.rs needs its
@@ -80,3 +81,9 @@ tests/e2e/*_results.json
 # runs.jsonl -- written when a flow is saved or fired. The provers build their
 # own homes in temp dirs and never read it.
 flows/
+
+# THE ARCHIVE-CUT FIXTURES, removed from the repository 2026-11-05 at the
+# operator's word ("Remove from main only"); they stay local only. Cut from
+# the Archive per their MANIFEST.json, the Archive never goes on GitHub. Every
+# test that reads them skips, by name, where they are absent.
+tests/fixtures/

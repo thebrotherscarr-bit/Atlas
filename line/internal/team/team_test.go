@@ -42,6 +42,7 @@ func writeSecrets(t *testing.T, home string, s Secrets) {
 }
 
 func TestTeamContract(t *testing.T) {
+	needFixtures(t)
 	raw := findFixture(t, "teamchat_vectors.json")
 	var doc struct {
 		Platforms []string `json:"platforms"`
@@ -235,4 +236,22 @@ func TestStatusPresenceOnly(t *testing.T) {
 	if strings.Contains(string(b), "shh") || strings.Contains(string(b), "discord.example") {
 		t.Fatal("status must never carry secrets")
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

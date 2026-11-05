@@ -26,6 +26,7 @@ func findFixture(t *testing.T, name string) []byte {
 }
 
 func TestChatContract(t *testing.T) {
+	needFixtures(t)
 	raw := findFixture(t, "chat_vectors.json")
 	var doc struct {
 		SessionRe string `json:"session_re"`
@@ -112,4 +113,22 @@ func TestChatIsolation(t *testing.T) {
 	if got := Cancel("c-20260909-120000-deadbeef"); !strings.Contains(got, "nothing in flight") {
 		t.Fatalf("quiet cancel must be honest: %q", got)
 	}
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }

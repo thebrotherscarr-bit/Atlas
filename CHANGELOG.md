@@ -12,6 +12,14 @@ under, because they are the record of what happened.
 
 ## [Unreleased]
 
+### Archive-cut fixtures removed from the repository 2026-11-05; they stay local only
+
+- `tests/fixtures/` (155 files, cut 2026-09-09 per its MANIFEST.json) is off main and in `.gitignore`. History is not rewritten.
+- Every consumer skips, by name and with that reason, where the folder is absent: the Rust tests in `core/tests/`, `store/tests/trade_parity.rs` and `store/src/import_export.rs`; six strokes of `atlas --prove` (`apps/atlas/src/prove.rs`); seven strokes of `atlas-mcp --prove` (now `[SKIP]`, never counted as a pass); the Go golden tests in `line/internal/` (auth, chat, flow, guard, mesh, play, rack, team, tools, town); the golden cutters' `--verify` and `chain_verify --goldens` legs of `tests/prove.py` (SKIPPED); `atl self-test` steps 2, 3 and 7; and the live legs (`tests/e2e/`, `tests/workflows/`). Where the folder is present, nothing changes.
+- `store/src/ffi.rs`: `the_system_dll_answers_through_rust` pinned the OS's SQLite build (3.51.1); Windows now ships 3.53.4. It was hidden on CI because `cargo test` stopped at an earlier crate that wanted the oracle. It now holds the floor the module names: at least 3.50.4, the version that wrote `data/master.db`.
+
+**What goes red if unplugged:** with `tests/fixtures/` present, every one of those tests and legs runs as before and reds on a changed byte; without it, a test that reads the folder and lacks its skip reds `cargo test`, `go test` or the battery.
+
 ### The door speaks MCP 2026-07-28 beside 2025-06-18, on stdio and on /rpc (2026-11-05; Steward's `mcp` 2.3.0 client fell back to the handshake against us and pinged)
 
 Spec: https://modelcontextprotocol.io/specification/2026-07-28/changelog (major 2, 3, 5, 8; minor 3, 5, 12) and basic/versioning, "Backward Compatibility with Initialization-Based Versions".

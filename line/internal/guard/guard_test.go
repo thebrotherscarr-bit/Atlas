@@ -23,6 +23,7 @@ func loadGolden(t *testing.T) map[string]any {
 }
 
 func TestPokesMatchOracle(t *testing.T) {
+	needFixtures(t)
 	g := loadGolden(t)
 	for _, v := range g["pokes"].([]any) {
 		m := v.(map[string]any)
@@ -35,6 +36,7 @@ func TestPokesMatchOracle(t *testing.T) {
 }
 
 func TestRedactPairs(t *testing.T) {
+	needFixtures(t)
 	g := loadGolden(t)
 	for _, v := range g["redact"].([]any) {
 		m := v.(map[string]any)
@@ -45,6 +47,7 @@ func TestRedactPairs(t *testing.T) {
 }
 
 func TestPoisonFlags(t *testing.T) {
+	needFixtures(t)
 	g := loadGolden(t)
 	strs := func(v any) []string {
 		var out []string
@@ -98,4 +101,22 @@ func contains(s, sub string) bool {
 		}
 		return false
 	})()
+}
+
+// needFixtures skips a test, by name and reason, when tests/fixtures is
+// absent: the Archive-cut fixtures left the repository 2026-11-05 and stay
+// local only.
+func needFixtures(t testing.TB) {
+	t.Helper()
+	for _, c := range []string{
+		filepath.Join("tests", "fixtures"),
+		filepath.Join("..", "tests", "fixtures"),
+		filepath.Join("..", "..", "tests", "fixtures"),
+		filepath.Join("..", "..", "..", "tests", "fixtures"),
+	} {
+		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+			return
+		}
+	}
+	t.Skip("tests/fixtures absent (Archive-cut, local only since 2026-11-05)")
 }
